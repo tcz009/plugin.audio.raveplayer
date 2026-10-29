@@ -13,6 +13,7 @@ import re
 from . import archive, dnbradio, feeds
 
 RAVE_COLLECTION = "collection:ravetapes AND mediatype:audio"
+RANDOM_PAGE_CAP = 200
 
 
 def parse_date(value):
@@ -33,9 +34,14 @@ def parse_date(value):
         parsed = parsedate_to_datetime(text)
         if parsed:
             return parsed.replace(tzinfo=None)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         pass
     return None
+
+
+def _title(doc, fallback):
+    """Archive titles are occasionally lists; always return clean text."""
+    return archive.as_text(doc.get("title")) or str(fallback)
 
 
 def recent_episodes(per_feed=6):
@@ -45,7 +51,7 @@ def recent_episodes(per_feed=6):
             when = parse_date(episode.get("published"))
             items.append({
                 "kind": "episode",
-                "title": episode["title"],
+                "title": archive.as_text(episode.get("title")) or "Untitled",
                 "url": episode["url"],
                 "source": entry["name"],
                 "when": when,
@@ -63,7 +69,7 @@ def recent_packs(rows=20):
             continue
         items.append({
             "kind": "pack",
-            "title": doc.get("title") or identifier,
+            "title": _title(doc, identifier),
             "identifier": identifier,
             "source": "Rave Tape Packs",
             "when": parse_date(doc.get("addeddate") or doc.get("date")),
@@ -77,7 +83,7 @@ def recent_dnb(limit=12):
     for show in dnbradio.mixes()[:limit]:
         items.append({
             "kind": "dnb",
-            "title": show["title"],
+            "title": archive.as_text(show.get("title")) or "Untitled",
             "id": show["id"],
             "source": "DNB Radio",
             "when": parse_date(show.get("date")),
@@ -99,14 +105,18 @@ def random_pack():
     if not total:
         return None
     per_page = 50
-    page = random.randint(1, max(1, min(200, total // per_page)))
+    pages = max(1, (total + per_page - 1) // per_page)
+    page = random.randint(1, max(1, min(RANDOM_PAGE_CAP, pages)))
     docs, _ = archive.search(RAVE_COLLECTION, page=page, rows=per_page)
     if not docs:
         return None
     doc = random.choice(docs)
+    identifier = doc.get("identifier")
+    if not identifier:
+        return None
     return {
-        "identifier": doc.get("identifier"),
-        "title": doc.get("title") or doc.get("identifier"),
+        "identifier": identifier,
+        "title": _title(doc, identifier),
     }
 
 

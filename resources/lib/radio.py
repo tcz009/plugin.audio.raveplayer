@@ -12,39 +12,44 @@ MIRRORS = [
 
 def stations(tag, limit=100):
     """Return live, non-broken stations for a tag, most-clicked first."""
-    try:
-        limit = max(1, min(int(limit), 1000))
-    except (TypeError, ValueError):
-        limit = 100
+    limit = _clamp(limit, 100, 1000)
     query = (
         "/json/stations/search?tag=%s&limit=%d&hidebroken=true"
         "&order=clickcount&reverse=true" % (http.quote(str(tag)), limit)
     )
-    for mirror in MIRRORS:
-        data = http.fetch_json(mirror + query, timeout=20)
-        if not isinstance(data, list):
-            continue
-        stations = [
-            station for station in data
-            if isinstance(station, dict) and stream_url(station)
-        ]
-        if stations:
-            return stations
-    return []
+    return _search(query)
 
 
 def stations_by_name(name, limit=20):
     """Live stations whose name matches (used for "Kool FM live now")."""
-    try:
-        limit = max(1, min(int(limit), 100))
-    except (TypeError, ValueError):
-        limit = 20
+    limit = _clamp(limit, 20, 100)
     query = "/json/stations/search?name=%s&limit=%d&hidebroken=true&order=clickcount&reverse=true" % (
         http.quote(name), limit)
+    return _search(query)
+
+
+def _clamp(value, default, maximum):
+    try:
+        return max(1, min(int(value), maximum))
+    except (TypeError, ValueError):
+        return default
+
+
+def _search(query):
+    """Try each mirror in turn; a dead mirror is not an empty result."""
     for mirror in MIRRORS:
         data = http.fetch_json(mirror + query, timeout=20)
-        if isinstance(data, list):
-            return [station for station in data if isinstance(station, dict)]
+        if not isinstance(data, list):
+            continue
+        found = []
+        for station in data:
+            if not isinstance(station, dict):
+                continue
+            if not stream_url(station):
+                continue
+            found.append(station)
+        if found:
+            return found
     return []
 
 

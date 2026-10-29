@@ -104,6 +104,28 @@ class CacheTests(unittest.TestCase):
         self.assertFalse(cache.put("disk", "value"))
         self.assertIs(cache.get("disk", 60), cache.MISSING)
 
+    def test_entry_without_a_value_is_a_miss(self):
+        path = cache.path_for("no-value")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"v": cache.VERSION, "ts": cache.time.time()}, handle)
+        self.assertIs(cache.get("no-value", 60), cache.MISSING)
+        self.assertFalse(os.path.exists(path))
+
+    def test_entry_with_a_null_value_is_a_miss(self):
+        path = cache.path_for("null-value")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"v": cache.VERSION, "ts": cache.time.time(), "value": None}, handle)
+        self.assertIs(cache.get("null-value", 60), cache.MISSING)
+
+    def test_remember_never_returns_the_sentinel(self):
+        path = cache.path_for("sentinel")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"v": cache.VERSION, "ts": cache.time.time()}, handle)
+        self.assertEqual(cache.remember("sentinel", 60, lambda: "fresh"), "fresh")
+
 
 if __name__ == "__main__":
     unittest.main()

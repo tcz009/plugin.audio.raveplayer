@@ -32,6 +32,24 @@ def notify(message, heading=None, icon=ICON, time=4000):
     )
 
 
+def refresh():
+    """Ask Kodi to re-run the current folder (after a favourite changes)."""
+    xbmc.executebuiltin("Container.Refresh")
+
+
+def translate_path(path):
+    """Turn a Kodi ``special://`` path into a real filesystem path."""
+    text = str(path or "")
+    if not text.startswith("special://"):
+        return text
+    try:
+        import xbmcvfs
+
+        return xbmcvfs.translatePath(text)
+    except Exception:  # Kodi API is unavailable outside Kodi
+        return text
+
+
 def setting(name, default=""):
     value = ADDON.getSetting(name)
     return value if value not in (None, "") else default
@@ -55,6 +73,12 @@ def dialog():
     return xbmcgui.Dialog()
 
 
-def end_directory(handle, content="files"):
+def end_directory(handle, content="files", cache=False):
+    """Finish a directory.
+
+    ``cache=False`` by default: Kodi's on-disk directory cache otherwise keeps
+    serving a favourites list (or a "Latest") folder after its contents have
+    changed.  The add-on has its own HTTP cache, so re-running a route is cheap.
+    """
     xbmcplugin.setContent(handle, content)
-    xbmcplugin.endOfDirectory(handle, cacheToDisc=True)
+    xbmcplugin.endOfDirectory(handle, cacheToDisc=cache)

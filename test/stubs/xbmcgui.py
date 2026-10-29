@@ -12,6 +12,8 @@ LOG_LINES = []
 ITEMS = []
 RESOLVED = []
 
+INPUT_ALPHANUM = 0
+
 
 class _Addon(object):
     def getAddonInfo(self, key):

@@ -2,6 +2,8 @@
 <settings>
     <category id="general" label="General">
         <setting id="results_per_page" type="number" label="Archive results per page" default="50"/>
+        <setting id="episode_limit" type="number" label="Episodes per podcast feed" default="60"/>
         <setting id="radio_limit" type="number" label="Maximum live stations" default="100"/>
+        <setting id="hide_empty_feeds" type="bool" label="Hide podcast feeds with no episodes" default="false"/>
     </category>
 </settings>

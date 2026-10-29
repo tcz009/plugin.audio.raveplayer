@@ -74,6 +74,42 @@ class FavouriteTests(unittest.TestCase):
             favourites.add({"kind": "pack", "target": str(index), "title": "Pack %d" % index})
         self.assertEqual(len(favourites.load()), favourites.MAX_ENTRIES)
 
+    def test_missing_kind_becomes_stream(self):
+        favourites.save([{"target": "https://x/1.mp3", "title": "Episode"}])
+        self.assertEqual(favourites.load()[0]["kind"], "stream")
+
+    def test_unknown_kind_is_not_trusted(self):
+        favourites.save([{"kind": "made-up", "target": "x", "title": "Thing"}])
+        self.assertEqual(favourites.load()[0]["kind"], "stream")
+
+    def test_entries_without_target_are_dropped_on_load(self):
+        with open(os.path.join(self.directory, favourites.FILENAME), "w", encoding="utf-8") as handle:
+            json.dump([
+                {"kind": "pack", "title": "No target"},
+                "not a dict",
+                {"kind": "pack", "target": "ok", "title": "Good"},
+            ], handle)
+        self.assertEqual([entry["target"] for entry in favourites.load()], ["ok"])
+
+    def test_legacy_folder_kinds_round_trip(self):
+        favourites.add({"kind": "legacy_pack", "target": "Dreamscape19", "title": "Dreamscape 19"})
+        favourites.add({"kind": "legacy_jt", "target": "show-1", "title": "Show 1"})
+        self.assertEqual([entry["kind"] for entry in favourites.load()], ["legacy_jt", "legacy_pack"])
+
+    def test_save_replaces_the_file_without_leaving_temporary_files(self):
+        favourites.add({"kind": "pack", "target": "old", "title": "Old"})
+        self.assertTrue(favourites.save([{"kind": "pack", "target": "new", "title": "New"}]))
+        self.assertEqual([entry["target"] for entry in favourites.load()], ["new"])
+        leftovers = [name for name in os.listdir(self.directory) if name.startswith(".favourites-")]
+        self.assertEqual(leftovers, [])
+
+    def test_save_failure_is_reported(self):
+        blocker = os.path.join(self.directory, "not-a-directory")
+        with open(blocker, "w", encoding="utf-8") as handle:
+            handle.write("x")
+        os.environ[favourites.FAV_DIR_ENV] = blocker
+        self.assertFalse(favourites.save([{"kind": "pack", "target": "x", "title": "X"}]))
+
 
 if __name__ == "__main__":
     unittest.main()

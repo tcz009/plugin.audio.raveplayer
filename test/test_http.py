@@ -92,6 +92,12 @@ class FetchCacheTests(unittest.TestCase):
             http.fetch("https://example.test/nocache")
         self.assertEqual(request.call_count, 2)
 
+    def test_empty_response_is_not_cached(self):
+        with mock.patch.object(http, "_request", side_effect=["", "body"]) as request:
+            self.assertIsNone(http.fetch("https://example.test/empty", ttl=60))
+            self.assertEqual(http.fetch("https://example.test/empty", ttl=60), "body")
+        self.assertEqual(request.call_count, 2)
+
     def test_headers_are_part_of_the_cache_key(self):
         with mock.patch.object(http, "_request", return_value="body") as request:
             http.fetch("https://example.test/headers", headers={"Referer": "a"}, ttl=60)

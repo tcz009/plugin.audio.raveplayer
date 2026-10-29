@@ -125,6 +125,30 @@ class LegacyTests(unittest.TestCase):
         self.assertTrue(url.endswith("|Referer=https://www.ravetapepacks.com/&User-Agent=Mozilla/5.0"))
         self.assertIn("|", url)
 
+    def test_playable_does_not_double_the_header_suffix(self):
+        once = legacy.playable("https://www.ravetapepacks.com/music/X/Y.mp3")
+        self.assertEqual(legacy.playable(once), once)
+
+    def test_packs_deduplicates_repeated_links(self):
+        page = (
+            '<a href="/music/Pack/Tape_1.mp3">one</a>'
+            '<a href="/music/Pack/Tape_1.mp3">one again</a>'
+        )
+        with mock.patch.object(legacy.http, "fetch", return_value=page):
+            packs = legacy.packs()
+        self.assertEqual(len(packs), 1)
+        self.assertEqual(len(packs[0]["tracks"]), 1)
+
+    def test_jungle_tracks_dedupes_and_upgrades_site_http_urls(self):
+        page = (
+            '<a href="http://www.jungletapes.com/sites/default/files/a.mp3">one</a>'
+            '<a href="https://www.jungletapes.com/sites/default/files/a.mp3">one again</a>'
+        )
+        with mock.patch.object(legacy.http, "fetch", return_value=page):
+            tracks = legacy.jungle_tracks("show")
+        self.assertEqual(len(tracks), 1)
+        self.assertTrue(tracks[0]["url"].startswith("https://www.jungletapes.com/"))
+
     def test_jungle_label_cleans_slug(self):
         label = legacy._jt_label("tapes/20030211-rough-tough-side-b__mix")
         self.assertNotIn("/", label)
@@ -219,6 +243,14 @@ class RadioTests(unittest.TestCase):
             self.assertEqual(len(radio.stations("jungle")), 1)
         self.assertEqual(fetch.call_count, 2)
 
+    def test_stations_by_name_tries_next_mirror_and_needs_a_stream(self):
+        with mock.patch.object(
+                radio.http, "fetch_json",
+                side_effect=[[], [{"name": "Kool", "url": "http://a"}, {"name": "No URL"}]]) as fetch:
+            stations = radio.stations_by_name("Kool")
+        self.assertEqual([station["name"] for station in stations], ["Kool"])
+        self.assertEqual(fetch.call_count, 2)
+
 
 class FeedTests(unittest.TestCase):
     RSS = """<?xml version="1.0"?>
@@ -276,6 +308,27 @@ class FeedTests(unittest.TestCase):
         episodes = feeds.parse(xml)
         self.assertEqual(episodes[0]["title"], "A & B")
         self.assertEqual(episodes[0]["url"], "https://example.test/a.mp3?x=1&y=2")
+
+    def test_parse_strips_html_from_descriptions(self):
+        xml = (
+            "<rss><channel><item><title>Show</title>"
+            '<enclosure url="https://example.test/a.mp3"/>'
+            "<description><![CDATA[<p>Deep <b>jungle</b> &amp; bass</p>"
+            '<p><a href="https://x/y">link</a></p>]]></description>'
+            "</item></channel></rss>"
+        )
+        episodes = feeds.parse(xml)
+        self.assertEqual(episodes[0]["description"], "Deep jungle & bass link")
+
+    def test_description_keeps_angle_bracket_text(self):
+        xml = (
+            "<rss><channel><item><title>Show</title>"
+            '<enclosure url="https://example.test/a.mp3"/>'
+            "<description>BPM 170 &gt; 160 and 2 &lt; 3</description>"
+            "</item></channel></rss>"
+        )
+        episodes = feeds.parse(xml)
+        self.assertEqual(episodes[0]["description"], "BPM 170 > 160 and 2 < 3")
 
     def test_duration_handles_fractional_and_invalid_values(self):
         self.assertEqual(feeds._duration(_item_with_duration("1:02:03.500")), 3723)
@@ -352,6 +405,20 @@ class DnbRadioTests(unittest.TestCase):
 
     def test_parse_listen_handles_missing_mp3(self):
         self.assertEqual(dnbradio.parse_listen("<html>nothing</html>"), "")
+
+    def test_title_without_a_date_is_not_repeated_as_the_date(self):
+        shows = dnbradio.parse_recordings(
+            '<a href="/listen?mix=1" title="DJ Foo - Live Set on DNBRADIO">'
+        )
+        self.assertEqual(shows[0]["title"], "DJ Foo - Live Set")
+        self.assertEqual(shows[0]["date"], "")
+
+    def test_non_iso_date_prefix_is_not_treated_as_a_date(self):
+        shows = dnbradio.parse_recordings(
+            '<a href="/listen?mix=1" title="Live : DJ Foo - Set">'
+        )
+        self.assertEqual(shows[0]["title"], "Live : DJ Foo - Set")
+        self.assertEqual(shows[0]["date"], "")
 
     def test_link_quotes_mix_ids(self):
         self.assertTrue(dnbradio.link("12 3").endswith("mix=12%203"))

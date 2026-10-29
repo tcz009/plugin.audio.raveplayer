@@ -3,6 +3,9 @@
 Ranked by value-for-effort, with the constraint that everything must stay a
 thin layer over public sources (no accounts, no keys, no scraping that rots).
 
+> **Status:** items 1–8 below are implemented. Items 9 (now-playing polish) and
+> 10 (downloads) are still open.
+
 ## Ready to build (low risk, high value)
 
 ### 1. Latest — one screen, everything new

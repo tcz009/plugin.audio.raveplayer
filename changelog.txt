@@ -1,3 +1,19 @@
+Rave Player 3.7.0
+- Fixed duplicate tracks: Archive OGG derivatives were listed next to their
+  MP3 originals, so most packs showed every set twice (World Dance went from
+  14 rows to 7).
+- Favourites: atomic saves, tolerant of hand-edited JSON, removals refresh the
+  list, RaveTapePacks favourites keep their Referer (no more 403), and every
+  source now offers "Add to favourites".
+- Play all / Shuffle pack / Play all from here build a Kodi playlist from a
+  pack.
+- Fixed the dead "More from YYYY" pager, search pagination, zero-row pages,
+  unreachable random pages, and feed counts that claimed 182 episodes while
+  listing 60 (new episode_limit setting).
+- Titles and plots no longer leak [COLOR]/[I] markup or raw HTML; empty
+  sources now notify instead of showing an empty folder.
+- Offline tests 107 -> 170.
+
 Rave Player 3.6.0
 - Quick Filters: Kool FM, Dreamscape, Helter Skelter, Fantazia, One Nation,
   Centreforce, Don FM, Slammin' Vinyl. Kool FM gets its own section with the

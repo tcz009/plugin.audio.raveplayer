@@ -4,11 +4,13 @@
 ITEMS = []
 RESOLVED = []
 CONTENT = []
+CACHE_FLAGS = []
 
 
 def addDirectoryItem(handle, url, listitem, isFolder=True):
     ITEMS.append({"url": url, "label": listitem.label, "isFolder": isFolder,
-                  "art": listitem.art, "info": listitem.info})
+                  "art": listitem.art, "info": listitem.info,
+                  "context": list(listitem.context)})
     return True
 
 
@@ -24,6 +26,7 @@ def setContent(handle, content):
 
 
 def endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True):
+    CACHE_FLAGS.append(cacheToDisc)
     return True
 
 

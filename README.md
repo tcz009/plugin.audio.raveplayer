@@ -18,8 +18,12 @@ rebuilt in 2026 from the 2014 original.
 - **Quick Filters** — Kool FM (live + archive sets), Dreamscape,
   Helter Skelter, Fantazia, One Nation, Centreforce, Don FM, Slammin' Vinyl.
   Defined in `resources/filters.json`, so new ones are data not code.
-- **Favourites** — add a pack or show from the context menu; stored in the
-  add-on profile.
+- **Favourites** — add any pack, show, station or episode from the context
+  menu; stored in the add-on profile.
+- **Play all / Shuffle pack** — context menu on a pack, or "Play all from
+  here" on a track, straight from the remote.
+- **Settings that matter** — results per page, episodes per podcast feed,
+  live-station limit, and hiding empty feeds.
 - **Legacy sites** — the 2014 sources that are still standing:
   - *RaveTapePacks.com* — full tape packs. Its files are hotlink-protected, so
     playback URLs carry a `Referer` suffix that Kodi sends as a real header.
@@ -37,7 +41,7 @@ means a dead source can't take the whole add-on down with it.
 
 ## Requirements
 
-- Kodi 21 (Omega) or Kodi 22 (Piers)
+- Kodi 19 (Matrix) through Kodi 22 (Piers)
 - Nothing else. No module dependencies, no external binaries.
 
 A self-hosted **web version** (same sources, runs in Docker) lives at
@@ -72,14 +76,20 @@ raveplayer/
 ├── addon.xml
 ├── default.py              # entry point
 ├── resources/
+│   ├── feeds.json          # podcast feeds (data, not code)
+│   ├── filters.json        # quick filters (data, not code)
 │   ├── settings.xml
 │   └── lib/
 │       ├── routes.py       # menu + routing (sections are data, not code)
 │       ├── archive.py      # Internet Archive provider
-│       ├── legacy.py       # ravetapepacks.com (still alive)
+│       ├── feeds.py        # RSS/Atom podcast provider
+│       ├── dnbradio.py     # DNBRADIO.com recordings
+│       ├── legacy.py       # ravetapepacks.com / jungletapes.com / Toronto
 │       ├── radio.py        # radio-browser.info provider
+│       ├── latest.py       # "Latest", "Surprise me", by-year queries
+│       ├── favourites.py   # JSON favourites store
 │       ├── ui.py           # list items and artwork
-│       ├── http.py         # tiny JSON transport
+│       ├── http.py         # tiny HTTP transport
 │       ├── cache.py        # best-effort on-disk response cache
 │       └── kodi.py         # Kodi wrappers
 └── test/

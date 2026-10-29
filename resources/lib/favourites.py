@@ -14,17 +14,7 @@ from . import kodi
 FILENAME = "favourites.json"
 MAX_ENTRIES = 300
 FAV_DIR_ENV = "RAVEPLAYER_FAV_DIR"
-
-
-def _translate(path):
-    if not path.startswith("special://"):
-        return path
-    try:
-        import xbmcvfs
-
-        return xbmcvfs.translatePath(path)
-    except Exception:
-        return path
+VALID_KINDS = ("pack", "dnb", "stream", "legacy_pack", "legacy_jt")
 
 
 def _path():
@@ -36,12 +26,32 @@ def _path():
             profile = kodi.ADDON.getAddonInfo("profile") or ""
         except Exception:
             profile = ""
-        directory = _translate(profile) if profile else os.path.join(tempfile.gettempdir(), "raveplayer-favs")
+        directory = kodi.translate_path(profile) if profile else os.path.join(
+            tempfile.gettempdir(), "raveplayer-favs")
     try:
         os.makedirs(directory, exist_ok=True)
     except OSError:
         pass
     return os.path.join(directory, FILENAME)
+
+
+def _clean(raw):
+    """Normalise one stored entry; return None when it is unusable."""
+    if not isinstance(raw, dict):
+        return None
+    title = str(raw.get("title") or "").strip()
+    target = str(raw.get("target") or "").strip()
+    if not title or not target:
+        return None
+    kind = str(raw.get("kind") or "stream").strip().lower()
+    if kind not in VALID_KINDS:
+        kind = "stream"
+    return {
+        "kind": kind,
+        "target": target,
+        "title": title[:200],
+        "source": str(raw.get("source") or "").strip()[:120],
+    }
 
 
 def load():
@@ -52,15 +62,39 @@ def load():
         return []
     if not isinstance(data, list):
         return []
-    return [entry for entry in data if isinstance(entry, dict) and entry.get("title")]
+    entries = []
+    for raw in data:
+        entry = _clean(raw)
+        if entry is not None:
+            entries.append(entry)
+    return entries[:MAX_ENTRIES]
 
 
 def save(entries):
+    """Write the list atomically, so a killed Kodi cannot corrupt it."""
+    cleaned = []
+    for raw in entries[:MAX_ENTRIES]:
+        entry = _clean(raw)
+        if entry is not None:
+            cleaned.append(entry)
+    path = _path()
+    directory = os.path.dirname(path)
+    temporary = None
     try:
-        with open(_path(), "w", encoding="utf-8") as handle:
-            json.dump(entries[:MAX_ENTRIES], handle, ensure_ascii=False)
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=directory,
+            prefix=".favourites-", suffix=".json", delete=False,
+        ) as handle:
+            temporary = handle.name
+            json.dump(cleaned, handle, ensure_ascii=False, indent=0)
+        os.replace(temporary, path)
         return True
     except OSError:
+        if temporary:
+            try:
+                os.remove(temporary)
+            except OSError:
+                pass
         return False
 
 
@@ -69,16 +103,12 @@ def key(entry):
 
 
 def add(entry):
-    """Add or refresh an entry; returns True when the list changed."""
-    if not entry.get("title") or not entry.get("target"):
+    """Add or refresh an entry; returns True when the list was saved."""
+    cleaned = _clean(entry)
+    if cleaned is None:
         return False
-    entries = [item for item in load() if key(item) != key(entry)]
-    entries.insert(0, {
-        "kind": entry["kind"],
-        "target": entry["target"],
-        "title": entry["title"][:200],
-        "source": entry.get("source", ""),
-    })
+    entries = [item for item in load() if key(item) != key(cleaned)]
+    entries.insert(0, cleaned)
     return save(entries)
 
 
@@ -88,4 +118,7 @@ def remove(entry_key):
 
 
 def has(entry):
-    return any(key(item) == key(entry) for item in load())
+    cleaned = _clean(entry)
+    if cleaned is None:
+        return False
+    return any(key(item) == key(cleaned) for item in load())

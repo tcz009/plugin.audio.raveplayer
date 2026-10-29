@@ -23,7 +23,7 @@ SHOW_TTL = 6 * 60 * 60
 TORONTO_TTL = 6 * 60 * 60
 
 MUSIC_RE = re.compile(
-    r"(?:https?://www\.ravetapepacks\.com)?/music/([^/\"'<>]+)/([^\"'<>]+?\.mp3)",
+    r"(?:https?://(?:www\.)?ravetapepacks\.com)?/music/([^/\"'<>]+)/([^\"'<>]+?\.mp3)",
     re.IGNORECASE,
 )
 
@@ -58,11 +58,15 @@ def packs():
     if not page:
         return []
     grouped = {}
+    seen = set()
     for pack, filename in MUSIC_RE.findall(page):
         pack = html.unescape(pack)
         filename = html.unescape(filename)
-        entry = grouped.setdefault(pack, {"key": pack, "name": _pack_name(pack), "tracks": []})
         url = BASE + "music/" + _url_path(pack) + "/" + _url_path(filename)
+        if url in seen:
+            continue
+        seen.add(url)
+        entry = grouped.setdefault(pack, {"key": pack, "name": _pack_name(pack), "tracks": []})
         entry["tracks"].append({"name": _pretty(filename.rsplit(".", 1)[0]), "url": url})
     result = []
     for entry in grouped.values():
@@ -74,7 +78,11 @@ def packs():
 
 def playable(url):
     """Kodi header syntax: appends Referer so the hotlink check passes."""
-    return str(url) + REFERER_SUFFIX
+    text = str(url)
+    if "|" in text:
+        # Already has a header suffix (e.g. a saved favourite); never double it.
+        return text
+    return text + REFERER_SUFFIX
 
 
 # --------------------------------------------------------------------------- jungletapes.com
@@ -119,12 +127,20 @@ def jungle_tracks(slug):
     page = http.fetch(JT_BASE + "/show/" + _url_path(slug), timeout=25, ttl=SHOW_TTL)
     if not page:
         return []
-    tracks = []
+    tracks, seen = [], set()
     for url in JT_MP3_RE.findall(page):
         url = html.unescape(url)
         if url.startswith("//"):
             url = "https:" + url
         url = urllib.parse.urljoin(JT_BASE + "/", url)
+        # The site emits absolute http:// links for its own host; use TLS and
+        # avoid a redirect for every stream on the Shield.
+        split = urllib.parse.urlsplit(url)
+        if split.scheme == "http" and split.hostname and split.hostname.endswith("jungletapes.com"):
+            url = urllib.parse.urlunsplit(("https",) + tuple(split[1:]))
+        if url in seen:
+            continue
+        seen.add(url)
         filename = urllib.parse.unquote(url.rsplit("/", 1)[-1]).rsplit(".", 1)[0]
         tracks.append({"name": _pretty(filename), "url": url})
     return tracks
@@ -141,8 +157,12 @@ def toronto_tracks():
     page = http.fetch(TR_BASE + "/", timeout=25, ttl=TORONTO_TTL)
     if not page:
         return []
-    tracks = []
+    tracks, seen = [], set()
     for path in TR_MP3_RE.findall(page):
+        url = TR_BASE + _url_path(path)
+        if url in seen:
+            continue
+        seen.add(url)
         filename = html.unescape(urllib.parse.unquote(path.rsplit("/", 1)[-1])).rsplit(".", 1)[0]
-        tracks.append({"name": _pretty(filename), "url": TR_BASE + _url_path(path)})
+        tracks.append({"name": _pretty(filename), "url": url})
     return tracks

@@ -6,6 +6,7 @@ existing, and the enclosures inside it are plain MP3s that Kodi can stream
 directly. New feeds are added as data in resources/feeds.json.
 """
 
+import html as html_module
 import json
 import os
 import re
@@ -18,6 +19,7 @@ MEDIA = "{http://search.yahoo.com/mrss/}"
 ATOM = "{http://www.w3.org/2005/Atom}"
 
 FEED_TTL = 900
+DESCRIPTION_LIMIT = 400
 
 
 def registry():
@@ -110,6 +112,16 @@ def _duration(item):
         return None
 
 
+def _description(item):
+    """Return readable plot text: feeds usually ship HTML in <description>."""
+    raw = _text(item, "description", ITUNES + "summary", ATOM + "summary")
+    if not raw:
+        return ""
+    text = html_module.unescape(raw)
+    text = re.sub(r"<[A-Za-z/!][^>]*>", " ", text)
+    return " ".join(text.split())[:DESCRIPTION_LIMIT]
+
+
 def parse(xml_text):
     """Parse an RSS/Atom document into episode dicts (no I/O)."""
     try:
@@ -129,7 +141,7 @@ def parse(xml_text):
             "url": url,
             "published": _text(item, "pubDate", ATOM + "updated"),
             "duration": _duration(item),
-            "description": _text(item, "description", ITUNES + "summary", ATOM + "summary")[:400],
+            "description": _description(item),
         })
     return episodes
 

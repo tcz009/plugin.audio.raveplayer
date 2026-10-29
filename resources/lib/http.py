@@ -94,6 +94,12 @@ def _request(url, timeout, headers):
         return None
 
 
+def _fetch_for_cache(url, timeout, headers):
+    """Fetch text for the cache; an empty 200 is a hiccup, not content."""
+    body = _request(url, timeout, headers)
+    return body if body else None
+
+
 def fetch(url, timeout=DEFAULT_TIMEOUT, headers=None, ttl=0):
     """Return the response body as text, or None on any failure.
 
@@ -103,7 +109,7 @@ def fetch(url, timeout=DEFAULT_TIMEOUT, headers=None, ttl=0):
     if not ttl:
         return _request(url, timeout, headers)
     key = _cache_key("text", url, headers)
-    return cache.remember(key, ttl, lambda: _request(url, timeout, headers))
+    return cache.remember(key, ttl, lambda: _fetch_for_cache(url, timeout, headers))
 
 
 def _parse_json(url, body):

@@ -70,6 +70,12 @@ class MergeTests(unittest.TestCase):
             items = latest.recent_packs()
         self.assertEqual([item["identifier"] for item in items], ["ok"])
 
+    def test_recent_packs_normalises_list_titles(self):
+        rows = ([{"identifier": "ok", "title": ["Dreamscape", "XIX"]}], 1)
+        with mock.patch.object(latest.archive, "search", return_value=rows):
+            items = latest.recent_packs()
+        self.assertEqual(items[0]["title"], "Dreamscape XIX")
+
 
 class RandomPackTests(unittest.TestCase):
     def test_returns_a_pack(self):
@@ -83,6 +89,20 @@ class RandomPackTests(unittest.TestCase):
     def test_empty_archive_returns_none(self):
         with mock.patch.object(latest.archive, "search", return_value=([], 0)):
             self.assertIsNone(latest.random_pack())
+
+    def test_last_page_is_reachable(self):
+        with mock.patch.object(latest.archive, "search", side_effect=[
+                ([], 724), ([{"identifier": "picked", "title": "Picked"}], 724)]):
+            with mock.patch.object(latest.random, "randint", return_value=15) as randint:
+                pack = latest.random_pack()
+        self.assertEqual(randint.call_args[0], (1, 15))
+        self.assertEqual(pack["identifier"], "picked")
+
+    def test_document_without_identifier_is_ignored(self):
+        with mock.patch.object(latest.archive, "search", side_effect=[
+                ([], 100), ([{"title": "No identifier"}], 100)]):
+            with mock.patch.object(latest.random, "randint", return_value=1):
+                self.assertIsNone(latest.random_pack())
 
 
 if __name__ == "__main__":

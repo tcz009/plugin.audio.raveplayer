@@ -33,18 +33,6 @@ class _Missing(object):
 MISSING = _Missing()
 
 
-def _translate(path):
-    """Turn a Kodi ``special://`` path into a real one when possible."""
-    if not path.startswith("special://"):
-        return path
-    try:
-        import xbmcvfs
-
-        return xbmcvfs.translatePath(path)
-    except Exception:
-        return path
-
-
 def _directory():
     """Return the cache directory, preferring the add-on profile."""
     override = os.environ.get(CACHE_DIR_ENV)
@@ -55,7 +43,7 @@ def _directory():
     except Exception:  # Kodi API is unavailable outside Kodi
         profile = ""
     if profile:
-        return os.path.join(_translate(profile), "cache")
+        return os.path.join(kodi.translate_path(profile), "cache")
     # The smoke runner and unit tests have no real Kodi profile.
     return os.path.join(tempfile.gettempdir(), "raveplayer-cache")
 
@@ -99,10 +87,12 @@ def _read(key):
     if not isinstance(timestamp, (int, float)):
         _remove(path)
         return MISSING
-    value = payload.get("value", MISSING)
-    if value is None:
+    if "value" not in payload or payload["value"] is None:
+        # A truncated or hand-edited file must read as a miss, never as the
+        # MISSING sentinel: callers would treat that object as real data.
+        _remove(path)
         return MISSING
-    return timestamp, value
+    return timestamp, payload["value"]
 
 
 def get(key, ttl, now=None):
