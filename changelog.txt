@@ -1,3 +1,10 @@
+Rave Player 3.9.1
+- New main icon: the acid smiley keeps its play-triangle wink, but the left
+  eye is now the Love Dove pill — a white round tablet stamped with a drawn
+  dove, magenta misregistered edge. Code-drawn, no photos or logos.
+- The header strap now reads ARCHIVE · 88 → NOW instead of 93/94, because the
+  archive runs from acid house through jungle to present-day uploads.
+
 Rave Player 3.9.0
 - Rave Nights: a researched catalogue of 55 classic promotions, venues and
   pirate stations (Pure X, Biology, Pandemonium, Lazerdrome, Roller Express,
