@@ -40,10 +40,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: plugin.audio.raveplayer
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            repo/*/*.zip
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.zip
+          files: |
+            dist/*.zip
+            repo/*/*.zip

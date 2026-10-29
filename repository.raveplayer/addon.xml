@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="repository.raveplayer"
+       name="Rave Player Repository"
+       version="1.0.0"
+       provider-name="TheYid009">
+    <requires>
+        <import addon="xbmc.addon" version="12.0.0"/>
+    </requires>
+    <extension point="xbmc.addon.repository" name="Rave Player Repository">
+        <dir minversion="19.0.0">
+            <info compressed="false">https://raw.githubusercontent.com/tcz009/plugin.audio.raveplayer/main/repo/addons.xml</info>
+            <checksum>https://raw.githubusercontent.com/tcz009/plugin.audio.raveplayer/main/repo/addons.xml.md5</checksum>
+            <datadir zip="true">https://raw.githubusercontent.com/tcz009/plugin.audio.raveplayer/main/repo</datadir>
+        </dir>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="en_GB">Install and auto-update Rave Player from GitHub.</summary>
+        <summary lang="en_US">Install and auto-update Rave Player from GitHub.</summary>
+        <description lang="en_GB">Old-school add-on repository: add this repository once and Rave Player — oldskool rave, jungle, hardcore and pirate radio — installs and updates itself from GitHub.</description>
+        <description lang="en_US">Old-school add-on repository: add this repository once and Rave Player — oldskool rave, jungle, hardcore and pirate radio — installs and updates itself from GitHub.</description>
+        <platform>all</platform>
+        <license>GPL-3.0-or-later</license>
+        <language>en_GB</language>
+        <source>https://github.com/tcz009/plugin.audio.raveplayer</source>
+        <website>https://github.com/tcz009/plugin.audio.raveplayer</website>
+        <email>tcz009@hotmail.co.uk</email>
+        <assets>
+            <icon>icon.png</icon>
+            <fanart>fanart.jpg</fanart>
+        </assets>
+    </extension>
+</addon>
