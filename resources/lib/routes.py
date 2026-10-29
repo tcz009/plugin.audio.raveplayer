@@ -14,7 +14,7 @@ import urllib.parse
 import xbmcgui
 import xbmcplugin
 
-from . import archive, dnbradio, feeds, kodi, legacy, radio, ui
+from . import archive, dnbradio, feeds, kodi, latest, legacy, radio, ui
 
 ROWS_PER_PAGE = 50
 
@@ -185,6 +185,13 @@ def dispatch(argv):
 def root(handle, params):
     menu_item = ui.menu_item
 
+    menu_item(handle, url_for(mode="latest"), "Latest",
+              icon=art("rave.png"),
+              plot="Newest of everything: podcasts, tape packs and DNB Radio shows.")
+    menu_item(handle, url_for(mode="surprise"), "Surprise me",
+              icon=art("tapepacks.png"),
+              plot="Drop into a random rave tape pack.")
+
     action = url_for(mode="radio_menu")
     menu_item(handle, action, "Live Radio", icon=art("radio.png"),
               plot="Streaming pirate, oldskool and rave radio right now.")
@@ -219,6 +226,14 @@ def root(handle, params):
         "Legacy Sites",
         icon=art("tapepacks.png"),
         plot="The fan sites from 2014 that are still standing.",
+    )
+
+    menu_item(
+        handle,
+        url_for(mode="years"),
+        "Tape Packs by Year",
+        icon=art("tapepacks.png"),
+        plot="Browse the ravetapes collection one year at a time.",
     )
 
     menu_item(handle, url_for(mode="search"), "Search the Archive", icon=art("search.png"), plot="Search every tape pack on archive.org.")
@@ -306,6 +321,64 @@ def archive_item(handle, params):
             album=identifier.replace("-", " "),
         )
     kodi.end_directory(handle, "songs")
+
+
+def latest_view(handle, params):
+    items = latest.merge()
+    if not items:
+        kodi.notify("Nothing came back from the sources — try again later.")
+    for item in items:
+        when = item.get("when")
+        stamp = when.strftime("%d %b %Y") if when else ""
+        label = "%s  [COLOR gray](%s · %s)[/COLOR]" % (item["title"], item["source"], stamp) if stamp \
+            else "%s  [COLOR gray](%s)[/COLOR]" % (item["title"], item["source"])
+        if item["kind"] == "pack":
+            ui.menu_item(handle, url_for(mode="archive_item", id=item["identifier"]), label,
+                         icon=archive.thumb(item["identifier"]), plot="Tape pack")
+        elif item["kind"] == "episode":
+            ui.track_item(handle, url_for(mode="play", url=item["url"], label=item["title"]), label,
+                          thumb=art("radio.png"), plot=item["source"], duration=item.get("duration"))
+        else:
+            ui.track_item(handle, url_for(mode="dnb_play", id=item["id"], label=item["title"]), label,
+                          thumb=art("jungle.png"), plot="DNBRADIO.com")
+    kodi.end_directory(handle, "songs")
+
+
+def surprise(handle, params):
+    pack = latest.random_pack()
+    if not pack or not pack.get("identifier"):
+        kodi.notify("Could not pick a pack — try again.")
+        kodi.end_directory(handle, "files")
+        return
+    kodi.notify("Random pack: %s" % pack["title"][:60])
+    archive_item(handle, {"id": pack["identifier"]})
+
+
+def years(handle, params):
+    this_year = __import__("datetime").date.today().year
+    for year in range(this_year, 1987, -1):
+        ui.menu_item(handle, url_for(mode="year_list", year=year), str(year),
+                     icon=art("tapepacks.png"), plot="%s tape packs" % year)
+    ui.menu_item(handle, url_for(mode="root"), "Back")
+    kodi.end_directory(handle, "files")
+
+
+def year_list(handle, params):
+    try:
+        year = int(params.get("year", ""))
+    except ValueError:
+        kodi.notify("That year is not valid.")
+        kodi.end_directory(handle, "files")
+        return
+    rows = kodi.setting_int("results_per_page", ROWS_PER_PAGE)
+    docs, total = archive.search(latest.year_query(year), rows=rows)
+    if not docs:
+        kodi.notify("Nothing in the archive for %s." % year)
+    _archive_items(handle, docs)
+    if total > rows:
+        ui.menu_item(handle, url_for(mode="year_list", year=year), "More from %s" % year,
+                     plot="Refine with Search the Archive for now")
+    kodi.end_directory(handle, "files")
 
 
 def media_menu(handle, params):
@@ -519,6 +592,10 @@ HANDLERS = {
     "radio_tag": radio_tag,
     "archive_list": archive_list,
     "archive_item": archive_item,
+    "latest": latest_view,
+    "surprise": surprise,
+    "years": years,
+    "year_list": year_list,
     "media_menu": media_menu,
     "feed": feed,
     "dnb_list": dnb_list,

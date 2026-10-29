@@ -1,3 +1,11 @@
+Rave Player 3.5.0
+- Latest: one screen merging the newest podcasts, tape packs and DNBRADIO
+  shows, date-sorted newest first.
+- Surprise me: drops into a random rave tape pack.
+- Tape Packs by Year: 1987 to present, one query per year against the
+  ravetapes collection.
+- Offline tests 88 -> 97.
+
 Rave Player 3.4.1
 - Code-quality pass: disk cache with TTL for feeds, Archive search/metadata,
   legacy HTML and DNBRADIO recordings (menus load from cache; ~5 network

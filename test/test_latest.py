@@ -1,0 +1,89 @@
+# -*- coding: utf-8 -*-
+"""Offline tests for the Latest merge and the by-year/surprise helpers."""
+
+import datetime
+import os
+import sys
+import unittest
+from unittest import mock
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "stubs"))
+sys.path.insert(0, os.path.dirname(HERE))
+
+from resources.lib import latest  # noqa: E402
+
+
+class DateTests(unittest.TestCase):
+    def test_iso_dates(self):
+        self.assertEqual(latest.parse_date("2026-10-29"), datetime.datetime(2026, 10, 29))
+        self.assertEqual(latest.parse_date("2026-10-29T13:07:23Z"), datetime.datetime(2026, 10, 29))
+
+    def test_rfc822_dates(self):
+        self.assertEqual(latest.parse_date("Mon, 19 Jan 2026 11:51:21 +0000").date(),
+                         datetime.date(2026, 1, 19))
+
+    def test_unknown_and_empty(self):
+        self.assertIsNone(latest.parse_date(""))
+        self.assertIsNone(latest.parse_date(None))
+        self.assertIsNone(latest.parse_date("not a date"))
+        self.assertIsNone(latest.parse_date("2026-13-45"))
+
+    def test_year_query(self):
+        query = latest.year_query(1993)
+        self.assertIn("collection:ravetapes", query)
+        self.assertIn("date:[1993-01-01 TO 1993-12-31]", query)
+
+
+class MergeTests(unittest.TestCase):
+    def test_merge_orders_newest_first_and_keeps_undated_last(self):
+        feeds_rows = [
+            {"id": "a", "name": "Feed A", "plot": ""},
+        ]
+        episodes_row = [
+            {"title": "New episode", "url": "http://x/1.mp3", "published": "2026-10-29", "duration": 10},
+        ]
+        archive_rows = ([{"identifier": "pack-1", "title": "Pack One", "addeddate": "2020-01-01"}], 1)
+        dnb_rows = [{"id": "9", "title": "DNB Show", "date": "2021-05-05"}]
+
+        with mock.patch.object(latest.feeds, "registry", return_value=feeds_rows), \
+                mock.patch.object(latest.feeds, "episodes", return_value=episodes_row), \
+                mock.patch.object(latest.archive, "search", return_value=archive_rows), \
+                mock.patch.object(latest.dnbradio, "mixes", return_value=dnb_rows):
+            merged = latest.merge(limit=10)
+
+        titles = [item["title"] for item in merged]
+        self.assertEqual(titles[:3], ["New episode", "DNB Show", "Pack One"])
+        self.assertEqual(len(merged), 3)
+        self.assertEqual(merged[0]["kind"], "episode")
+        self.assertEqual(merged[2]["kind"], "pack")
+
+    def test_merge_limit(self):
+        with mock.patch.object(latest.feeds, "registry", return_value=[]), \
+                mock.patch.object(latest.archive, "search", return_value=([], 0)), \
+                mock.patch.object(latest.dnbradio, "mixes", return_value=[]):
+            self.assertEqual(latest.merge(limit=5), [])
+
+    def test_recent_packs_skips_missing_identifier(self):
+        rows = ([{"identifier": "", "title": "bad"}, {"identifier": "ok", "title": "Good"}], 2)
+        with mock.patch.object(latest.archive, "search", return_value=rows):
+            items = latest.recent_packs()
+        self.assertEqual([item["identifier"] for item in items], ["ok"])
+
+
+class RandomPackTests(unittest.TestCase):
+    def test_returns_a_pack(self):
+        with mock.patch.object(latest.archive, "search", side_effect=[
+                ([], 100), ([{"identifier": "picked", "title": "Picked Pack"}], 100)]):
+            with mock.patch.object(latest.random, "randint", return_value=2), \
+                    mock.patch.object(latest.random, "choice", side_effect=lambda docs: docs[0]):
+                pack = latest.random_pack()
+        self.assertEqual(pack["identifier"], "picked")
+
+    def test_empty_archive_returns_none(self):
+        with mock.patch.object(latest.archive, "search", return_value=([], 0)):
+            self.assertIsNone(latest.random_pack())
+
+
+if __name__ == "__main__":
+    unittest.main()

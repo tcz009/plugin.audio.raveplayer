@@ -17,7 +17,7 @@ DOWNLOAD_URL = "https://archive.org/download/%s/%s"
 THUMB_URL = "https://archive.org/services/img/%s"
 
 AUDIO_EXTENSIONS = (".mp3", ".m4a", ".ogg", ".flac", ".wav", ".aac", ".opus")
-FIELDS = ["identifier", "title", "year", "date", "downloads", "mediatype", "creator", "description"]
+FIELDS = ["identifier", "title", "year", "date", "addeddate", "downloads", "mediatype", "creator", "description"]
 
 SEARCH_TTL = 300
 ITEM_TTL = 3600
