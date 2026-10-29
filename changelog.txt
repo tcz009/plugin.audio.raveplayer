@@ -1,3 +1,13 @@
+Rave Player 3.4.0
+- Present-day coverage: Podcasts & Mixes section built on RSS feeds, which
+  are the most durable source there is (Jungle Lab, The M-Path-E Test,
+  Viper Classic Rave, Toro In The Mix, Bad ChemCast — 248 episodes between
+  them, newest first).
+- DNB Radio Archive: recent jungle and drum & bass shows from DNBRADIO.com,
+  with stream URLs resolved on demand.
+- Tape packs stay the backbone: the ravetapes collection, the genre
+  collections and the legacy sites are all still there.
+
 Rave Player 3.3.1
 - Declared the icon and fanart in an <assets> block in addon.xml. Kodi 22
   was resolving the add-on thumbnail to an empty string, so the tile fell

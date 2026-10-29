@@ -85,3 +85,83 @@ class RadioTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FeedTests(unittest.TestCase):
+    RSS = """<?xml version="1.0"?>
+    <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.0">
+      <channel>
+        <item>
+          <title>Jungle Lab 003</title>
+          <enclosure url="https://media.rss.com/a/b/003.mp3" type="audio/mpeg" length="1"/>
+          <pubDate>Mon, 19 Jan 2026 11:51:21 +0000</pubDate>
+          <itunes:duration>1:02:03</itunes:duration>
+          <description>Deep jungle selection.</description>
+        </item>
+        <item>
+          <title>No audio here</title>
+          <description>blog post</description>
+        </item>
+      </channel>
+    </rss>"""
+
+    def test_parse_extracts_enclosure_episodes(self):
+        import sys, os
+        sys.path.insert(0, os.path.join(HERE, 'stubs'))
+        from resources.lib import feeds
+        episodes = feeds.parse(self.RSS)
+        self.assertEqual(len(episodes), 1)
+        self.assertEqual(episodes[0]['title'], 'Jungle Lab 003')
+        self.assertTrue(episodes[0]['url'].endswith('003.mp3'))
+        self.assertEqual(episodes[0]['duration'], 3723)
+
+    def test_parse_survives_broken_xml(self):
+        import sys, os
+        sys.path.insert(0, os.path.join(HERE, 'stubs'))
+        from resources.lib import feeds
+        self.assertEqual(feeds.parse('<rss><channel><item>'), [])
+
+    def test_registry_entries_are_well_formed(self):
+        import sys, os
+        sys.path.insert(0, os.path.join(HERE, 'stubs'))
+        from resources.lib import feeds
+        entries = feeds.registry()
+        self.assertGreaterEqual(len(entries), 3)
+        for entry in entries:
+            self.assertTrue(entry.get('id'))
+            self.assertTrue(entry.get('name'))
+            self.assertTrue(entry.get('url', '').startswith('https://'))
+
+
+class DnbRadioTests(unittest.TestCase):
+    RECORDINGS = '''
+      <a href="/listen?mix=58125" title="2026-10-29 : DJ 4G4T - Energy Boost on DNBRADIO">
+      <a href="/listen?mix=58124" title="2026-10-28 : Valis - Kief Science Session on DNBRADIO">
+      <a href="/listen?mix=58125" title="2026-10-29 : DJ 4G4T - Energy Boost on DNBRADIO">
+    '''
+
+    LISTEN = '<a href="https://archive-proxy.dnbradio.com/podcasts-new/x/y.mp3?download=1&amp;z=2">'
+
+    def test_parse_recordings_dedupes_and_splits_dates(self):
+        import sys, os
+        sys.path.insert(0, os.path.join(HERE, 'stubs'))
+        from resources.lib import dnbradio
+        shows = dnbradio.parse_recordings(self.RECORDINGS)
+        self.assertEqual(len(shows), 2)
+        self.assertEqual(shows[0]['id'], '58125')
+        self.assertEqual(shows[0]['date'], '2026-10-29')
+        self.assertEqual(shows[0]['title'], 'DJ 4G4T - Energy Boost')
+
+    def test_parse_listen_unescapes_mp3_url(self):
+        import sys, os
+        sys.path.insert(0, os.path.join(HERE, 'stubs'))
+        from resources.lib import dnbradio
+        url = dnbradio.parse_listen(self.LISTEN)
+        self.assertTrue(url.startswith('https://archive-proxy.dnbradio.com/'))
+        self.assertIn('&z=2', url)
+
+    def test_parse_listen_handles_missing_mp3(self):
+        import sys, os
+        sys.path.insert(0, os.path.join(HERE, 'stubs'))
+        from resources.lib import dnbradio
+        self.assertEqual(dnbradio.parse_listen('<html>nothing</html>'), '')

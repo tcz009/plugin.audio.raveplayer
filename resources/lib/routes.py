@@ -13,7 +13,7 @@ import xbmcplugin
 
 import os
 
-from . import archive, kodi, legacy, radio, ui
+from . import archive, dnbradio, feeds, kodi, legacy, radio, ui
 
 ROWS_PER_PAGE = 50
 
@@ -131,6 +131,21 @@ def root(handle, params):
 
     menu_item(
         handle,
+        url_for(mode="media_menu"),
+        "Podcasts & Mixes",
+        icon=art("radio.png"),
+        plot="Current jungle, drum & bass, hardcore and rave shows — RSS feeds.",
+    )
+    menu_item(
+        handle,
+        url_for(mode="dnb_list"),
+        "DNB Radio Archive",
+        icon=art("jungle.png"),
+        plot="Recent jungle and drum & bass shows from DNBRADIO.com.",
+    )
+
+    menu_item(
+        handle,
         url_for(mode="legacy_menu"),
         "Legacy Sites",
         icon=art("tapepacks.png"),
@@ -236,6 +251,72 @@ def archive_item(handle, params):
             album=identifier.replace("-", " "),
         )
     kodi.end_directory(handle, "songs")
+
+
+def media_menu(handle, params):
+    for entry in feeds.registry():
+        count = len(feeds.episodes(entry["id"], limit=200))
+        ui.menu_item(
+            handle,
+            url_for(mode="feed", key=entry["id"]),
+            "%s  [COLOR gray](%d episodes)[/COLOR]" % (entry["name"], count),
+            icon=art("radio.png"),
+            plot=entry.get("plot") or entry["name"],
+        )
+    ui.menu_item(handle, url_for(mode="root"), "Back")
+    kodi.end_directory(handle, "files")
+
+
+def feed(handle, params):
+    entry = feeds.feed(params.get("key", ""))
+    if not entry:
+        kodi.notify("That feed is no longer configured.")
+        kodi.end_directory(handle, "songs")
+        return
+    episodes = feeds.episodes(entry["id"])
+    if not episodes:
+        kodi.notify("%s did not return any episodes." % entry["name"])
+    for episode in episodes:
+        label = episode["title"]
+        if episode.get("published"):
+            label = "%s  [COLOR gray](%s)[/COLOR]" % (label, episode["published"][:16])
+        ui.track_item(
+            handle,
+            url_for(mode="play", url=episode["url"], label=episode["title"]),
+            label,
+            thumb=art("radio.png"),
+            plot=episode.get("description") or entry.get("plot") or "",
+            album=entry["name"],
+            duration=episode.get("duration"),
+        )
+    kodi.end_directory(handle, "songs")
+
+
+def dnb_list(handle, params):
+    shows = dnbradio.mixes()
+    if not shows:
+        kodi.notify("DNBRADIO.com did not answer — try again later.")
+    for show in shows:
+        ui.track_item(
+            handle,
+            url_for(mode="dnb_play", id=show["id"], label=show["title"]),
+            "%s  [COLOR gray](%s)[/COLOR]" % (show["title"], show["date"]) if show["date"] else show["title"],
+            thumb=art("jungle.png"),
+            plot="DNBRADIO.com · %s" % show["date"],
+            album="DNBRADIO.com",
+        )
+    kodi.end_directory(handle, "songs")
+
+
+def dnb_play(handle, params):
+    mix_id = params.get("id", "")
+    url = dnbradio.stream_url(mix_id) if mix_id else ""
+    if not url:
+        kodi.notify("Could not resolve that DNBRADIO mix.")
+        xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
+        return
+    play(handle, {"url": url, "label": params.get("label", "DNBRADIO"),
+                  "thumb": params.get("thumb") or kodi.ICON})
 
 
 def legacy_menu(handle, params):
@@ -392,6 +473,10 @@ HANDLERS = {
     "radio_tag": radio_tag,
     "archive_list": archive_list,
     "archive_item": archive_item,
+    "media_menu": media_menu,
+    "feed": feed,
+    "dnb_list": dnb_list,
+    "dnb_play": dnb_play,
     "legacy_menu": legacy_menu,
     "legacy_jt": legacy_jt,
     "legacy_jt_show": legacy_jt_show,
