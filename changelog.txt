@@ -1,3 +1,9 @@
+Rave Player 3.2.0
+- Added RaveTapePacks.com as a legacy source: one of the few fan sites from
+  2014 still serving full tape packs. Its MP3s are hotlink-protected, so the
+  add-on appends a Referer header via Kodi's URL syntax (403 without it,
+  206 audio/mpeg with it — verified).
+
 Rave Player 3.1.0
 - New 1993/94 rave-flyer artwork, drawn from scratch in scripts/make-art.py:
   halftone, hazard stripes, vinyl rings, Impact headlines. No stock imagery.

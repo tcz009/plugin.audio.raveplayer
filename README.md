@@ -13,6 +13,9 @@ rebuilt in 2026 from the 2014 original.
 - **Live radio** — oldskool, jungle, drum & bass, hardcore, house/garage and
   pirate stations from [radio-browser.info](https://www.radio-browser.info/).
 - **Search** — full-text search across the whole Archive from inside Kodi.
+- **RaveTapePacks.com** — the one 2014 fan site still standing, with direct
+  tape-pack MP3s. Its files are hotlink-protected, so playback URLs carry a
+  `Referer` suffix that Kodi sends as a real header.
 
 ## Why it was rebuilt rather than patched
 
@@ -46,6 +49,7 @@ raveplayer/
 │   └── lib/
 │       ├── routes.py       # menu + routing (sections are data, not code)
 │       ├── archive.py      # Internet Archive provider
+│       ├── legacy.py       # ravetapepacks.com (still alive)
 │       ├── radio.py        # radio-browser.info provider
 │       ├── ui.py           # list items and artwork
 │       ├── http.py         # tiny JSON transport

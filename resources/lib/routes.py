@@ -13,7 +13,7 @@ import xbmcplugin
 
 import os
 
-from . import archive, kodi, radio, ui
+from . import archive, kodi, legacy, radio, ui
 
 ROWS_PER_PAGE = 50
 
@@ -129,6 +129,14 @@ def root(handle, params):
             plot=section["plot"],
         )
 
+    menu_item(
+        handle,
+        url_for(mode="legacy_packs"),
+        "RaveTapePacks.com",
+        icon=art("tapepacks.png"),
+        plot="The one fan site from 2014 that is still standing — direct tape pack MP3s.",
+    )
+
     menu_item(handle, url_for(mode="search"), "Search the Archive", icon=art("search.png"), plot="Search every tape pack on archive.org.")
     menu_item(handle, url_for(mode="about"), "About Rave Player", icon=art("about.png"), plot="Credits, sources and version.")
 
@@ -230,6 +238,42 @@ def archive_item(handle, params):
     kodi.end_directory(handle, "songs")
 
 
+def legacy_packs(handle, params):
+    entries = legacy.packs()
+    if not entries:
+        kodi.notify("RaveTapePacks.com did not answer — try again later.")
+    for entry in entries:
+        ui.menu_item(
+            handle,
+            url_for(mode="legacy_pack", pack=entry["key"]),
+            "%s  [COLOR gray](%d tape%s)[/COLOR]"
+            % (entry["name"], len(entry["tracks"]), "" if len(entry["tracks"]) == 1 else "s"),
+            icon=art("tapepacks.png"),
+            plot="RaveTapePacks.com · %d tapes" % len(entry["tracks"]),
+        )
+    kodi.end_directory(handle, "files")
+
+
+def legacy_pack(handle, params):
+    key = params.get("pack", "")
+    entry = next((item for item in legacy.packs() if item["key"] == key), None)
+    if not entry:
+        kodi.notify("That pack is no longer listed.")
+        kodi.end_directory(handle, "songs")
+        return
+    for track in entry["tracks"]:
+        ui.track_item(
+            handle,
+            url_for(mode="play", url=legacy.playable(track["url"]), label=track["name"],
+                    thumb=art("tapepacks.png")),
+            track["name"],
+            thumb=art("tapepacks.png"),
+            plot="RaveTapePacks.com · %s" % entry["name"],
+            album=entry["name"],
+        )
+    kodi.end_directory(handle, "songs")
+
+
 def search(handle, params):
     query = kodi.dialog().input("Search the Internet Archive", type=xbmcgui.INPUT_ALPHANUM)
     if not query:
@@ -290,6 +334,8 @@ HANDLERS = {
     "radio_tag": radio_tag,
     "archive_list": archive_list,
     "archive_item": archive_item,
+    "legacy_packs": legacy_packs,
+    "legacy_pack": legacy_pack,
     "search": search,
     "about": about,
     "play": play,
