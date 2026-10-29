@@ -33,6 +33,21 @@ def stations(tag, limit=100):
     return []
 
 
+def stations_by_name(name, limit=20):
+    """Live stations whose name matches (used for "Kool FM live now")."""
+    try:
+        limit = max(1, min(int(limit), 100))
+    except (TypeError, ValueError):
+        limit = 20
+    query = "/json/stations/search?name=%s&limit=%d&hidebroken=true&order=clickcount&reverse=true" % (
+        http.quote(name), limit)
+    for mirror in MIRRORS:
+        data = http.fetch_json(mirror + query, timeout=20)
+        if isinstance(data, list):
+            return [station for station in data if isinstance(station, dict)]
+    return []
+
+
 def stream_url(station):
     if not isinstance(station, dict):
         return ""

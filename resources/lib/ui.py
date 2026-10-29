@@ -9,8 +9,10 @@ from . import kodi
 DEFAULT_FANART = kodi.FANART
 
 
-def add_item(handle, url, label, is_folder=True, art=None, info=None, playable=False):
+def add_item(handle, url, label, is_folder=True, art=None, info=None, playable=False, context=None):
     item = xbmcgui.ListItem(label=label)
+    if context:
+        item.addContextMenuItems(context)
     if art:
         item.setArt(art)
     if info:
@@ -22,7 +24,7 @@ def add_item(handle, url, label, is_folder=True, art=None, info=None, playable=F
     return item
 
 
-def menu_item(handle, url, label, icon=None, fanart=None, plot=None):
+def menu_item(handle, url, label, icon=None, fanart=None, plot=None, context=None):
     art = {
         "icon": icon or kodi.ICON,
         "thumb": icon or kodi.ICON,
@@ -30,10 +32,11 @@ def menu_item(handle, url, label, icon=None, fanart=None, plot=None):
         "poster": icon or kodi.ICON,
     }
     info = {"title": label, "plot": plot or label, "mediatype": "music"}
-    return add_item(handle, url, label, is_folder=True, art=art, info=info)
+    return add_item(handle, url, label, is_folder=True, art=art, info=info, context=context)
 
 
-def track_item(handle, url, label, thumb=None, fanart=None, plot=None, artist=None, album=None, duration=None):
+def track_item(handle, url, label, thumb=None, fanart=None, plot=None, artist=None, album=None,
+               duration=None, context=None):
     art = {
         "icon": thumb or kodi.ICON,
         "thumb": thumb or kodi.ICON,
@@ -46,4 +49,4 @@ def track_item(handle, url, label, thumb=None, fanart=None, plot=None, artist=No
         info["album"] = album
     if duration:
         info["duration"] = duration
-    return add_item(handle, url, label, is_folder=False, art=art, info=info, playable=True)
+    return add_item(handle, url, label, is_folder=False, art=art, info=info, playable=True, context=context)

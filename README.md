@@ -13,6 +13,13 @@ rebuilt in 2026 from the 2014 original.
 - **Live radio** — oldskool, jungle, drum & bass, hardcore, house/garage and
   pirate stations from [radio-browser.info](https://www.radio-browser.info/).
 - **Search** — full-text search across the whole Archive from inside Kodi.
+- **Latest / Surprise me / Tape Packs by Year** — newest across every
+  source, a random pack, and a year-by-year browse of the collection.
+- **Quick Filters** — Kool FM (live + archive sets), Dreamscape,
+  Helter Skelter, Fantazia, One Nation, Centreforce, Don FM, Slammin' Vinyl.
+  Defined in `resources/filters.json`, so new ones are data not code.
+- **Favourites** — add a pack or show from the context menu; stored in the
+  add-on profile.
 - **Legacy sites** — the 2014 sources that are still standing:
   - *RaveTapePacks.com* — full tape packs. Its files are hotlink-protected, so
     playback URLs carry a `Referer` suffix that Kodi sends as a real header.

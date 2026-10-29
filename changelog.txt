@@ -1,3 +1,13 @@
+Rave Player 3.6.0
+- Quick Filters: Kool FM, Dreamscape, Helter Skelter, Fantazia, One Nation,
+  Centreforce, Don FM, Slammin' Vinyl. Kool FM gets its own section with the
+  station live now plus every Kool set in the archive.
+- Favourites: context-menu "Add to favourites" on packs and shows, a
+  Favourites section, remove from the same menu. Stored in the profile dir.
+- scripts/discover.py: probes candidate sites, scores them for audio links,
+  RSS feeds and platform, writes docs/DISCOVERED.md.
+- Tests 97 -> 107.
+
 Rave Player 3.5.0
 - Latest: one screen merging the newest podcasts, tape packs and DNBRADIO
   shows, date-sorted newest first.

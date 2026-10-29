@@ -54,6 +54,7 @@ class ListItem(object):
         self.art = {}
         self.info = {}
         self.properties = {}
+        self.context = []
 
     def setArt(self, art):
         self.art.update(art or {})
@@ -63,6 +64,9 @@ class ListItem(object):
 
     def setProperty(self, key, value):
         self.properties[key] = value
+
+    def addContextMenuItems(self, items, replaceItems=False):
+        self.context = list(items or [])
 
     def setPath(self, path):
         self.path = path

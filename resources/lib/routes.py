@@ -14,7 +14,7 @@ import urllib.parse
 import xbmcgui
 import xbmcplugin
 
-from . import archive, dnbradio, feeds, kodi, latest, legacy, radio, ui
+from . import archive, dnbradio, favourites, feeds, kodi, latest, legacy, radio, ui
 
 ROWS_PER_PAGE = 50
 
@@ -73,6 +73,21 @@ RADIO_SECTIONS = [
     {"key": "garage", "label": "House & Garage", "tag": "garage", "art": "house.png"},
     {"key": "breakbeat", "label": "Breakbeat", "tag": "breakbeat", "art": "rave.png"},
 ]
+
+
+def _filters():
+    import json
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "filters.json")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return []
+    return [entry for entry in data if isinstance(entry, dict) and entry.get("id") and entry.get("query")]
+
+
+def _filter(key):
+    return next((entry for entry in _filters() if entry["id"] == key), None)
 
 
 def art(name):
@@ -154,6 +169,8 @@ def _archive_items(handle, docs):
             label,
             icon=archive.thumb(identifier),
             plot=_clean_description(doc.get("description")),
+            context=[("Add to favourites", "RunPlugin(%s)" % url_for(
+                mode="fav_add", kind="pack", target=identifier, title=title[:120]))],
         )
 
 
@@ -191,6 +208,17 @@ def root(handle, params):
     menu_item(handle, url_for(mode="surprise"), "Surprise me",
               icon=art("tapepacks.png"),
               plot="Drop into a random rave tape pack.")
+
+    menu_item(handle, url_for(mode="filter_list", key="kool"), "Kool FM",
+              icon=art("radio.png"),
+              plot="Kool FM: the station live now, plus every Kool FM set in the archive.")
+    menu_item(handle, url_for(mode="filters_menu"), "Quick Filters",
+              icon=art("tapepacks.png"),
+              plot="Jump straight to the classic pack series.")
+
+    menu_item(handle, url_for(mode="fav_list"), "Favourites",
+              icon=art("rave.png"),
+              plot="The packs and shows you saved.")
 
     action = url_for(mode="radio_menu")
     menu_item(handle, action, "Live Radio", icon=art("radio.png"),
@@ -323,6 +351,100 @@ def archive_item(handle, params):
     kodi.end_directory(handle, "songs")
 
 
+def fav_list(handle, params):
+    entries = favourites.load()
+    if not entries:
+        kodi.notify("No favourites yet — use the context menu on a pack or show.")
+    for entry in entries:
+        entry_key = favourites.key(entry)
+        context = [("Remove from favourites", "RunPlugin(%s)" % url_for(mode="fav_remove", key=entry_key))]
+        if entry["kind"] == "pack":
+            ui.menu_item(handle, url_for(mode="archive_item", id=entry["target"]), entry["title"],
+                         icon=archive.thumb(entry["target"]), plot="Tape pack · %s" % entry.get("source", ""),
+                         context=context)
+        elif entry["kind"] == "dnb":
+            ui.track_item(handle, url_for(mode="dnb_play", id=entry["target"], label=entry["title"]),
+                          entry["title"], thumb=art("jungle.png"), plot="DNB Radio", context=context)
+        else:
+            ui.track_item(handle, url_for(mode="play", url=entry["target"], label=entry["title"]),
+                          entry["title"], thumb=art("radio.png"), plot="Show", context=context)
+    kodi.end_directory(handle, "songs")
+
+
+def fav_add(handle, params):
+    saved = favourites.add({
+        "kind": params.get("kind", "pack"),
+        "target": params.get("target", ""),
+        "title": params.get("title", ""),
+    })
+    kodi.notify("Added to favourites" if saved else "Could not save that favourite")
+    kodi.end_directory(handle, "files")
+
+
+def fav_remove(handle, params):
+    favourites.remove(params.get("key", ""))
+    kodi.notify("Removed from favourites")
+    kodi.end_directory(handle, "files")
+
+
+def filters_menu(handle, params):
+    for entry in _filters():
+        if entry["id"] == "kool":
+            continue
+        ui.menu_item(handle, url_for(mode="filter_list", key=entry["id"]), entry["name"],
+                     icon=art("tapepacks.png"), plot=entry.get("plot") or entry["name"])
+    ui.menu_item(handle, url_for(mode="root"), "Back")
+    kodi.end_directory(handle, "files")
+
+
+def filter_live(handle, params):
+    entry = _filter(params.get("key", ""))
+    if not entry or not entry.get("live_name"):
+        kodi.end_directory(handle, "songs")
+        return
+    stations = radio.stations_by_name(entry["live_name"], limit=20)
+    if not stations:
+        kodi.notify("%s is not listed as live right now." % entry["name"])
+    for station in stations:
+        name, meta = radio.display(station)
+        ui.track_item(
+            handle,
+            url_for(mode="play", url=radio.stream_url(station), label=name, thumb=station.get("favicon") or ""),
+            "%s  [I]%s[/I]" % (name, meta) if meta else name,
+            thumb=station.get("favicon") or None,
+            plot="Live now · %s" % entry["name"],
+            artist=meta or None,
+        )
+    kodi.end_directory(handle, "songs")
+
+
+def filter_list(handle, params):
+    entry = _filter(params.get("key", ""))
+    if not entry:
+        kodi.notify("That filter no longer exists.")
+        kodi.end_directory(handle, "files")
+        return
+    try:
+        page = max(1, int(params.get("page", 1)))
+    except ValueError:
+        page = 1
+    rows = kodi.setting_int("results_per_page", ROWS_PER_PAGE)
+
+    if page == 1 and entry.get("live_name"):
+        ui.menu_item(handle, url_for(mode="filter_live", key=entry["id"]),
+                     "▶ %s — live now" % entry["name"], icon=art("radio.png"),
+                     plot="Live streams matching %s" % entry["live_name"])
+
+    docs, total = archive.search(entry["query"], page=page, rows=rows)
+    if not docs and page == 1:
+        kodi.notify("Nothing in the archive for %s." % entry["name"])
+    _archive_items(handle, docs)
+    if total > page * rows:
+        ui.menu_item(handle, url_for(mode="filter_list", key=entry["id"], page=page + 1),
+                     "Next page  ›", plot="More %s" % entry["name"])
+    kodi.end_directory(handle, "files")
+
+
 def latest_view(handle, params):
     items = latest.merge()
     if not items:
@@ -416,6 +538,8 @@ def feed(handle, params):
             plot=episode.get("description") or entry.get("plot") or "",
             album=entry["name"],
             duration=episode.get("duration"),
+            context=[("Add to favourites", "RunPlugin(%s)" % url_for(
+                mode="fav_add", kind="stream", target=episode["url"], title=episode["title"][:120]))],
         )
     kodi.end_directory(handle, "songs")
 
@@ -592,6 +716,12 @@ HANDLERS = {
     "radio_tag": radio_tag,
     "archive_list": archive_list,
     "archive_item": archive_item,
+    "fav_list": fav_list,
+    "fav_add": fav_add,
+    "fav_remove": fav_remove,
+    "filters_menu": filters_menu,
+    "filter_list": filter_list,
+    "filter_live": filter_live,
     "latest": latest_view,
     "surprise": surprise,
     "years": years,
