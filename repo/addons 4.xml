@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addons>
+<addon id="plugin.audio.raveplayer" name="Rave Player" version="3.5.0" provider-name="TheYid009">
+  <requires>
+    <import addon="xbmc.python" version="3.0.1" />
+  </requires>
+  <extension point="xbmc.python.pluginsource" library="default.py">
+    <provides>audio</provides>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en_GB">Oldskool rave, jungle, hardcore and pirate radio — tape packs, live streams and archive sets.</summary>
+    <summary lang="en_US">Oldskool rave, jungle, hardcore and pirate radio — tape packs, live streams and archive sets.</summary>
+    <description lang="en_GB">Rave Player is back for 2026.[CR][CR]Stream thousands of oldskool rave tape packs, jungle and drum &amp; bass sets, hardcore, house and garage mixes, and live pirate radio — pulled from the Internet Archive's public collections and a community-maintained live radio directory, so the sources keep working.[CR][CR]Rebuilt from the 2014 original by TheYid009: Python 3, no dead dependencies, proper artwork and search.</description>
+    <description lang="en_US">Rave Player is back for 2026.[CR][CR]Stream thousands of oldskool rave tape packs, jungle and drum &amp; bass sets, hardcore, house and garage mixes, and live pirate radio — pulled from the Internet Archive's public collections and a community-maintained live radio directory, so the sources keep working.[CR][CR]Rebuilt from the 2014 original by TheYid009: Python 3, no dead dependencies, proper artwork and search.</description>
+    <disclaimer lang="en_GB">Rave Player does not host or distribute any content. Everything played is streamed from third-party public archives and radio directories.</disclaimer>
+    <platform>all</platform>
+    <license>GPL-3.0-or-later</license>
+    <language>en_GB</language>
+    <source>https://github.com/tcz009/plugin.audio.raveplayer</source>
+    <website>https://github.com/tcz009/plugin.audio.raveplayer</website>
+    <email>tcz009@hotmail.co.uk</email>
+    <assets>
+      <icon>icon.png</icon>
+      <fanart>fanart.jpg</fanart>
+    </assets>
+  </extension>
+</addon>
+<addon id="repository.raveplayer" name="Rave Player Repository" version="1.0.0" provider-name="TheYid009">
+  <requires>
+    <import addon="xbmc.addon" version="12.0.0" />
+  </requires>
+  <extension point="xbmc.addon.repository" name="Rave Player Repository">
+    <dir minversion="19.0.0">
+      <info compressed="false">https://raw.githubusercontent.com/tcz009/plugin.audio.raveplayer/main/repo/addons.xml</info>
+      <checksum>https://raw.githubusercontent.com/tcz009/plugin.audio.raveplayer/main/repo/addons.xml.md5</checksum>
+      <datadir zip="true">https://raw.githubusercontent.com/tcz009/plugin.audio.raveplayer/main/repo</datadir>
+    </dir>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en_GB">Install and auto-update Rave Player from GitHub.</summary>
+    <summary lang="en_US">Install and auto-update Rave Player from GitHub.</summary>
+    <description lang="en_GB">Old-school add-on repository: add this repository once and Rave Player — oldskool rave, jungle, hardcore and pirate radio — installs and updates itself from GitHub.</description>
+    <description lang="en_US">Old-school add-on repository: add this repository once and Rave Player — oldskool rave, jungle, hardcore and pirate radio — installs and updates itself from GitHub.</description>
+    <platform>all</platform>
+    <license>GPL-3.0-or-later</license>
+    <language>en_GB</language>
+    <source>https://github.com/tcz009/plugin.audio.raveplayer</source>
+    <website>https://github.com/tcz009/plugin.audio.raveplayer</website>
+    <email>tcz009@hotmail.co.uk</email>
+    <assets>
+      <icon>icon.png</icon>
+      <fanart>fanart.jpg</fanart>
+    </assets>
+  </extension>
+</addon>
+</addons>

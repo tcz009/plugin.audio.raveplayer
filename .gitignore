@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 src/
 stage/
+
+web/.venv/
+web/data/
+web/__pycache__/
