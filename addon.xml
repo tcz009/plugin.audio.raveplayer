@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.audio.raveplayer"
        name="Rave Player"
-       version="3.3.0"
+       version="3.3.1"
        provider-name="TheYid009">
     <requires>
         <import addon="xbmc.python" version="3.0.1"/>
@@ -21,5 +21,9 @@
         <source>https://github.com/tcz009/plugin.audio.raveplayer</source>
         <website>https://github.com/tcz009/plugin.audio.raveplayer</website>
         <email>tcz009@hotmail.co.uk</email>
+        <assets>
+            <icon>icon.png</icon>
+            <fanart>fanart.jpg</fanart>
+        </assets>
     </extension>
 </addon>

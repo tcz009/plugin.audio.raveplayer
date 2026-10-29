@@ -1,3 +1,8 @@
+Rave Player 3.3.1
+- Declared the icon and fanart in an <assets> block in addon.xml. Kodi 22
+  was resolving the add-on thumbnail to an empty string, so the tile fell
+  back to the default icon even though icon.png was present.
+
 Rave Player 3.3.0
 - Legacy sites are now a proper submenu with every surviving 2014 source:
   * RaveTapePacks.com — full tape packs (Referer-protected MP3s)
