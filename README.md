@@ -33,11 +33,25 @@ means a dead source can't take the whole add-on down with it.
 - Kodi 21 (Omega) or Kodi 22 (Piers)
 - Nothing else. No module dependencies, no external binaries.
 
-## Install
+## Install from the repository (recommended)
 
-1. Download `plugin.audio.raveplayer-3.0.0.zip` from `dist/`.
+Add the repository once, then Rave Player installs and updates itself.
+
+1. Download **`repository.raveplayer-1.0.0.zip`** from the
+   [latest repository release](https://github.com/tcz009/plugin.audio.raveplayer/releases)
+   and copy it somewhere Kodi can browse (NAS share, USB, `Downloads`).
+2. Kodi → Add-ons → **Install from zip file** → pick that zip. Enable
+   "Unknown sources" first if Kodi asks.
+3. Add-ons → **Install from repository** → **Rave Player Repository** →
+   Audio add-ons → **Rave Player** → Install.
+
+After that, updates arrive through the repository — Kodi re-checks
+`repo/addons.xml` daily, or on demand from the add-on's context menu.
+
+## Install from the zip directly
+
+1. Download `plugin.audio.raveplayer-<version>.zip` from the releases page.
 2. Kodi → Add-ons → Install from zip file.
-3. Enable "Unknown sources" first if Kodi asks.
 
 ## Development
 
