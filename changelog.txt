@@ -1,3 +1,13 @@
+Rave Player 3.0.2
+- Switched the archive sections to the curated Internet Archive collection
+  "ravetapes" instead of keyword guessing: 724 real 1990s rave cassettes,
+  with genre sections that stay on-genre (jungle/DnB 74, hardcore 86,
+  house/garage 299, Kool FM/Centreforce/Don FM 14).
+- Live radio tags corrected: "pirate" was a Dutch schlager tag and
+  "oldschool" was hip-hop, so both were dropped; breakbeat added.
+- Section names now match what they contain (Jungle / Drum & Bass,
+  All Tape Packs).
+
 Rave Player 3.0.1
 - Tuned every Archive query against live result counts so no section comes
   back empty: jungle, hardcore, house/garage, pirate radio and drum & bass

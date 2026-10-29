@@ -21,38 +21,38 @@ ARCHIVE_SECTIONS = [
     {
         "key": "rave",
         "label": "Rave Tape Packs",
-        "query": '"rave tape pack"',
-        "plot": "Classic rave tape packs from the Internet Archive.",
+        "query": "collection:ravetapes AND mediatype:audio",
+        "plot": "The Rave Tapes — a curated 1990s cassette collection, 724 packs.",
     },
     {
         "key": "jungle",
-        "label": "Jungle Tape Packs",
-        "query": 'jungle AND "tape pack"',
-        "plot": "Jungle and ragga jungle sets.",
+        "label": "Jungle / Drum & Bass",
+        "query": 'collection:ravetapes AND (jungle OR "drum and bass")',
+        "plot": "Jungle and drum & bass sets from the rave tapes collection.",
     },
     {
         "key": "hardcore",
-        "label": "Hardcore Tape Packs",
-        "query": 'hardcore AND "tape pack"',
-        "plot": "Happy hardcore and hardcore sets.",
+        "label": "Hardcore",
+        "query": "collection:ravetapes AND hardcore",
+        "plot": "Hardcore and happy hardcore sets.",
     },
     {
         "key": "house",
         "label": "House & Garage",
-        "query": '(house OR garage) AND ("tape pack" OR "tape packs")',
+        "query": "collection:ravetapes AND (garage OR house)",
         "plot": "House, garage and speed garage sets.",
     },
     {
         "key": "pirate",
-        "label": "Pirate Radio Archive",
-        "query": 'title:("pirate radio")',
-        "plot": "Pirate radio broadcasts and recordings.",
+        "label": "Pirate Radio",
+        "query": 'collection:ravetapes AND (Kool OR Centreforce OR "Don FM")',
+        "plot": "Kool FM, Centreforce and Don FM sets from the archives.",
     },
     {
-        "key": "dnb",
-        "label": "Drum & Bass Sets",
-        "query": '"drum and bass" AND "tape pack"',
-        "plot": "Drum and bass sets and radio shows.",
+        "key": "tapepacks",
+        "label": "All Tape Packs",
+        "query": '(jungle OR "drum and bass" OR hardcore OR house) AND "tape pack"',
+        "plot": "Everything the Archive tags as a tape pack, across genres.",
     },
 ]
 
@@ -62,7 +62,7 @@ RADIO_SECTIONS = [
     {"key": "dnb", "label": "Drum & Bass", "tag": "drum and bass"},
     {"key": "hardcore", "label": "Hardcore", "tag": "hardcore"},
     {"key": "garage", "label": "House & Garage", "tag": "garage"},
-    {"key": "pirate", "label": "Pirate Radio", "tag": "pirate"},
+    {"key": "breakbeat", "label": "Breakbeat", "tag": "breakbeat"},
 ]
 
 ARCHIVE_BY_KEY = dict((section["key"], section) for section in ARCHIVE_SECTIONS)

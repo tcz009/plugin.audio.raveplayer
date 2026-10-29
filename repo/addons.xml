@@ -2,10 +2,10 @@
 <addons>
 <addon id="plugin.audio.raveplayer"
 name="Rave Player"
-version="3.0.1"
+version="3.0.2"
 provider-name="TheYid009">
 <requires>
-<import addon="xbmc.python" version="3.0.1"/>
+<import addon="xbmc.python" version="3.0.2"/>
 </requires>
 <extension point="xbmc.python.pluginsource" library="default.py">
 <provides>audio</provides>
