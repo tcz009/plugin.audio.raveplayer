@@ -62,3 +62,76 @@ def packs():
 def playable(url):
     """Kodi header syntax: appends Referer so the hotlink check passes."""
     return url + REFERER_SUFFIX
+
+
+# --------------------------------------------------------------------------- jungletapes.com
+
+JT_BASE = "https://jungletapes.com"
+JT_SHOW_RE = re.compile(r'href="/show/([^"]+)"[^>]*>(.*?)</a>', re.IGNORECASE | re.DOTALL)
+JT_MP3_RE = re.compile(r'href="([^"]+\.mp3)"', re.IGNORECASE)
+
+
+def _strip_tags(value):
+    return re.sub(r"<[^>]+>", "", value or "").strip()
+
+
+def jungle_shows():
+    """Toronto jungle/DnB radio shows digitised from cassette — one page each.
+
+    The site's front page only lists the newest two, so the sitemap is the
+    catalogue: 300+ /show/ pages.
+    """
+    xml = http.fetch(JT_BASE + "/sitemap.xml", timeout=30)
+    slugs = []
+    if xml:
+        slugs = re.findall(r"<loc>[^<]*?/show/([^<]+)</loc>", xml)
+    if not slugs:
+        html = http.fetch(JT_BASE + "/", timeout=25) or ""
+        slugs = [slug for slug, _ in JT_SHOW_RE.findall(html)]
+    shows, seen = [], set()
+    for slug in slugs:
+        slug = slug.strip().strip("/")
+        if not slug or slug in seen:
+            continue
+        seen.add(slug)
+        shows.append({"key": slug, "name": _jt_label(slug)})
+    shows.sort(key=lambda item: item["name"], reverse=True)
+    return shows
+
+
+def _jt_label(slug):
+    text = slug.replace("tapes/", "").replace("_", " ").replace("-", " ")
+    text = re.sub(r"\b000000\b", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:1].upper() + text[1:] if text else slug
+
+
+def jungle_tracks(slug):
+    html = http.fetch(JT_BASE + "/show/" + urllib.parse.quote(slug), timeout=25)
+    if not html:
+        return []
+    tracks = []
+    for url in JT_MP3_RE.findall(html):
+        if url.startswith("//"):
+            url = "https:" + url
+        filename = urllib.parse.unquote(url.rsplit("/", 1)[-1]).rsplit(".", 1)[0]
+        tracks.append({"name": _pretty(filename), "url": url})
+    return tracks
+
+
+# --------------------------------------------------------------------------- torontoravemixtapearchive.com
+
+TR_BASE = "https://www.torontoravemixtapearchive.com"
+TR_MP3_RE = re.compile(r'href="(/files/mixtapes?/[^"]+\.mp3)"', re.IGNORECASE)
+
+
+def toronto_tracks():
+    """Flat index of Toronto rave mixtapes."""
+    html = http.fetch(TR_BASE + "/", timeout=25)
+    if not html:
+        return []
+    tracks = []
+    for path in TR_MP3_RE.findall(html):
+        filename = urllib.parse.unquote(path.rsplit("/", 1)[-1]).rsplit(".", 1)[0]
+        tracks.append({"name": _pretty(filename), "url": TR_BASE + urllib.parse.quote(path, safe="/:~")})
+    return tracks

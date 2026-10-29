@@ -131,10 +131,10 @@ def root(handle, params):
 
     menu_item(
         handle,
-        url_for(mode="legacy_packs"),
-        "RaveTapePacks.com",
+        url_for(mode="legacy_menu"),
+        "Legacy Sites",
         icon=art("tapepacks.png"),
-        plot="The one fan site from 2014 that is still standing — direct tape pack MP3s.",
+        plot="The fan sites from 2014 that are still standing.",
     )
 
     menu_item(handle, url_for(mode="search"), "Search the Archive", icon=art("search.png"), plot="Search every tape pack on archive.org.")
@@ -238,6 +238,64 @@ def archive_item(handle, params):
     kodi.end_directory(handle, "songs")
 
 
+def legacy_menu(handle, params):
+    menu = [
+        ("RaveTapePacks.com", "legacy_packs", "tapepacks.png", "Full tape packs, hotlink-protected MP3s."),
+        ("JungleTapes.com", "legacy_jt", "jungle.png", "Toronto jungle & drum n bass radio shows from cassette."),
+        ("Toronto Rave Mixtape Archive", "legacy_toronto", "rave.png", "Rave mixtapes from Toronto, 1990s."),
+    ]
+    for label, mode, icon, plot in menu:
+        ui.menu_item(handle, url_for(mode=mode), label, icon=art(icon), plot=plot)
+    ui.menu_item(handle, url_for(mode="root"), "Back")
+    kodi.end_directory(handle, "files")
+
+
+def legacy_jt(handle, params):
+    shows = legacy.jungle_shows()
+    if not shows:
+        kodi.notify("Jungle Tapes did not answer — try again later.")
+    for show in shows:
+        ui.menu_item(
+            handle,
+            url_for(mode="legacy_jt_show", key=show["key"]),
+            show["name"],
+            icon=art("jungle.png"),
+            plot="JungleTapes.com · Toronto jungle radio",
+        )
+    kodi.end_directory(handle, "files")
+
+
+def legacy_jt_show(handle, params):
+    key = params.get("key", "")
+    tracks = legacy.jungle_tracks(key)
+    if not tracks:
+        kodi.notify("No audio on that show.")
+    for track in tracks:
+        ui.track_item(
+            handle,
+            url_for(mode="play", url=track["url"], label=track["name"], thumb=art("jungle.png")),
+            track["name"],
+            thumb=art("jungle.png"),
+            plot="JungleTapes.com · %s" % key.replace("-", " "),
+        )
+    kodi.end_directory(handle, "songs")
+
+
+def legacy_toronto(handle, params):
+    tracks = legacy.toronto_tracks()
+    if not tracks:
+        kodi.notify("Toronto archive did not answer — try again later.")
+    for track in tracks:
+        ui.track_item(
+            handle,
+            url_for(mode="play", url=track["url"], label=track["name"], thumb=art("rave.png")),
+            track["name"],
+            thumb=art("rave.png"),
+            plot="Toronto Rave Mixtape Archive",
+        )
+    kodi.end_directory(handle, "songs")
+
+
 def legacy_packs(handle, params):
     entries = legacy.packs()
     if not entries:
@@ -334,6 +392,10 @@ HANDLERS = {
     "radio_tag": radio_tag,
     "archive_list": archive_list,
     "archive_item": archive_item,
+    "legacy_menu": legacy_menu,
+    "legacy_jt": legacy_jt,
+    "legacy_jt_show": legacy_jt_show,
+    "legacy_toronto": legacy_toronto,
     "legacy_packs": legacy_packs,
     "legacy_pack": legacy_pack,
     "search": search,

@@ -13,9 +13,12 @@ rebuilt in 2026 from the 2014 original.
 - **Live radio** — oldskool, jungle, drum & bass, hardcore, house/garage and
   pirate stations from [radio-browser.info](https://www.radio-browser.info/).
 - **Search** — full-text search across the whole Archive from inside Kodi.
-- **RaveTapePacks.com** — the one 2014 fan site still standing, with direct
-  tape-pack MP3s. Its files are hotlink-protected, so playback URLs carry a
-  `Referer` suffix that Kodi sends as a real header.
+- **Legacy sites** — the 2014 sources that are still standing:
+  - *RaveTapePacks.com* — full tape packs. Its files are hotlink-protected, so
+    playback URLs carry a `Referer` suffix that Kodi sends as a real header.
+  - *JungleTapes.com* — 310 Toronto jungle/DnB radio shows from cassette,
+    catalogued via the site sitemap.
+  - *Toronto Rave Mixtape Archive* — 1990s Toronto rave mixtapes.
 
 ## Why it was rebuilt rather than patched
 

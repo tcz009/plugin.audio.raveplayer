@@ -1,3 +1,10 @@
+Rave Player 3.3.0
+- Legacy sites are now a proper submenu with every surviving 2014 source:
+  * RaveTapePacks.com — full tape packs (Referer-protected MP3s)
+  * JungleTapes.com — 310 Toronto jungle/DnB radio shows, catalogued from
+    the site sitemap because the front page only lists the newest two
+  * Toronto Rave Mixtape Archive — 1990s Toronto rave mixtapes
+
 Rave Player 3.2.0
 - Added RaveTapePacks.com as a legacy source: one of the few fan sites from
   2014 still serving full tape packs. Its MP3s are hotlink-protected, so the
