@@ -1,3 +1,8 @@
+Rave Player 3.9.2
+- Reverted the ecstasy tablet from the main icon at the owner's request: back
+  to the acid smiley with the play-triangle wink. The wider era strap
+  (ARCHIVE · 88 → NOW) stays.
+
 Rave Player 3.9.1
 - New main icon: the acid smiley keeps its play-triangle wink, but the left
   eye is now the Love Dove pill — a white round tablet stamped with a drawn
