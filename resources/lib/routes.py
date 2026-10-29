@@ -105,6 +105,32 @@ def _filters():
     ]
 
 
+def _rave_catalog():
+    import json
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rave-catalog.json")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return []
+    entries = []
+    for entry in data if isinstance(data, list) else []:
+        if not isinstance(entry, dict) or not entry.get("name"):
+            continue
+        try:
+            count = int(entry.get("archive_count") or 0)
+        except (TypeError, ValueError):
+            count = 0
+        if count > 0 and entry.get("archive_query"):
+            entries.append({
+                "name": str(entry["name"]),
+                "query": entry["archive_query"],
+                "count": count,
+            })
+    entries.sort(key=lambda item: item["count"], reverse=True)
+    return entries
+
+
 def _filter(key):
     return next((entry for entry in _filters() if entry["id"] == key), None)
 
@@ -316,6 +342,10 @@ def root(handle, params):
               icon=art("tapepacks.png"),
               plot="Jump straight to the classic pack series.")
 
+    menu_item(handle, url_for(mode="rave_nights"), "Rave Nights",
+              icon=art("rave.png"),
+              plot="Classic promotions, venues and pirate stations from the research catalogue.")
+
     menu_item(handle, url_for(mode="fav_list"), "Favourites",
               icon=art("about.png"),
               plot="The packs and shows you saved.")
@@ -517,6 +547,39 @@ def fav_remove(handle, params):
     favourites.remove(params.get("key", ""))
     kodi.notify("Removed from favourites")
     kodi.refresh()
+    kodi.end_directory(handle, "files")
+
+
+def rave_nights(handle, params):
+    entries = _rave_catalog()
+    if not entries:
+        kodi.notify("The rave catalogue is missing from the add-on.")
+    for entry in entries:
+        ui.menu_item(handle, url_for(mode="rave_list", key=urllib.parse.quote(entry["name"])),
+                     "%s  [COLOR gray](%d items)[/COLOR]" % (entry["name"], entry["count"]),
+                     icon=art("rave.png"),
+                     plot="Archive packs and sets for %s" % entry["name"])
+    ui.menu_item(handle, url_for(mode="root"), "Back")
+    kodi.end_directory(handle, "files")
+
+
+def rave_list(handle, params):
+    name = params.get("key", "")
+    entry = next((item for item in _rave_catalog() if item["name"] == name), None)
+    if not entry:
+        kodi.notify("That rave is no longer in the catalogue.")
+        kodi.end_directory(handle, "files")
+        return
+    try:
+        page = max(1, int(params.get("page", 1)))
+    except ValueError:
+        page = 1
+    rows = kodi.setting_int("results_per_page", ROWS_PER_PAGE)
+    docs, total = archive.search(entry["query"], page=page, rows=rows)
+    _archive_items(handle, docs)
+    if total > page * rows:
+        ui.menu_item(handle, url_for(mode="rave_list", key=urllib.parse.quote(name), page=page + 1),
+                     "Next page  >", plot="More %s" % name)
     kodi.end_directory(handle, "files")
 
 
@@ -887,6 +950,8 @@ HANDLERS = {
     "fav_list": fav_list,
     "fav_add": fav_add,
     "fav_remove": fav_remove,
+    "rave_nights": rave_nights,
+    "rave_list": rave_list,
     "filters_menu": filters_menu,
     "filter_list": filter_list,
     "filter_live": filter_live,

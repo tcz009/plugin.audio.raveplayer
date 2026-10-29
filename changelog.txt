@@ -1,3 +1,12 @@
+Rave Player 3.9.0
+- Rave Nights: a researched catalogue of 55 classic promotions, venues and
+  pirate stations (Pure X, Biology, Pandemonium, Lazerdrome, Roller Express,
+  Bagleys, Turnmills, Metalheadz, Rinse FM, Rude FM, Spiral Tribe and more),
+  listing only the ones with real archive content.
+- Fixed broken quick filters: Centreforce, Don FM, Slammin' Vinyl and One
+  Nation were scoped to the ravetapes collection and returned nothing useful;
+  they now use archive-wide title queries verified by the research pass.
+
 Rave Player 3.8.1
 - Quick filters for the classic promotions: Jungle Fever, Roast, Telepathy
   and World Dance (the ones with tape packs in the archive collection).
