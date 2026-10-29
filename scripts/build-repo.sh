@@ -6,6 +6,7 @@ cd "$(dirname "$0")/.."
 VERSION=$(python3 -c "import xml.etree.ElementTree as E;print(E.parse('addon.xml').getroot().get('version'))")
 ./scripts/build.sh >/dev/null
 
+rm -rf repo
 mkdir -p repo/plugin.audio.raveplayer
 cp "dist/plugin.audio.raveplayer-${VERSION}.zip" repo/plugin.audio.raveplayer/
 
