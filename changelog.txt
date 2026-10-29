@@ -1,3 +1,10 @@
+Rave Player 3.7.1
+- One In The Jungle: new quick filter for the BBC Radio 1 jungle shows
+  (LTJ Bukem, Goldie, A Guy Called Gerald and more) via the Internet Archive.
+  The original oneinthejungle.uk site no longer answers.
+- JungleTapes.com catalogue now unions the /tapes index with the sitemap, so
+  the full 310-show set is covered if the site changes its index.
+
 Rave Player 3.7.0
 - Fixed duplicate tracks: Archive OGG derivatives were listed next to their
   MP3 originals, so most packs showed every set twice (World Dance went from

@@ -180,7 +180,8 @@ class LegacyTests(unittest.TestCase):
 
     def test_jungle_shows_falls_back_to_front_page(self):
         page = '<a href="/show/gamma" class="x">Gamma</a><a href="/show/delta">Delta</a>'
-        with mock.patch.object(legacy.http, "fetch", side_effect=["", page]):
+        # first call is the /tapes index, second the sitemap, third the front page
+        with mock.patch.object(legacy.http, "fetch", side_effect=["", "", page]):
             shows = legacy.jungle_shows()
         self.assertEqual([show["key"] for show in shows], ["gamma", "delta"])
 
