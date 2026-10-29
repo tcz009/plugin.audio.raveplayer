@@ -20,9 +20,15 @@ def log(message, level=xbmc.LOGDEBUG):
 
 
 def notify(message, heading=None, icon=ICON, time=4000):
+    """Show a Kodi notification; commas separate builtin arguments."""
+    heading = str(heading or ADDON_NAME).replace(",", " ")
+    message = str(message).replace(",", " ").replace("\n", " ")
+    try:
+        milliseconds = int(time)
+    except (TypeError, ValueError):
+        milliseconds = 4000
     xbmc.executebuiltin(
-        "Notification(%s,%s,%d,%s)"
-        % ((heading or ADDON_NAME).replace(",", " "), message.replace(",", " "), time, icon)
+        "Notification(%s,%s,%d,%s)" % (heading, message, milliseconds, icon)
     )
 
 
@@ -40,9 +46,9 @@ def setting_int(name, default):
 
 def setting_bool(name, default=False):
     value = ADDON.getSetting(name)
-    if value == "":
+    if value in (None, ""):
         return default
-    return value.lower() == "true"
+    return str(value).strip().lower() in ("true", "1", "yes", "on")
 
 
 def dialog():

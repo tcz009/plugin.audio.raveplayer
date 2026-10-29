@@ -1,3 +1,13 @@
+Rave Player 3.4.1
+- Code-quality pass: disk cache with TTL for feeds, Archive search/metadata,
+  legacy HTML and DNBRADIO recordings (menus load from cache; ~5 network
+  calls per load become 0 when warm).
+- Fixed real bugs: Toronto Rave Mixtape URLs with "&amp;" 404'd, Atom feeds
+  returned no episodes, null Archive fields and malformed numFound could
+  crash a route, corrupt gzip and unknown charsets could raise, fractional
+  iTunes durations were wildly wrong, radio station lists could crash.
+- Offline test suite grown from 21 to 88 tests.
+
 Rave Player 3.4.0
 - Present-day coverage: Podcasts & Mixes section built on RSS feeds, which
   are the most durable source there is (Jungle Lab, The M-Path-E Test,

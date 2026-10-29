@@ -19,9 +19,23 @@ THUMB_URL = "https://archive.org/services/img/%s"
 AUDIO_EXTENSIONS = (".mp3", ".m4a", ".ogg", ".flac", ".wav", ".aac", ".opus")
 FIELDS = ["identifier", "title", "year", "date", "downloads", "mediatype", "creator", "description"]
 
+SEARCH_TTL = 300
+ITEM_TTL = 3600
+
+
+def _quote(value):
+    return urllib.parse.quote(str(value), safe="")
+
 
 def thumb(identifier):
-    return THUMB_URL % identifier
+    return THUMB_URL % _quote(identifier)
+
+
+def _as_text(value):
+    """Collapse whitespace and turn Archive's occasional lists into text."""
+    if isinstance(value, (list, tuple)):
+        value = " ".join(str(part) for part in value)
+    return " ".join(str(value or "").split())
 
 
 def search(query, page=1, rows=50, sort="downloads desc"):
@@ -35,25 +49,45 @@ def search(query, page=1, rows=50, sort="downloads desc"):
     ]
     params += [("fl[]", field) for field in FIELDS]
     url = SEARCH_URL + "?" + urllib.parse.urlencode(params)
-    data = http.fetch_json(url, timeout=25)
-    if not data or "response" not in data:
+    data = http.fetch_json(url, timeout=25, ttl=SEARCH_TTL)
+    if not isinstance(data, dict):
         return [], 0
-    response = data["response"]
-    return response.get("docs", []), int(response.get("numFound", 0) or 0)
+    response = data.get("response")
+    if not isinstance(response, dict):
+        return [], 0
+    docs = response.get("docs")
+    if not isinstance(docs, list):
+        docs = []
+    docs = [doc for doc in docs if isinstance(doc, dict)]
+    try:
+        total = int(response.get("numFound") or 0)
+    except (TypeError, ValueError):
+        total = 0
+    return docs, max(0, total)
 
 
 def item(identifier):
     """Return the metadata dict for one Archive.org item, or {}."""
-    return http.fetch_json(METADATA_URL % identifier, timeout=25) or {}
+    identifier = str(identifier or "")
+    if not identifier:
+        return {}
+    data = http.fetch_json(METADATA_URL % _quote(identifier), timeout=25, ttl=ITEM_TTL)
+    return data if isinstance(data, dict) else {}
 
 
 def audio_files(identifier):
     """Return playable audio files for an item, best format first, de-duplicated."""
     data = item(identifier)
-    files = data.get("files", [])
+    files = data.get("files")
+    if not isinstance(files, list):
+        files = []
     by_name = {}
     for entry in files:
-        name = entry.get("name") or ""
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name")
+        if not isinstance(name, str) or not name:
+            continue
         lower = name.lower()
         if not lower.endswith(AUDIO_EXTENSIONS):
             continue
@@ -67,14 +101,17 @@ def audio_files(identifier):
         if existing is None or rank < existing[0]:
             by_name[key] = (rank, entry)
     ordered = [entry for _, entry in sorted(by_name.values(), key=lambda pair: pair[0])]
-    item_title = " ".join(str(data.get("metadata", {}).get("title", "")).split())
+    metadata = data.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    item_title = _as_text(metadata.get("title"))
     return [
         {
             "name": entry.get("name"),
             "title": _track_title(entry, item_title),
             "size": _as_int(entry.get("size")),
             "length": entry.get("length"),
-            "url": DOWNLOAD_URL % (identifier, urllib.parse.quote(entry.get("name"))),
+            "url": DOWNLOAD_URL % (_quote(identifier), urllib.parse.quote(entry["name"], safe="/")),
         }
         for entry in ordered
     ]
@@ -89,7 +126,7 @@ def _track_title(entry, item_title):
     filename, then a distinct per-track title, then a tidied filename.
     """
     pretty = _pretty(entry.get("name"))
-    title = " ".join(str(entry.get("title") or "").split())
+    title = _as_text(entry.get("title"))
     if _is_descriptive(pretty):
         return pretty
     if title and title != item_title:
@@ -98,6 +135,7 @@ def _track_title(entry, item_title):
 
 
 def _is_descriptive(text):
+    text = _as_text(text)
     if not text or len(text) < 5:
         return False
     if re.match(r"^(track|audio|file|part)?\s*\d+$", text, re.IGNORECASE):
@@ -106,10 +144,11 @@ def _is_descriptive(text):
 
 
 def _rank(entry):
-    source = (entry.get("source") or "").lower()
+    source = str(entry.get("source") or "").lower()
     if source == "original":
         return 0
-    if entry.get("format", "").lower() in ("vbr mp3", "mp3"):
+    fmt = str(entry.get("format") or "").lower()
+    if fmt in ("vbr mp3", "mp3"):
         return 1
     return 2
 
@@ -122,10 +161,12 @@ def _as_int(value):
 
 
 def _pretty(name):
-    if not name:
+    text = _as_text(name)
+    if not text:
         return "Untitled"
-    base = name.split("/")[-1]
+    base = text.split("/")[-1]
     for extension in AUDIO_EXTENSIONS:
         if base.lower().endswith(extension):
             base = base[: -len(extension)]
-    return base.replace("_", " ").strip()
+            break
+    return base.replace("_", " ").strip() or "Untitled"

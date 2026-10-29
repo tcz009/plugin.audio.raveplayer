@@ -6,6 +6,7 @@ Run: python3 test/run.py
 
 import json
 import os
+import tempfile
 
 LOG_LINES = []
 ITEMS = []
@@ -19,6 +20,7 @@ class _Addon(object):
             "name": "Rave Player",
             "version": "3.0.0",
             "path": os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "profile": os.path.join(tempfile.gettempdir(), "raveplayer-test-profile"),
             "icon": "icon.png",
             "fanart": "fanart.jpg",
         }

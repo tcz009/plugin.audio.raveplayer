@@ -12,25 +12,49 @@ MIRRORS = [
 
 def stations(tag, limit=100):
     """Return live, non-broken stations for a tag, most-clicked first."""
+    try:
+        limit = max(1, min(int(limit), 1000))
+    except (TypeError, ValueError):
+        limit = 100
     query = (
         "/json/stations/search?tag=%s&limit=%d&hidebroken=true"
-        "&order=clickcount&reverse=true" % (http.quote(tag), limit)
+        "&order=clickcount&reverse=true" % (http.quote(str(tag)), limit)
     )
     for mirror in MIRRORS:
         data = http.fetch_json(mirror + query, timeout=20)
-        if isinstance(data, list):
-            return [station for station in data if station.get("url_resolved") or station.get("url")]
+        if not isinstance(data, list):
+            continue
+        stations = [
+            station for station in data
+            if isinstance(station, dict) and stream_url(station)
+        ]
+        if stations:
+            return stations
     return []
 
 
 def stream_url(station):
-    return station.get("url_resolved") or station.get("url") or ""
+    if not isinstance(station, dict):
+        return ""
+    url = station.get("url_resolved") or station.get("url") or ""
+    return url if isinstance(url, str) else ""
+
+
+def _as_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def display(station):
-    name = (station.get("name") or "Unknown station").strip()
-    country = (station.get("countrycode") or station.get("country") or "").strip()
-    codec = (station.get("codec") or "").upper()
-    bitrate = station.get("bitrate")
-    meta = " · ".join(part for part in (country, codec, ("%s kbps" % bitrate) if bitrate else "") if part)
+    if not isinstance(station, dict):
+        station = {}
+    name = str(station.get("name") or "Unknown station").strip() or "Unknown station"
+    country = str(station.get("countrycode") or station.get("country") or "").strip()
+    codec = str(station.get("codec") or "").upper()
+    bitrate = _as_int(station.get("bitrate"))
+    meta = " · ".join(
+        part for part in (country, codec, ("%d kbps" % bitrate) if bitrate > 0 else "") if part
+    )
     return name, meta

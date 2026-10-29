@@ -2,6 +2,10 @@
 """xbmcaddon stub."""
 
 import os
+import tempfile
+
+
+PROFILE = os.path.join(tempfile.gettempdir(), "raveplayer-test-profile")
 
 
 class Addon(object):
@@ -12,6 +16,7 @@ class Addon(object):
             "name": "Rave Player",
             "version": "3.0.0",
             "path": root,
+            "profile": PROFILE,
             "icon": os.path.join(root, "icon.png"),
             "fanart": os.path.join(root, "fanart.jpg"),
         }

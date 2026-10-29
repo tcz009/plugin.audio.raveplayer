@@ -5,13 +5,14 @@ Everything the add-on shows is described by the SECTIONS tables below, so
 adding a source is a one-line change rather than another 40-line scraper.
 """
 
+import html
+import os
+import re
 import sys
 import urllib.parse
 
 import xbmcgui
 import xbmcplugin
-
-import os
 
 from . import archive, dnbradio, feeds, kodi, legacy, radio, ui
 
@@ -73,6 +74,7 @@ RADIO_SECTIONS = [
     {"key": "breakbeat", "label": "Breakbeat", "tag": "breakbeat", "art": "rave.png"},
 ]
 
+
 def art(name):
     return os.path.join(kodi.ADDON_PATH, "resources", "art", name)
 
@@ -102,11 +104,78 @@ def params_from_argv(argv):
     return dict((key, values[0]) for key, values in urllib.parse.parse_qs(query).items())
 
 
+# --------------------------------------------------------------------------- helpers
+
+
+def _as_text(value):
+    if isinstance(value, (list, tuple)):
+        value = " ".join(str(part) for part in value)
+    return " ".join(str(value or "").split())
+
+
+def _page_number(params):
+    try:
+        return max(1, int(params.get("page") or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _rows_per_page():
+    rows = kodi.setting_int("results_per_page", ROWS_PER_PAGE)
+    return rows if rows > 0 else ROWS_PER_PAGE
+
+
+def _year_label(doc):
+    """Return a year for the list label, tolerating lists and missing dates."""
+    value = doc.get("year")
+    if isinstance(value, (list, tuple)):
+        value = value[0] if value else ""
+    text = str(value or "").strip()
+    if not text:
+        date = doc.get("date")
+        if isinstance(date, (list, tuple)):
+            date = date[0] if date else ""
+        text = str(date or "").strip()[:4]
+    return "" if text.lower() in ("none", "null") else text
+
+
+def _archive_items(handle, docs):
+    """Render Archive search docs as a folder list."""
+    for doc in docs:
+        identifier = str(doc.get("identifier") or "").strip()
+        if not identifier:
+            continue
+        title = _as_text(doc.get("title")) or identifier
+        year = _year_label(doc)
+        label = title if not year else "%s  [COLOR gray](%s)[/COLOR]" % (title, year)
+        ui.menu_item(
+            handle,
+            url_for(mode="archive_item", id=identifier),
+            label,
+            icon=archive.thumb(identifier),
+            plot=_clean_description(doc.get("description")),
+        )
+
+
+def _clean_description(value):
+    if not value:
+        return ""
+    if isinstance(value, (list, tuple)):
+        value = " ".join(str(part) for part in value)
+    text = html.unescape(str(value))
+    text = re.sub(r"<[^>]+>", " ", text)
+    return " ".join(text.split())[:600]
+
+
 # --------------------------------------------------------------------------- entry
 
 
 def dispatch(argv):
-    handle = int(argv[1])
+    try:
+        handle = int(argv[1])
+    except (IndexError, TypeError, ValueError):
+        kodi.log("dispatch called without a valid plugin handle")
+        return
     params = params_from_argv(argv)
     mode = params.get("mode", "root")
     handler = HANDLERS.get(mode, root)
@@ -200,28 +269,14 @@ def archive_list(handle, params):
         kodi.notify("That section no longer exists.")
         kodi.end_directory(handle, "files")
         return
-    try:
-        page = max(1, int(params.get("page", 1)))
-    except ValueError:
-        page = 1
-    rows = kodi.setting_int("results_per_page", ROWS_PER_PAGE)
+    page = _page_number(params)
+    rows = _rows_per_page()
     docs, total = archive.search(section["query"], page=page, rows=rows)
 
     if not docs and page == 1:
         kodi.notify("Nothing came back from the Archive. Try another section.")
 
-    for doc in docs:
-        identifier = doc.get("identifier", "")
-        title = doc.get("title") or identifier
-        year = doc.get("year") or str(doc.get("date", ""))[:4]
-        label = title if not year else "%s  [COLOR gray](%s)[/COLOR]" % (title, year)
-        ui.menu_item(
-            handle,
-            url_for(mode="archive_item", id=identifier),
-            label,
-            icon=archive.thumb(identifier),
-            plot=_clean_description(doc.get("description")),
-        )
+    _archive_items(handle, docs)
 
     if total > page * rows:
         ui.menu_item(
@@ -348,6 +403,10 @@ def legacy_jt(handle, params):
 
 def legacy_jt_show(handle, params):
     key = params.get("key", "")
+    if not key:
+        kodi.notify("No audio on that show.")
+        kodi.end_directory(handle, "songs")
+        return
     tracks = legacy.jungle_tracks(key)
     if not tracks:
         kodi.notify("No audio on that show.")
@@ -395,6 +454,10 @@ def legacy_packs(handle, params):
 
 def legacy_pack(handle, params):
     key = params.get("pack", "")
+    if not key:
+        kodi.notify("That pack is no longer listed.")
+        kodi.end_directory(handle, "songs")
+        return
     entry = next((item for item in legacy.packs() if item["key"] == key), None)
     if not entry:
         kodi.notify("That pack is no longer listed.")
@@ -418,18 +481,10 @@ def search(handle, params):
     if not query:
         kodi.end_directory(handle, "files")
         return
-    docs, total = archive.search(query, page=1, rows=ROWS_PER_PAGE)
+    docs, _total = archive.search(query, page=1, rows=ROWS_PER_PAGE)
     if not docs:
         kodi.notify("No results for “%s”." % query)
-    for doc in docs:
-        identifier = doc.get("identifier", "")
-        ui.menu_item(
-            handle,
-            url_for(mode="archive_item", id=identifier),
-            doc.get("title") or identifier,
-            icon=archive.thumb(identifier),
-            plot=_clean_description(doc.get("description")),
-        )
+    _archive_items(handle, docs)
     kodi.end_directory(handle, "files")
 
 
@@ -456,15 +511,6 @@ def play(handle, params):
     item.setInfo("music", {"title": label})
     item.setProperty("IsPlayable", "true")
     xbmcplugin.setResolvedUrl(handle, True, item)
-
-
-def _clean_description(value):
-    if not value:
-        return ""
-    if isinstance(value, list):
-        value = " ".join(str(part) for part in value)
-    text = " ".join(str(value).split())
-    return text[:600]
 
 
 HANDLERS = {

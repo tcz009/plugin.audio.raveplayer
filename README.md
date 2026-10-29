@@ -70,6 +70,7 @@ raveplayer/
 │       ├── radio.py        # radio-browser.info provider
 │       ├── ui.py           # list items and artwork
 │       ├── http.py         # tiny JSON transport
+│       ├── cache.py        # best-effort on-disk response cache
 │       └── kodi.py         # Kodi wrappers
 └── test/
     ├── stubs/              # fake xbmc* modules

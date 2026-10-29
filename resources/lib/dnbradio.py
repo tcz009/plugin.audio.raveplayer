@@ -13,9 +13,10 @@ from . import http
 
 BASE = "https://dnbradio.com"
 RECORDINGS = BASE + "/recordings"
+RECORDINGS_TTL = 10 * 60
 
 MIX_RE = re.compile(r'href="/listen\?mix=(\d+)"\s+title="([^"]+)"', re.IGNORECASE)
-MP3_RE = re.compile(r'https?://[^"\'\s>]+\.mp3[^"\'\s<]*', re.IGNORECASE)
+MP3_RE = re.compile(r'(?:href|src)="(https?://[^"]+?\.mp3[^"]*)"', re.IGNORECASE)
 
 
 def parse_recordings(body):
@@ -31,14 +32,16 @@ def parse_recordings(body):
         date, _, show = clean.partition(" : ")
         result.append({
             "id": mix_id,
-            "title": show.strip() or clean,
+            "title": (show.strip() or clean) or "Untitled",
             "date": date.strip(),
         })
     return result
 
 
 def mixes():
-    return parse_recordings(http.fetch(RECORDINGS, timeout=25, headers={"Referer": BASE + "/"}))
+    return parse_recordings(
+        http.fetch(RECORDINGS, timeout=25, headers={"Referer": BASE + "/"}, ttl=RECORDINGS_TTL)
+    )
 
 
 def parse_listen(page):
@@ -48,13 +51,12 @@ def parse_listen(page):
     match = MP3_RE.search(page)
     if not match:
         return ""
-    return html_module.unescape(match.group(0)).replace("&amp;", "&")
+    return html_module.unescape(match.group(1))
 
 
 def stream_url(mix_id):
     """Resolve a mix id to a playable MP3 URL, or '' if the page changed."""
-    return parse_listen(http.fetch("%s/listen?mix=%s" % (BASE, mix_id), timeout=25,
-                                   headers={"Referer": RECORDINGS}))
+    return parse_listen(http.fetch(link(mix_id), timeout=25, headers={"Referer": RECORDINGS}))
 
 
 def link(mix_id):
