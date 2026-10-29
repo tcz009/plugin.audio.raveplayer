@@ -1,3 +1,9 @@
+Rave Player 3.8.1
+- Quick filters for the classic promotions: Jungle Fever, Roast, Telepathy
+  and World Dance (the ones with tape packs in the archive collection).
+- A wider Mixcloud search list on the web build covers Desire, AWOL,
+  Raindance, Rezerection, Slammin' Vinyl, Vibealite, Hardcore Heaven and more.
+
 Rave Player 3.8.0
 - New artwork: "The Last Transmission" — bright screen-print sticker icons
   (black ink-plate glyphs) that read on a TV at distance, new app icon,
