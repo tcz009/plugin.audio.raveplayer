@@ -1,3 +1,14 @@
+Rave Player 3.8.0
+- New artwork: "The Last Transmission" — bright screen-print sticker icons
+  (black ink-plate glyphs) that read on a TV at distance, new app icon,
+  new fanart (the halftone transmitter sun). Copied from the web build so
+  both look the same.
+- New UK Garage section (90s to now) and a UK Garage live-radio group.
+- Quick filters now have their own icons: DJ EZ, Garage Nation,
+  One In The Jungle, and the rest fall back to the tape-pack sticker.
+- Icons remapped to the new set: Favourites heart, Podcasts mask, DNB bolt,
+  Legacy shield, By Year calendar, About back to the rave sticker.
+
 Rave Player 3.7.1
 - One In The Jungle: new quick filter for the BBC Radio 1 jungle shows
   (LTJ Bukem, Goldie, A Guy Called Gerald and more) via the Internet Archive.

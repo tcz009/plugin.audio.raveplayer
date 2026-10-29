@@ -63,6 +63,13 @@ ARCHIVE_SECTIONS = [
         "plot": "Kool FM, Centreforce and Don FM sets from the archives.",
     },
     {
+        "key": "garage",
+        "label": "UK Garage",
+        "query": '(title:("uk garage") OR title:("garage nation") OR title:("pure garage") OR title:("speed garage")) AND mediatype:audio',
+        "art": "garage.png",
+        "plot": "UK garage, 90s to now.",
+    },
+    {
         "key": "tapepacks",
         "art": "tapepacks.png",
         "label": "All Tape Packs",
@@ -78,6 +85,7 @@ RADIO_SECTIONS = [
     {"key": "hardcore", "label": "Hardcore", "tag": "hardcore", "art": "hardcore.png"},
     {"key": "garage", "label": "House & Garage", "tag": "garage", "art": "house.png"},
     {"key": "breakbeat", "label": "Breakbeat", "tag": "breakbeat", "art": "rave.png"},
+    {"key": "ukg", "label": "UK Garage", "tag": "uk garage", "art": "garage.png"},
 ]
 
 
@@ -309,7 +317,7 @@ def root(handle, params):
               plot="Jump straight to the classic pack series.")
 
     menu_item(handle, url_for(mode="fav_list"), "Favourites",
-              icon=art("rave.png"),
+              icon=art("about.png"),
               plot="The packs and shows you saved.")
 
     menu_item(handle, url_for(mode="radio_menu"), "Live Radio", icon=art("radio.png"),
@@ -328,14 +336,14 @@ def root(handle, params):
         handle,
         url_for(mode="media_menu"),
         "Podcasts & Mixes",
-        icon=art("radio.png"),
+        icon=art("jungle.png"),
         plot="Current jungle, drum & bass, hardcore and rave shows — RSS feeds.",
     )
     menu_item(
         handle,
         url_for(mode="dnb_list"),
         "DNB Radio Archive",
-        icon=art("jungle.png"),
+        icon=art("hardcore.png"),
         plot="Recent jungle and drum & bass shows from DNBRADIO.com.",
     )
 
@@ -343,7 +351,7 @@ def root(handle, params):
         handle,
         url_for(mode="legacy_menu"),
         "Legacy Sites",
-        icon=art("tapepacks.png"),
+        icon=art("pirate.png"),
         plot="The fan sites from 2014 that are still standing.",
     )
 
@@ -351,12 +359,12 @@ def root(handle, params):
         handle,
         url_for(mode="years"),
         "Tape Packs by Year",
-        icon=art("tapepacks.png"),
+        icon=art("house.png"),
         plot="Browse the ravetapes collection one year at a time.",
     )
 
     menu_item(handle, url_for(mode="search"), "Search the Archive", icon=art("search.png"), plot="Search every tape pack on archive.org.")
-    menu_item(handle, url_for(mode="about"), "About Rave Player", icon=art("about.png"), plot="Credits, sources and version.")
+    menu_item(handle, url_for(mode="about"), "About Rave Player", icon=art("rave.png"), plot="Credits, sources and version.")
 
     kodi.end_directory(handle, "files")
 
@@ -516,11 +524,14 @@ def filters_menu(handle, params):
     filters = _filters()
     if not filters:
         kodi.notify("No quick filters are configured.")
+    icons = {"dj-ez": "djez.png", "garage-nation": "garage.png",
+             "one-in-the-jungle": "jungle.png", "dreamscape": "tapepacks.png"}
     for entry in filters:
         if entry["id"] == "kool":
             continue
         ui.menu_item(handle, url_for(mode="filter_list", key=entry["id"]), entry["name"],
-                     icon=art("tapepacks.png"), plot=entry.get("plot") or entry["name"])
+                     icon=art(icons.get(entry["id"], "tapepacks.png")),
+                     plot=entry.get("plot") or entry["name"])
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
