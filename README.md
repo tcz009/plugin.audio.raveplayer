@@ -40,6 +40,9 @@ means a dead source can't take the whole add-on down with it.
 - Kodi 21 (Omega) or Kodi 22 (Piers)
 - Nothing else. No module dependencies, no external binaries.
 
+A self-hosted **web version** (same sources, runs in Docker) lives at
+<https://github.com/tcz009/raveplayer-web>.
+
 ## Install from the repository (recommended)
 
 Add the repository once, then Rave Player installs and updates itself.
