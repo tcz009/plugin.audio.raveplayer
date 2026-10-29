@@ -4,6 +4,3 @@ __pycache__/
 src/
 stage/
 
-web/.venv/
-web/data/
-web/__pycache__/
