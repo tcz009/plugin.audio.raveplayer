@@ -1,3 +1,10 @@
+Rave Player 3.1.0
+- New 1993/94 rave-flyer artwork, drawn from scratch in scripts/make-art.py:
+  halftone, hazard stripes, vinyl rings, Impact headlines. No stock imagery.
+- Section icons for Live Radio, Rave, Jungle, Hardcore, House, Pirate,
+  Tapes, Search and About, wired into every menu item in Kodi.
+- New add-on icon and 1920x1080 fanart.
+
 Rave Player 3.0.2
 - Switched the archive sections to the curated Internet Archive collection
   "ravetapes" instead of keyword guessing: 724 real 1990s rave cassettes,

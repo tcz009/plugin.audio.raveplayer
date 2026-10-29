@@ -11,6 +11,8 @@ import urllib.parse
 import xbmcgui
 import xbmcplugin
 
+import os
+
 from . import archive, kodi, radio, ui
 
 ROWS_PER_PAGE = 50
@@ -20,36 +22,42 @@ ROWS_PER_PAGE = 50
 ARCHIVE_SECTIONS = [
     {
         "key": "rave",
+        "art": "rave.png",
         "label": "Rave Tape Packs",
         "query": "collection:ravetapes AND mediatype:audio",
         "plot": "The Rave Tapes — a curated 1990s cassette collection, 724 packs.",
     },
     {
         "key": "jungle",
+        "art": "jungle.png",
         "label": "Jungle / Drum & Bass",
         "query": 'collection:ravetapes AND (jungle OR "drum and bass")',
         "plot": "Jungle and drum & bass sets from the rave tapes collection.",
     },
     {
         "key": "hardcore",
+        "art": "hardcore.png",
         "label": "Hardcore",
         "query": "collection:ravetapes AND hardcore",
         "plot": "Hardcore and happy hardcore sets.",
     },
     {
         "key": "house",
+        "art": "house.png",
         "label": "House & Garage",
         "query": "collection:ravetapes AND (garage OR house)",
         "plot": "House, garage and speed garage sets.",
     },
     {
         "key": "pirate",
+        "art": "pirate.png",
         "label": "Pirate Radio",
         "query": 'collection:ravetapes AND (Kool OR Centreforce OR "Don FM")',
         "plot": "Kool FM, Centreforce and Don FM sets from the archives.",
     },
     {
         "key": "tapepacks",
+        "art": "tapepacks.png",
         "label": "All Tape Packs",
         "query": '(jungle OR "drum and bass" OR hardcore OR house) AND "tape pack"',
         "plot": "Everything the Archive tags as a tape pack, across genres.",
@@ -57,13 +65,17 @@ ARCHIVE_SECTIONS = [
 ]
 
 RADIO_SECTIONS = [
-    {"key": "oldskool", "label": "Oldskool & Rave", "tag": "oldskool"},
-    {"key": "jungle", "label": "Jungle", "tag": "jungle"},
-    {"key": "dnb", "label": "Drum & Bass", "tag": "drum and bass"},
-    {"key": "hardcore", "label": "Hardcore", "tag": "hardcore"},
-    {"key": "garage", "label": "House & Garage", "tag": "garage"},
-    {"key": "breakbeat", "label": "Breakbeat", "tag": "breakbeat"},
+    {"key": "oldskool", "label": "Oldskool & Rave", "tag": "oldskool", "art": "radio.png"},
+    {"key": "jungle", "label": "Jungle", "tag": "jungle", "art": "jungle.png"},
+    {"key": "dnb", "label": "Drum & Bass", "tag": "drum and bass", "art": "jungle.png"},
+    {"key": "hardcore", "label": "Hardcore", "tag": "hardcore", "art": "hardcore.png"},
+    {"key": "garage", "label": "House & Garage", "tag": "garage", "art": "house.png"},
+    {"key": "breakbeat", "label": "Breakbeat", "tag": "breakbeat", "art": "rave.png"},
 ]
+
+def art(name):
+    return os.path.join(kodi.ADDON_PATH, "resources", "art", name)
+
 
 ARCHIVE_BY_KEY = dict((section["key"], section) for section in ARCHIVE_SECTIONS)
 RADIO_BY_KEY = dict((section["key"], section) for section in RADIO_SECTIONS)
@@ -105,18 +117,20 @@ def root(handle, params):
     menu_item = ui.menu_item
 
     action = url_for(mode="radio_menu")
-    menu_item(handle, action, "Live Radio", plot="Streaming pirate, oldskool and rave radio right now.")
+    menu_item(handle, action, "Live Radio", icon=art("radio.png"),
+              plot="Streaming pirate, oldskool and rave radio right now.")
 
     for section in ARCHIVE_SECTIONS:
         menu_item(
             handle,
             url_for(mode="archive_list", key=section["key"], page=1),
             section["label"],
+            icon=art(section["art"]),
             plot=section["plot"],
         )
 
-    menu_item(handle, url_for(mode="search"), "Search the Archive", plot="Search every tape pack on archive.org.")
-    menu_item(handle, url_for(mode="about"), "About Rave Player", plot="Credits, sources and version.")
+    menu_item(handle, url_for(mode="search"), "Search the Archive", icon=art("search.png"), plot="Search every tape pack on archive.org.")
+    menu_item(handle, url_for(mode="about"), "About Rave Player", icon=art("about.png"), plot="Credits, sources and version.")
 
     kodi.end_directory(handle, "files")
 
@@ -127,6 +141,7 @@ def radio_menu(handle, params):
             handle,
             url_for(mode="radio_tag", key=section["key"]),
             section["label"],
+            icon=art(section["art"]),
             plot="Live stations tagged %s" % section["tag"],
         )
     ui.menu_item(handle, url_for(mode="root"), "Back")
