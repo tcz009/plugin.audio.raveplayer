@@ -1,0 +1,46 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Unit tests
+        run: python -m unittest discover -s test -v
+
+      - name: Validate addon.xml
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse("addon.xml").getroot()
+          assert root.get("id") == "plugin.audio.raveplayer"
+          print("addon.xml ok, version", root.get("version"))
+          PY
+
+      - name: Build installable zip
+        run: |
+          chmod +x scripts/build.sh scripts/build-repo.sh
+          ./scripts/build.sh
+          ./scripts/build-repo.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin.audio.raveplayer
+          path: dist/*.zip
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip

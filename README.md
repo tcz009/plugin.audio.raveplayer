@@ -65,11 +65,19 @@ raveplayer/
 Smoke-test any route without Kodi:
 
 ```sh
+# offline unit tests for the parsing/formatting layer
+python3 -m unittest discover -s test -v
+
+# live smoke tests against the real sources
 python3 test/run.py root
 python3 test/run.py archive_list key=rave page=1
 python3 test/run.py archive_item id=dreamscape-19-toil-and-trouble-jungle-8-tape-pack-1995
 python3 test/run.py radio_tag key=oldskool
+python3 test/run.py legacy_menu
 ```
+
+`build.yml` runs the unit tests, validates `addon.xml`, builds the zip and
+attaches it to a release when you push a `v*` tag.
 
 Build the installable zip and the Kodi repository layout:
 
