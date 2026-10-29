@@ -1,0 +1,30 @@
+Rave Player 3.0.1
+- Tuned every Archive query against live result counts so no section comes
+  back empty: jungle, hardcore, house/garage, pirate radio and drum & bass
+  now all return real tape packs (the first pass used phrases the Archive
+  barely indexes).
+- Pirate Radio Archive now searches titles, which surfaces airchecks rather
+  than unrelated shortwave recordings.
+
+Rave Player 3.0.0 — 2026 rebuild
+- Rebuilt for Kodi 21/22 on Python 3. The 2014 code was Python 2 and could not
+  run on any current Kodi.
+- Removed the dead dependencies: script.module.TheYid.common, urlresolver,
+  script.module.simplejson and the bundled HTMLParser/urllib2 imports.
+  The add-on now needs nothing beyond Kodi itself.
+- Replaced 70 hand-written site scrapers with two maintained sources:
+  the Internet Archive for tape packs and sets, and radio-browser.info for
+  live stations. Dead fan sites can no longer break the whole add-on.
+- New sections: Rave Tape Packs, Jungle, Hardcore, House & Garage,
+  Pirate Radio Archive, Drum & Bass Sets, and live radio by genre.
+- Archive search built in, with pagination and proper per-tape labels
+  ("TAPE 3 - MASTERVIBE" rather than nine identical rows).
+- Artwork and metadata on every item: Archive thumbnails, station logos,
+  fanart, plot, genre and duration.
+- Graceful failure: a dead source shows a notification and leaves the rest
+  of the add-on usable.
+- Settings for results per page and station limit.
+
+Rave Player 2.0.1 (2016, original)
+- Final release of the original add-on: 30+ scraped sites, tape packs,
+  pirate radio archives, podcasts and live streams. Kept here for history.

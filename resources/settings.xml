@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings>
+    <category id="general" label="General">
+        <setting id="results_per_page" type="number" label="Archive results per page" default="50"/>
+        <setting id="radio_limit" type="number" label="Maximum live stations" default="100"/>
+    </category>
+</settings>
