@@ -64,10 +64,24 @@ python3 test/run.py archive_item id=dreamscape-19-toil-and-trouble-jungle-8-tape
 python3 test/run.py radio_tag key=oldskool
 ```
 
-Build the installable zip:
+Build the installable zip and the Kodi repository layout:
 
 ```sh
-./scripts/build.sh
+./scripts/build.sh        # dist/plugin.audio.raveplayer-<version>.zip
+./scripts/build-repo.sh   # repo/addons.xml + zip, for install-from-repo
+```
+
+Install straight onto a Shield or any Android Kodi box over ADB (needs one
+`Allow debugging` tap on the device):
+
+```sh
+./scripts/install-shield.sh
+```
+
+Publish (creates the repository if missing):
+
+```sh
+GITHUB_TOKEN=ghp_xxx ./scripts/publish.sh
 ```
 
 ## Licence
