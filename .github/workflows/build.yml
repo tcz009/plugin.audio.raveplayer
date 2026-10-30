@@ -42,12 +42,15 @@ jobs:
           name: plugin.audio.raveplayer
           path: |
             dist/*.zip
-            repo/*/*.zip
+            repo/repository.raveplayer/*.zip
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          # The plugin zip exists in both dist/ and repo/; globbing repo/*/*.zip
+          # uploaded the same asset name twice and made the release step fail
+          # with "update-a-release-asset Not Found" on v3.9.4.
           files: |
             dist/*.zip
-            repo/*/*.zip
+            repo/repository.raveplayer/*.zip
