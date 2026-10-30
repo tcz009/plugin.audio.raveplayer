@@ -1,3 +1,10 @@
+Rave Player 3.9.3
+- Added the missing DJ EZ and Garage Nation quick filters. Their icons were
+  already wired up in the menu; the data entries had been lost when the web
+  build was split out, so the add-on offered 13 filters while the web build
+  had 15. Both now use the same filter list.
+- No other behaviour changes.
+
 Rave Player 3.9.2
 - Reverted the ecstasy tablet from the main icon at the owner's request: back
   to the acid smiley with the play-triangle wink. The wider era strap
