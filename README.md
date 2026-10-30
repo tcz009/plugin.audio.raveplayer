@@ -41,7 +41,7 @@ means a dead source can't take the whole add-on down with it.
 
 ## Requirements
 
-- Kodi 19 (Matrix) through Kodi 22 (Piers)
+- Kodi 20 (Nexus) through Kodi 22 (Piers)
 - Nothing else. No module dependencies, no external binaries.
 
 A self-hosted **web version** (same sources, runs in Docker) lives at

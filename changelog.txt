@@ -1,3 +1,16 @@
+Rave Player 3.9.4
+- Requirements corrected to Kodi 20 (Nexus) through Kodi 22 (Piers). The
+  add-on has always required xbmc.python 3.0.1; Kodi 19 Matrix ships 3.0.0, so
+  the README's "Kodi 19" claim was wrong. No code, query or requirement was
+  changed.
+- The researched rave catalogue is now actually tested: unittest never
+  collected the two module-level functions in test/test_raves.py. They are a
+  TestCase now, so the offline suite is 173 tests (171 were collected before).
+- The catalogue assertions now match the real data shape: 22 of the 55
+  researched entries are Mixcloud-only rows with archive_query null and are
+  filtered out of Rave Nights by the loader, so a null query is only invalid
+  when archive_count is greater than zero.
+
 Rave Player 3.9.3
 - Added the missing DJ EZ and Garage Nation quick filters. Their icons were
   already wired up in the menu; the data entries had been lost when the web

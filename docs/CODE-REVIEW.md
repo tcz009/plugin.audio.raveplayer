@@ -162,7 +162,7 @@ they delimit the `Notification(...)` builtin, and tolerates a bad timeout.
 - **`_base_url()` still uses `sys.argv[0]`.** That is correct inside Kodi; it
   only makes the offline smoke runner print its own path in generated URLs.
 - **`setInfo("music", ...)` retained** rather than moving to newer InfoTag
-  APIs, to keep Kodi 19–22 compatibility.
+  APIs, to keep Kodi 20–22 compatibility.
 - **No new sources, browser automation or third-party packages.**
 
 ## Tempted but left alone

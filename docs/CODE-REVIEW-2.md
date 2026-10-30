@@ -189,7 +189,7 @@ decision, made because the raw markup was the thing users actually saw.
 
 - **Menu structure, labels, add-on id, section queries, playback resolver.**
   The `mode=play` + `setResolvedUrl` pattern and `setInfo("music", ...)` are
-  kept for Kodi 19–22 compatibility.
+  kept for Kodi 20–22 compatibility.
 - **Archive default sort** (`downloads desc`) and the existing original-before-
   derivative ranking. Changing them would reorder every pack list.
 - **No new sources.** `docs/DISCOVERED.md` shows RaveTapePacks' WordPress RSS

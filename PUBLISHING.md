@@ -56,7 +56,7 @@ git push -u origin main
 
 ## After pushing
 
-- Actions → `build` runs the 15 unit tests and attaches the zip to `v*` tags.
+- Actions → `build` runs the 173 unit tests and attaches the zip to `v*` tags.
 - Create a release: `git tag v3.3.0 && git push origin v3.3.0`.
 - Kodi install: download `plugin.audio.raveplayer-3.3.0.zip` from `dist/` (or a
   release) → Add-ons → Install from zip file.
