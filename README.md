@@ -124,11 +124,11 @@ Build the installable zip and the Kodi repository layout:
 ./scripts/build-repo.sh   # repo/addons.xml + zip, for install-from-repo
 ```
 
-Install straight onto a Shield or any Android Kodi box over ADB (needs one
-`Allow debugging` tap on the device):
+Install straight onto an Android Kodi box over ADB (needs one `Allow debugging`
+tap on the device; set the box's address explicitly):
 
 ```sh
-./scripts/install-shield.sh
+SHIELD=<box-ip> ADB=adb ./scripts/install-shield.sh
 ```
 
 Publish (creates the repository if missing):

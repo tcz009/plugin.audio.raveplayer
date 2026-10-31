@@ -1,11 +1,11 @@
 #!/bin/sh
-# Install Rave Player onto the Shield's Kodi 22 via ADB + JSON-RPC.
+# Install Rave Player onto an Android Kodi box via ADB + JSON-RPC.
 #
-# DEV-ONLY, with hardcoded defaults for the owner's Shield:
-#   192.0.2.11, Kodi 22, ADB from ../<tools-dir>/platform-tools/adb.
-# Override any of them in the environment if your box differs:
-#   SHIELD=...  ADB=/path/to/adb  KODI_ADDONS=...  RPC=http://...:8080/jsonrpc
-# Requires: ADB authorised (accept the prompt on the Shield once).
+# DEV-ONLY helper; no device address is baked into the repo. Set the target
+# explicitly, for example:
+#   SHIELD=192.0.2.10 ADB=adb ./scripts/install-shield.sh
+# Optional overrides: KODI_ADDONS=...  RPC=http://...:8080/jsonrpc
+# Requires: ADB authorised (accept the prompt on the device once).
 #
 # The add-on is staged from the CURRENT working tree into a temporary
 # directory, using the same file list scripts/build.sh ships. Nothing is read
@@ -13,8 +13,8 @@
 set -eu
 cd "$(dirname "$0")/.."
 WORKSPACE=$(cd .. && pwd)
-ADB="${ADB:-$WORKSPACE/<tools-dir>/platform-tools/adb}"
-SHIELD="${SHIELD:-192.0.2.11}"
+ADB="${ADB:-adb}"
+SHIELD="${SHIELD:?set SHIELD=<device-ip>}"
 KODI_ADDONS="${KODI_ADDONS:-/sdcard/Android/data/org.xbmc.kodi/files/.kodi/addons}"
 RPC="${RPC:-http://$SHIELD:8080/jsonrpc}"
 VERSION=$(python3 -c "import xml.etree.ElementTree as E;print(E.parse('addon.xml').getroot().get('version'))")
