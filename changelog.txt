@@ -1,3 +1,8 @@
+3.9.9
+- Kool FM live now uses the current Kool London stream (Rinse proxy) instead of radio-browser's fuzzy "Kool" results, which could return KISSTORY or overseas Kool stations.
+- Rinse FM added: live stream, archive filter and Rave Nights entry.
+- Curated live stations take priority; fuzzy name results are filtered to real matches.
+
 Rave Player 3.9.8
 - Fixed the "Latest" endless-scroll bug: the folder is now typed "files"
   (mixed folders + playable items), not "songs", so Kodi no longer treats the

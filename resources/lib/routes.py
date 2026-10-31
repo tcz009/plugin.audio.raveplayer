@@ -347,6 +347,9 @@ def root(handle, params):
     menu_item(handle, url_for(mode="filter_list", key="kool"), "Kool FM",
               icon=art("radio.png"),
               plot="Kool FM: the station live now, plus every Kool FM set in the archive.")
+    menu_item(handle, url_for(mode="filter_list", key="rinse"), "Rinse FM",
+              icon=art("radio.png"),
+              plot="Rinse FM: the station live now, plus Rinse FM sets in the archive.")
     menu_item(handle, url_for(mode="filters_menu"), "Quick Filters",
               icon=art("tapepacks.png"),
               plot="Jump straight to the classic pack series.")
@@ -610,7 +613,7 @@ def filters_menu(handle, params):
     icons = {"dj-ez": "djez.png", "garage-nation": "garage.png",
              "one-in-the-jungle": "jungle.png", "dreamscape": "tapepacks.png"}
     for entry in filters:
-        if entry["id"] == "kool":
+        if entry["id"] in ("kool", "rinse"):
             continue
         ui.menu_item(handle, url_for(mode="filter_list", key=entry["id"]), entry["name"],
                      icon=art(icons.get(entry["id"], "tapepacks.png")),
@@ -625,7 +628,11 @@ def filter_live(handle, params):
         kodi.notify("That live station is no longer configured.")
         kodi.end_directory(handle, "songs")
         return
-    stations = radio.stations_by_name(entry["live_name"], limit=20)
+    stations = radio.curated(entry["live_name"])
+    if not stations:
+        token = str(entry["live_name"] or "").lower()
+        stations = [station for station in radio.stations_by_name(entry["live_name"], limit=20)
+                    if token and token in str(station.get("name", "")).lower()]
     if not stations:
         kodi.notify("%s is not listed as live right now." % entry["name"])
     _station_items(handle, stations, "Live now · %s" % entry["name"])

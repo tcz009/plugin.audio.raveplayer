@@ -20,6 +20,40 @@ def stations(tag, limit=100):
     return _search(query)
 
 
+# Stations we know the canonical stream for. radio-browser's fuzzy name search
+# returns lookalikes (KISSTORY, "Kool 97 FM" Jamaica, etc.); these are the
+# current official feeds -- both Kool London and Rinse FM are served by the
+# Rinse streaming proxy.
+CURATED = [
+    {
+        "name": "Kool FM",
+        "token": "kool",
+        "url_resolved": "https://admin.stream.rinse.fm/proxy/kool/stream",
+        "countrycode": "GB",
+        "codec": "AAC+",
+        "bitrate": 128,
+        "favicon": "",
+    },
+    {
+        "name": "Rinse FM",
+        "token": "rinse",
+        "url_resolved": "https://admin.stream.rinse.fm/proxy/rinse_uk/stream",
+        "countrycode": "GB",
+        "codec": "AAC+",
+        "bitrate": 128,
+        "favicon": "",
+    },
+]
+
+
+def curated(name):
+    """Canonical live station(s) for a known name, else []."""
+    token = str(name or "").strip().lower()
+    if not token:
+        return []
+    return [dict(station) for station in CURATED if station["token"] in token or token in station["token"]]
+
+
 def stations_by_name(name, limit=20):
     """Live stations whose name matches (used for "Kool FM live now")."""
     limit = _clamp(limit, 20, 100)
