@@ -27,6 +27,11 @@ class PlayAllTests(unittest.TestCase):
         del xbmc.PLAYED[:]
         del xbmcplugin.ITEMS[:]
         del xbmcplugin.CACHE_FLAGS[:]
+        patcher = mock.patch.object(
+            routes.archive, "item_title", return_value="World Dance - 1994"
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def _played_urls(self):
         playlist = xbmc.PLAYED[-1]
@@ -66,6 +71,14 @@ class PlayAllTests(unittest.TestCase):
         _url, listitem = xbmc.PLAYED[-1].items[0]
         self.assertEqual(listitem.info["music"]["title"], "One")
         self.assertEqual(listitem.info["music"]["duration"], 61)
+
+    def test_playlist_items_carry_the_pack_cover_and_plot(self):
+        with mock.patch.object(routes.archive, "audio_files", return_value=TRACKS):
+            routes.play_all(1, {"id": "p"})
+        _url, listitem = xbmc.PLAYED[-1].items[0]
+        self.assertEqual(listitem.art["fanart"], routes.archive.thumb("p"))
+        self.assertEqual(listitem.art["thumb"], routes.archive.thumb("p"))
+        self.assertIn("From archive.org item p", listitem.info["music"]["plot"])
 
     def test_no_tracks_notifies_and_does_not_start_playback(self):
         with mock.patch.object(routes.archive, "audio_files", return_value=[]), \

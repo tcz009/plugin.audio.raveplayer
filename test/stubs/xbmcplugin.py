@@ -31,5 +31,12 @@ def endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True
 
 
 def setResolvedUrl(handle, succeeded, listitem):
-    RESOLVED.append({"ok": succeeded, "path": listitem.path, "label": listitem.label})
+    RESOLVED.append({
+        "ok": succeeded,
+        "path": listitem.path,
+        "label": listitem.label,
+        "art": dict(listitem.art),
+        "info": dict(listitem.info),
+        "properties": dict(listitem.properties),
+    })
     return True

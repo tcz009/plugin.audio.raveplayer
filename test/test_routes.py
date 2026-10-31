@@ -135,6 +135,7 @@ class RouteRenderTests(unittest.TestCase):
     def setUp(self):
         del xbmcplugin.ITEMS[:]
         del xbmcplugin.CACHE_FLAGS[:]
+        del xbmcplugin.RESOLVED[:]
 
     def _menu_calls(self):
         return [(item["label"], item["url"]) for item in xbmcplugin.ITEMS]
@@ -147,13 +148,55 @@ class RouteRenderTests(unittest.TestCase):
 
     def test_archive_item_tracks_offer_play_from_here_and_favourite(self):
         tracks = [{"title": "One", "url": "https://archive.org/download/p/1.mp3", "duration": 61}]
-        with mock.patch.object(routes.archive, "audio_files", return_value=tracks):
+        with mock.patch.object(routes.archive, "audio_files", return_value=tracks), \
+                mock.patch.object(routes.archive, "item_title", return_value="Pack One"):
             routes.archive_item(1, {"id": "pack-1"})
         item = xbmcplugin.ITEMS[0]
         context = [label for label, _command in item["context"]]
         self.assertEqual(context, ["Play all from here", "Add to favourites"])
         self.assertIn("start=0", item["context"][0][1])
         self.assertEqual(item["info"]["music"]["duration"], 61)
+
+    def test_archive_item_passes_pack_cover_and_parsed_plot_to_playback(self):
+        tracks = [{"title": "Tape 1 - Carl Cox", "url": "https://archive.org/download/p/1.mp3"}]
+        with mock.patch.object(routes.archive, "audio_files", return_value=tracks), \
+                mock.patch.object(routes.archive, "item_title",
+                                  return_value="Dreamscape 19 - 1995"):
+            routes.archive_item(1, {"id": "pack-1"})
+        item = xbmcplugin.ITEMS[0]
+        thumb = routes.archive.thumb("pack-1")
+        self.assertEqual(item["art"]["fanart"], thumb)
+        self.assertEqual(item["art"]["thumb"], thumb)
+        plot = item["info"]["music"]["plot"]
+        self.assertIn("Carl Cox", plot)
+        self.assertIn("Dreamscape", plot)
+        self.assertIn("1995", plot)
+        self.assertIn("From archive.org item pack-1", plot)
+        self.assertIn("mode=play", item["url"])
+        self.assertIn("fanart=", item["url"])
+        self.assertIn("plot=", item["url"])
+
+    def test_play_resolver_sets_fanart_and_plot_on_the_resolved_item(self):
+        routes.play(1, {
+            "url": "https://archive.org/download/p/1.mp3",
+            "label": "[I]Tape 1[/I]",
+            "thumb": "http://thumb",
+            "fanart": "http://fanart",
+            "plot": "Carl Cox · Dreamscape · 1995 — From archive.org item p",
+        })
+        resolved = xbmcplugin.RESOLVED[-1]
+        self.assertTrue(resolved["ok"])
+        self.assertEqual(resolved["path"], "https://archive.org/download/p/1.mp3")
+        self.assertEqual(resolved["art"]["thumb"], "http://thumb")
+        self.assertEqual(resolved["art"]["fanart"], "http://fanart")
+        self.assertEqual(resolved["info"]["music"]["title"], "Tape 1")
+        self.assertIn("Carl Cox", resolved["info"]["music"]["plot"])
+
+    def test_play_resolver_without_fanart_keeps_the_old_art(self):
+        routes.play(1, {"url": "https://x/1.mp3", "thumb": "http://thumb"})
+        resolved = xbmcplugin.RESOLVED[-1]
+        self.assertEqual(resolved["art"], {"thumb": "http://thumb", "icon": "http://thumb"})
+        self.assertNotIn("plot", resolved["info"]["music"])
 
     def test_search_with_query_paginates_without_a_dialog(self):
         docs = [{"identifier": "pack-1", "title": "Pack One"}]

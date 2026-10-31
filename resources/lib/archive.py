@@ -86,6 +86,15 @@ def item(identifier):
     return data if isinstance(data, dict) else {}
 
 
+def item_title(identifier):
+    """Return the item-level (pack) title, or "" when the Archive has none."""
+    data = item(identifier)
+    metadata = data.get("metadata")
+    if not isinstance(metadata, dict):
+        return ""
+    return as_text(metadata.get("title"))
+
+
 def audio_files(identifier):
     """Return playable audio files for an item, best format first, de-duplicated.
 

@@ -68,6 +68,12 @@ class AudioFileTests(unittest.TestCase):
         ])
         self.assertEqual(tracks[0]["duration"], 61)
 
+    def test_item_title_normalises_lists_and_missing_metadata(self):
+        with mock.patch.object(archive, "item", return_value={"metadata": {"title": ["World", "Dance"]}}):
+            self.assertEqual(archive.item_title("pack"), "World Dance")
+        with mock.patch.object(archive, "item", return_value={}):
+            self.assertEqual(archive.item_title("pack"), "")
+
 
 class SearchBoundsTests(unittest.TestCase):
     def test_rows_and_page_are_clamped(self):

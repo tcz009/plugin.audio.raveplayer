@@ -33,9 +33,15 @@ jobs:
 
       - name: Build installable zip
         run: |
-          chmod +x scripts/build.sh scripts/build-repo.sh
+          chmod +x scripts/build.sh scripts/build-repo.sh scripts/check-repo-artifacts.sh
           ./scripts/build.sh
           ./scripts/build-repo.sh
+
+      - name: Verify committed repo artifacts
+        # repo/ is generated but must be committed for Kodi auto-updates. Do not
+        # compare binary zips (timestamps churn); only the catalogue text and
+        # the tracked current plugin zip are checked.
+        run: ./scripts/check-repo-artifacts.sh
 
       - uses: actions/upload-artifact@v4
         with:

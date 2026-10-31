@@ -3,8 +3,9 @@
 Ranked by value-for-effort, with the constraint that everything must stay a
 thin layer over public sources (no accounts, no keys, no scraping that rots).
 
-> **Status:** items 1–8 below are implemented. Items 9 (now-playing polish) and
-> 10 (downloads) are still open.
+> **Status:** items 1–9 below are implemented. Item 10 (downloads) is deferred
+> pending a Kodi device: Kodi 20–22 has no Python download hook for resolved
+> plugin streams (see the note under item 10).
 
 ## Ready to build (low risk, high value)
 
@@ -63,15 +64,38 @@ the right headers, and writes a shortlist. This is how new sources get added
 without guessing — and it can be re-run later to find dead links.
 
 ### 9. "Now playing" polish
-Show the pack cover (Archive item thumbnail) as full-screen fanart while a
-tape plays, and surface the DJ/venue/date parsed from the item title in the
-plot. Kodi shows whatever the resolved list item carries, so this is mostly
-metadata work.
+**Implemented in 3.9.5.** Show the pack cover (Archive item thumbnail) as
+full-screen fanart while a tape plays, and surface the DJ/venue/date parsed from
+the item title in the plot. Kodi shows whatever the resolved list item carries,
+so this is mostly metadata work: `resources/lib/nowplaying.py` parses the title
+(best-effort, using the researched catalogue/filter names as vocabulary) and
+`routes.archive_item` / `_play_tracks` / `play` carry the fanart, plot and
+parsed details through to the resolved item. Existing base plots like
+"From archive.org item <id>" are kept and only prefixed, and unknown titles are
+left untouched.
 
 ### 10. Downloads
-Make sure Kodi's own "Download" context-menu entry works for resolved items,
-so a pack can be saved to local storage for offline listening. Needs a
-resolver path that does not rely on stream headers.
+**Deferred in 3.9.5 — needs a Kodi device and a product decision.** The
+investigation found no Python or context-menu download hook to use:
+
+- Kodi 20–22 has no `Download` action in the media context menus
+  (`xbmc/video/ContextMenus.cpp`, `xbmc/music/ContextMenus.cpp` in the Omega
+  branch); no `Download` builtin exists in `xbmc/interfaces/Builtins.cpp`.
+- The only built-in download path is JSON-RPC `Files.Download` /
+  `Files.PrepareDownload` (`xbmc/interfaces/json-rpc/JSONServiceDescription.cpp`),
+  which is for remote clients (Kore etc.); a Python add-on cannot invoke it as a
+  context-menu action on its own list item.
+- Add-on rows are `plugin://...` URLs resolved with `setResolvedUrl`, which is
+  playback-only. Kodi's own download would save the plugin URL, not the stream;
+  making it work means either exposing the raw stream as the item path (losing
+  the resolver, favourites and `|Referer=` handling) or writing an add-on-owned
+  Download action (`xbmcvfs`/urllib + destination dialog) — neither is testable
+  here, and RaveTapePacks streams cannot work without stream headers anyway.
+
+So: no guessing and no untested download UI in this release. Revisit with a
+Kodi device to see what the context menu actually offers on 20–22, then decide
+between an add-on-owned download action and a documented "use the web build"
+answer.
 
 ## Deliberately not planned
 

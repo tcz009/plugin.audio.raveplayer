@@ -22,6 +22,9 @@ rebuilt in 2026 from the 2014 original.
   menu; stored in the add-on profile.
 - **Play all / Shuffle pack** — context menu on a pack, or "Play all from
   here" on a track, straight from the remote.
+- **Now playing** — the pack cover fills the Kodi artwork, and the plot shows
+  the DJ, venue/event and date parsed from the Archive item title (best-effort;
+  unknown titles are left unchanged).
 - **Settings that matter** — results per page, episodes per podcast feed,
   live-station limit, and hiding empty feeds.
 - **Legacy sites** — the 2014 sources that are still standing:

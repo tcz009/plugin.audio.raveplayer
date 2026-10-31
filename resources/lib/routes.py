@@ -17,7 +17,7 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 
-from . import archive, dnbradio, favourites, feeds, kodi, latest, legacy, radio, ui
+from . import archive, dnbradio, favourites, feeds, kodi, latest, legacy, nowplaying, radio, ui
 
 ROWS_PER_PAGE = 50
 MAX_ROWS_PER_PAGE = 200
@@ -296,12 +296,20 @@ def _play_tracks(tracks, identifier, start=0, shuffle=False):
         return False
     album = identifier.replace("-", " ")
     thumb = archive.thumb(identifier)
+    pack_title = archive.item_title(identifier) or album
     playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
     playlist.clear()
     for track in selected:
+        details = nowplaying.parse(pack_title, track["title"])
+        plotted = nowplaying.plot("From archive.org item %s" % identifier, details)
         item = xbmcgui.ListItem(path=track["url"])
-        item.setArt({"thumb": thumb, "icon": thumb})
-        info = {"title": track["title"], "album": album, "mediatype": "music"}
+        item.setArt({"thumb": thumb, "icon": thumb, "fanart": thumb})
+        info = {
+            "title": track["title"],
+            "album": album,
+            "plot": plotted,
+            "mediatype": "music",
+        }
         if track.get("duration"):
             info["duration"] = track["duration"]
         item.setInfo("music", info)
@@ -460,13 +468,24 @@ def archive_item(handle, params):
     if not tracks:
         kodi.notify("No audio files in that item.")
     thumb = archive.thumb(identifier)
+    pack_title = archive.item_title(identifier) or identifier.replace("-", " ")
     for index, track in enumerate(tracks):
+        details = nowplaying.parse(pack_title, track["title"])
+        plotted = nowplaying.plot("From archive.org item %s" % identifier, details)
         ui.track_item(
             handle,
-            url_for(mode="play", url=track["url"], label=track["title"], thumb=thumb),
+            url_for(
+                mode="play",
+                url=track["url"],
+                label=track["title"],
+                thumb=thumb,
+                fanart=thumb,
+                plot=plotted,
+            ),
             track["title"],
             thumb=thumb,
-            plot="From archive.org item %s" % identifier,
+            fanart=thumb,
+            plot=plotted,
             album=identifier.replace("-", " "),
             duration=track.get("duration"),
             context=[
@@ -929,13 +948,21 @@ def play(handle, params):
     stream = params.get("url", "")
     label = params.get("label", "Rave Player")
     thumb = params.get("thumb") or kodi.ICON
+    fanart = params.get("fanart") or ""
+    plotted = params.get("plot") or ""
     if not stream:
         kodi.notify("Nothing to play for that item.")
         xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
         return
     item = xbmcgui.ListItem(path=stream)
-    item.setArt({"thumb": thumb, "icon": thumb})
-    item.setInfo("music", {"title": ui.plain(label)})
+    art = {"thumb": thumb, "icon": thumb}
+    if fanart:
+        art["fanart"] = fanart
+    item.setArt(art)
+    info = {"title": ui.plain(label)}
+    if plotted:
+        info["plot"] = plotted
+    item.setInfo("music", info)
     item.setProperty("IsPlayable", "true")
     xbmcplugin.setResolvedUrl(handle, True, item)
 

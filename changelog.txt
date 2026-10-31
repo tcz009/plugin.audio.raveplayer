@@ -1,3 +1,22 @@
+Rave Player 3.9.5
+- Now playing: an Archive tape/track resolves with the pack cover as artwork
+  and a plot that includes the DJ, venue/event and date parsed from the item
+  title (for example "Carl Cox · Dreamscape · 1995 — From archive.org item …").
+  The parser is best-effort, uses the researched catalogue/filter names as
+  vocabulary, and adds nothing when no field matches. Existing base plots and
+  labels are unchanged, and "Play all" playlist rows carry the same artwork and
+  plot. Tests: 173 -> 192.
+- Release/process hygiene: PUBLISHING.md now describes the 3.9.x flow and the
+  current test count; CI verifies the committed repo/addons.xml(.md5) and the
+  versioned repo zip (scripts/check-repo-artifacts.sh) so a forgotten repo/
+  commit fails the build instead of freezing Kodi auto-updates;
+  scripts/install-shield.sh stages the current working tree instead of pushing
+  the stale stage/ copy; dist/raveplayer-main.bundle was refreshed.
+- Downloads (FEATURES #10) deferred, not guessed: Kodi 20-22 has no Download
+  context-menu action or Python hook for resolved plugin streams, and the only
+  built-in download API is JSON-RPC Files.Download for remote clients. The
+  concrete findings are in docs/FEATURES.md; revisit with a Kodi device.
+
 Rave Player 3.9.4
 - Requirements corrected to Kodi 20 (Nexus) through Kodi 22 (Piers). The
   add-on has always required xbmc.python 3.0.1; Kodi 19 Matrix ships 3.0.0, so
