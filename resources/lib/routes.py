@@ -51,9 +51,9 @@ ARCHIVE_SECTIONS = [
     {
         "key": "house",
         "art": "house.png",
-        "label": "House & Garage",
-        "query": "collection:ravetapes AND (garage OR house)",
-        "plot": "House, garage and speed garage sets.",
+        "label": "House",
+        "query": "collection:ravetapes AND house",
+        "plot": "House sets. (Garage lives under UK Garage.)",
     },
     {
         "key": "pirate",
@@ -83,7 +83,7 @@ RADIO_SECTIONS = [
     {"key": "jungle", "label": "Jungle", "tag": "jungle", "art": "jungle.png"},
     {"key": "dnb", "label": "Drum & Bass", "tag": "drum and bass", "art": "jungle.png"},
     {"key": "hardcore", "label": "Hardcore", "tag": "hardcore", "art": "hardcore.png"},
-    {"key": "garage", "label": "House & Garage", "tag": "garage", "art": "house.png"},
+    {"key": "house", "label": "House", "tag": "house", "art": "house.png"},
     {"key": "breakbeat", "label": "Breakbeat", "tag": "breakbeat", "art": "rave.png"},
     {"key": "ukg", "label": "UK Garage", "tag": "uk garage", "art": "garage.png"},
 ]

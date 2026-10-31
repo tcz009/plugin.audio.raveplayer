@@ -1,3 +1,9 @@
+Rave Player 3.9.7
+- Renamed the "House & Garage" entries to "House": the Archive section now
+  queries house only and the live-radio group uses the house tag. Garage
+  remains under its own UK Garage section (archive + live), so it is no
+  longer double-labelled.
+
 Rave Player 3.9.6
 - Now-playing detail is visible on the device: Kodi's music InfoTag has no
   "plot" field, so the parsed DJ/venue/date is also written to "comment" (the

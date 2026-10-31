@@ -301,6 +301,17 @@ class RouteRenderTests(unittest.TestCase):
         self.assertTrue(refresh.called)
 
 
+class SectionLabelTests(unittest.TestCase):
+    def test_house_is_not_double_labelled_garage(self):
+        archive = next(section for section in routes.ARCHIVE_SECTIONS if section["key"] == "house")
+        self.assertEqual(archive["label"], "House")
+        self.assertNotIn("garage", archive["query"].lower())
+        radio = next(section for section in routes.RADIO_SECTIONS if section["key"] == "house")
+        self.assertEqual(radio["label"], "House")
+        self.assertEqual(radio["tag"], "house")
+        self.assertFalse(any("House & Garage" in section.get("label", "")
+                             for section in routes.RADIO_SECTIONS))
+
 class QuickFilterDataTests(unittest.TestCase):
     def test_filters_are_unique_and_cover_the_web_parity_ids(self):
         entries = routes._filters()
