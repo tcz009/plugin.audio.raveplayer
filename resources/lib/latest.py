@@ -10,10 +10,15 @@ import datetime
 import random
 import re
 
-from . import archive, dnbradio, feeds
+from . import archive, dnbradio, feeds, kodi
 
 RAVE_COLLECTION = "collection:ravetapes AND mediatype:audio"
 RANDOM_PAGE_CAP = 200
+
+# Latest resolves DNB stream URLs while building the folder (see
+# resolve_dnb_streams); short+parallel so an unreachable host is cheap.
+DNB_RESOLVE_TIMEOUT = dnbradio.RESOLVE_TIMEOUT
+DNB_RESOLVE_WORKERS = dnbradio.RESOLVE_WORKERS
 
 
 def parse_date(value):
@@ -97,6 +102,33 @@ def merge(limit=60):
     undated = [item for item in items if not item.get("when")]
     dated.sort(key=lambda item: item["when"], reverse=True)
     return (dated + undated)[:limit]
+
+
+def resolve_dnb_streams(items, timeout=DNB_RESOLVE_TIMEOUT, workers=DNB_RESOLVE_WORKERS):
+    """Resolve the stream URL for every DNB row in one concurrent batch.
+
+    Kodi must never be handed a playable row that cannot resolve: when the
+    host is unreachable it treats the mixed folder as a playlist and auto-
+    advances down it item after item (the "Latest cascade").  Rows whose listen
+    page cannot be fetched are absent from the result, so the caller drops them
+    instead of offering a dead item.
+
+    Returns ``{mix_id: stream_url}`` for the rows that resolved.
+    """
+    mix_ids = []
+    for item in items or []:
+        if item.get("kind") != "dnb":
+            continue
+        mix_id = str(item.get("id") or "").strip()
+        if mix_id:
+            mix_ids.append(mix_id)
+    if not mix_ids:
+        return {}
+    try:
+        return dnbradio.stream_urls(mix_ids, timeout=timeout, workers=workers)
+    except Exception as exc:  # a resolution failure must not empty the whole screen
+        kodi.log("Latest: DNB stream resolution failed (%s)" % exc, level=30)
+        return {}
 
 
 def random_pack():

@@ -1,3 +1,22 @@
+Rave Player 3.9.8
+- Fixed the "Latest" endless-scroll bug: the folder is now typed "files"
+  (mixed folders + playable items), not "songs", so Kodi no longer treats the
+  whole screen as a music playlist and auto-advances down it item after item
+  when a playable row fails.
+- "Latest" resolves DNBRADIO stream URLs while building the folder, in
+  parallel with a short timeout, and drops shows whose stream cannot be
+  resolved (host unreachable or listen page changed). A dead DNB row can no
+  longer be offered, so it cannot start the cascade.
+- Failed playback resolves are now a dead stop: "play" and "dnb_play" notify
+  the user, clear any folder-built music playlist (so Kodi cannot advance to
+  the next row) and report failure to Kodi. This also protects DNBRADIO
+  favourites and any other playable row in the add-on.
+- "Latest" ends with a visible, non-playable "End of list" row so the wrap is
+  obvious on a TV remote.
+- Tests: 193 -> 207 (offline mocked-HTTP coverage for dropped DNB rows,
+  content=files, the end row and the fail-safe play handlers). No other
+  behaviour changed.
+
 Rave Player 3.9.7
 - Renamed the "House & Garage" entries to "House": the Archive section now
   queries house only and the live-radio group uses the house tag. Garage

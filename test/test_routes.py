@@ -4,6 +4,7 @@
 import os
 import sys
 import unittest
+import urllib.parse
 from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -323,6 +324,114 @@ class QuickFilterDataTests(unittest.TestCase):
         for entry in entries:
             self.assertTrue(entry.get("name"), entry)
             self.assertTrue(entry.get("query"), entry)
+
+class LatestCascadeTests(unittest.TestCase):
+    """The Latest folder must not become an endless auto-advancing playlist."""
+
+    def setUp(self):
+        del xbmcplugin.ITEMS[:]
+        del xbmcplugin.RESOLVED[:]
+        del xbmcplugin.CONTENT[:]
+        del xbmcplugin.CACHE_FLAGS[:]
+
+    @staticmethod
+    def _params(item):
+        return dict(urllib.parse.parse_qsl(urllib.parse.urlparse(item["url"]).query))
+
+    def test_latest_ends_as_files_drops_dead_dnb_rows_and_marks_the_end(self):
+        merged = [
+            {"kind": "pack", "identifier": "pack-1", "title": "Pack One",
+             "source": "Rave Tape Packs", "when": None},
+            {"kind": "dnb", "id": "10", "title": "Reachable DNB",
+             "source": "DNB Radio", "when": None},
+            {"kind": "dnb", "id": "11", "title": "Unreachable DNB",
+             "source": "DNB Radio", "when": None},
+        ]
+
+        def fake_fetch(url, timeout=20, headers=None, ttl=0):
+            if "mix=10" in url:
+                return '<a href="https://proxy.dnbradio.com/10.mp3">'
+            return None  # mix=11: host unreachable
+
+        with mock.patch.object(routes.latest, "merge", return_value=merged), \
+                mock.patch.object(routes.dnbradio.http, "fetch", side_effect=fake_fetch):
+            routes.latest_view(1, {})
+
+        self.assertEqual(xbmcplugin.CONTENT[-1], "files")
+        labels = [item["label"] for item in xbmcplugin.ITEMS]
+        self.assertTrue(any(label.startswith("Pack One") for label in labels))
+        self.assertTrue(any(label.startswith("Reachable DNB") for label in labels))
+        self.assertFalse(any("Unreachable DNB" in label for label in labels))
+        # A resolved DNB row uses the build-time stream through mode=play, never dnb_play.
+        resolved = next(item for item in xbmcplugin.ITEMS
+                        if item["label"].startswith("Reachable DNB"))
+        params = self._params(resolved)
+        self.assertEqual(params["mode"], "play")
+        self.assertEqual(params["url"], "https://proxy.dnbradio.com/10.mp3")
+        self.assertFalse(any("mode=dnb_play" in item["url"] for item in xbmcplugin.ITEMS))
+        # The final row is a visible, deliberately non-playable terminator.
+        last = xbmcplugin.ITEMS[-1]
+        self.assertEqual(last["label"], "End of list")
+        self.assertFalse(last["isFolder"])
+        self.assertEqual(last["properties"].get("IsPlayable"), "false")
+        self.assertEqual(last["url"], "")
+
+    def test_latest_with_no_items_still_ends_as_files(self):
+        with mock.patch.object(routes.latest, "merge", return_value=[]), \
+                mock.patch.object(routes.kodi, "notify") as notify:
+            routes.latest_view(1, {})
+        self.assertTrue(notify.called)
+        self.assertEqual(xbmcplugin.CONTENT[-1], "files")
+        self.assertEqual(xbmcplugin.ITEMS, [])
+
+
+class PlaybackFailureTests(unittest.TestCase):
+    """A failed resolve must notify and stop, not advance down the folder."""
+
+    def setUp(self):
+        del xbmcplugin.RESOLVED[:]
+        del xbmcplugin.ITEMS[:]
+
+    def test_dnb_play_unresolved_notifies_and_stops_the_playlist(self):
+        with mock.patch.object(routes.dnbradio, "stream_url", return_value=""), \
+                mock.patch.object(routes.kodi, "notify") as notify, \
+                mock.patch.object(routes.xbmc, "PlayList") as playlist:
+            routes.dnb_play(1, {"id": "10", "label": "Show"})
+        self.assertTrue(notify.called)
+        self.assertTrue(playlist.return_value.clear.called)
+        self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"])
+
+    def test_dnb_play_scraper_error_fails_safely(self):
+        with mock.patch.object(routes.dnbradio, "stream_url", side_effect=RuntimeError("boom")), \
+                mock.patch.object(routes.kodi, "notify") as notify, \
+                mock.patch.object(routes.xbmc, "PlayList") as playlist:
+            routes.dnb_play(1, {"id": "10"})
+        self.assertTrue(notify.called)
+        self.assertTrue(playlist.return_value.clear.called)
+        self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"])
+
+    def test_dnb_play_resolves_and_plays(self):
+        with mock.patch.object(routes.dnbradio, "stream_url",
+                               return_value="https://proxy.dnbradio.com/10.mp3"):
+            routes.dnb_play(1, {"id": "10", "label": "Show"})
+        resolved = xbmcplugin.RESOLVED[-1]
+        self.assertTrue(resolved["ok"])
+        self.assertEqual(resolved["path"], "https://proxy.dnbradio.com/10.mp3")
+
+    def test_play_without_a_stream_fails_safely(self):
+        with mock.patch.object(routes.kodi, "notify") as notify, \
+                mock.patch.object(routes.xbmc, "PlayList") as playlist:
+            routes.play(1, {})
+        self.assertTrue(notify.called)
+        self.assertTrue(playlist.return_value.clear.called)
+        self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"])
+
+    def test_play_success_does_not_clear_the_playlist(self):
+        with mock.patch.object(routes.xbmc, "PlayList") as playlist:
+            routes.play(1, {"url": "https://x/1.mp3"})
+        self.assertTrue(xbmcplugin.RESOLVED[-1]["ok"])
+        self.assertFalse(playlist.called)
+
 
 if __name__ == "__main__":
     unittest.main()

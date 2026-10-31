@@ -49,6 +49,24 @@ def menu_item(handle, url, label, icon=None, fanart=None, plot=None, context=Non
     return add_item(handle, url, label, is_folder=True, art=art, info=info, context=context)
 
 
+def end_marker(handle, label="End of list", plot=None):
+    """Append a visible, deliberately non-playable terminator row.
+
+    No URL and no IsPlayable property, so selecting it can never start
+    playback, resolve a stream or make Kodi continue down a folder playlist.
+    """
+    item = xbmcgui.ListItem(label=label)
+    item.setArt({
+        "icon": kodi.ICON,
+        "thumb": kodi.ICON,
+        "fanart": DEFAULT_FANART,
+    })
+    item.setInfo("music", {"title": plain(label), "plot": plot or plain(label)})
+    item.setProperty("IsPlayable", "false")
+    xbmcplugin.addDirectoryItem(handle=handle, url="", listitem=item, isFolder=False)
+    return item
+
+
 def track_item(handle, url, label, thumb=None, fanart=None, plot=None, artist=None, album=None,
                duration=None, context=None, title=None):
     art = {

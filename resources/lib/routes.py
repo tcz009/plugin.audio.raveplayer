@@ -656,10 +656,36 @@ def filter_list(handle, params):
     kodi.end_directory(handle, "files")
 
 
+def _fail_playback(handle, message):
+    """Fail a resolution safely: tell the user, then stop dead.
+
+    A playable item inside a mixed folder can make Kodi build a music playlist
+    from the whole folder.  If resolution then fails, Kodi would advance down
+    that playlist item by item — the "Latest" cascade seen on the Shield.  So
+    a resolution failure clears any folder playlist and reports the failure via
+    ``setResolvedUrl(handle, False, ...)``, which stops playback instead of
+    moving on to the next row.
+    """
+    kodi.notify(message)
+    try:
+        xbmc.PlayList(xbmc.PLAYLIST_MUSIC).clear()
+    except Exception:  # playlist cleanup must never mask the real failure
+        kodi.log("could not clear the music playlist after a failed resolve")
+    xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
+
+
 def latest_view(handle, params):
     items = latest.merge()
     if not items:
         kodi.notify("Nothing came back from the sources — try again later.")
+        kodi.end_directory(handle, "files")
+        return
+
+    # Resolve DNB URLs up front (concurrently, short timeout).  Kodi must never
+    # receive a playable DNB row whose stream cannot resolve, or a failure makes
+    # it auto-advance down the folder; unresolved rows are dropped here.
+    streams = latest.resolve_dnb_streams(items)
+
     for item in items:
         when = item.get("when")
         stamp = when.strftime("%d %b %Y") if when else ""
@@ -676,10 +702,18 @@ def latest_view(handle, params):
                           duration=item.get("duration"),
                           context=[_favourite("stream", item["url"], item["title"], item["source"])])
         else:
-            ui.track_item(handle, url_for(mode="dnb_play", id=item["id"], label=item["title"]), label,
+            stream = streams.get(str(item.get("id") or ""))
+            if not stream:
+                # Host unreachable / listen page changed: do not offer the row.
+                continue
+            ui.track_item(handle, url_for(mode="play", url=stream, label=item["title"]), label,
                           thumb=art("jungle.png"), plot="DNBRADIO.com", title=item["title"],
                           context=[_favourite("dnb", item["id"], item["title"], "DNB Radio")])
-    kodi.end_directory(handle, "songs")
+
+    # Visible terminator: folder+playable mix means Kodi should not wrap or
+    # treat the whole screen as an endless playlist.
+    ui.end_marker(handle, "End of list", plot="You have reached the end of Latest.")
+    kodi.end_directory(handle, "files")
 
 
 def surprise(handle, params):
@@ -795,10 +829,15 @@ def dnb_list(handle, params):
 
 def dnb_play(handle, params):
     mix_id = params.get("id", "")
-    url = dnbradio.stream_url(mix_id) if mix_id else ""
+    url = ""
+    if mix_id:
+        try:
+            url = dnbradio.stream_url(mix_id)
+        except Exception as exc:  # never let a scraper error cascade playback
+            kodi.log("DNB resolve failed for mix %s (%s)" % (mix_id, exc), level=30)
+            url = ""
     if not url:
-        kodi.notify("Could not resolve that DNBRADIO mix.")
-        xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
+        _fail_playback(handle, "Could not resolve that DNBRADIO mix.")
         return
     play(handle, {"url": url, "label": params.get("label", "DNBRADIO"),
                   "thumb": params.get("thumb") or kodi.ICON})
@@ -952,8 +991,7 @@ def play(handle, params):
     fanart = params.get("fanart") or ""
     plotted = params.get("plot") or ""
     if not stream:
-        kodi.notify("Nothing to play for that item.")
-        xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
+        _fail_playback(handle, "Nothing to play for that item.")
         return
     item = xbmcgui.ListItem(path=stream)
     art = {"thumb": thumb, "icon": thumb}

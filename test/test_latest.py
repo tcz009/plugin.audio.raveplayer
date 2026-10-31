@@ -11,7 +11,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "stubs"))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from resources.lib import latest  # noqa: E402
+from resources.lib import dnbradio, latest  # noqa: E402
 
 
 class DateTests(unittest.TestCase):
@@ -103,6 +103,82 @@ class RandomPackTests(unittest.TestCase):
                 ([], 100), ([{"title": "No identifier"}], 100)]):
             with mock.patch.object(latest.random, "randint", return_value=1):
                 self.assertIsNone(latest.random_pack())
+
+
+class DnbStreamBatchTests(unittest.TestCase):
+    """The directory-build batch must drop mixes whose host cannot be reached."""
+
+    @staticmethod
+    def _fetch(reachable):
+        def fake(url, timeout=20, headers=None, ttl=0):
+            if reachable not in url:
+                return None
+            mix_id = url.rsplit("mix=", 1)[-1]
+            return '<a href="https://proxy.dnbradio.com/%s.mp3">' % mix_id
+        return fake
+
+    def test_unreachable_mixes_are_dropped_from_the_batch(self):
+        with mock.patch.object(dnbradio.http, "fetch", side_effect=self._fetch("mix=10")):
+            found = dnbradio.stream_urls(["10", "11", "12"], timeout=1, workers=4)
+        self.assertEqual(found, {"10": "https://proxy.dnbradio.com/10.mp3"})
+
+    def test_duplicate_ids_are_resolved_once(self):
+        calls = []
+
+        def fake(url, timeout=20, headers=None, ttl=0):
+            calls.append(url)
+            mix_id = url.rsplit("mix=", 1)[-1]
+            return '<a href="https://proxy.dnbradio.com/%s.mp3">' % mix_id
+
+        with mock.patch.object(dnbradio.http, "fetch", side_effect=fake):
+            found = dnbradio.stream_urls(["7", "8", "7"], timeout=1, workers=4)
+        self.assertEqual(found, {"7": "https://proxy.dnbradio.com/7.mp3",
+                                 "8": "https://proxy.dnbradio.com/8.mp3"})
+        self.assertEqual(len([url for url in calls if "mix=7" in url]), 1)
+
+    def test_empty_id_list_does_not_fetch(self):
+        with mock.patch.object(dnbradio.http, "fetch") as fetch:
+            self.assertEqual(dnbradio.stream_urls([], timeout=1), {})
+            self.assertEqual(dnbradio.stream_urls([None, ""], timeout=1), {})
+        self.assertFalse(fetch.called)
+
+    def test_a_raising_worker_does_not_empty_the_batch(self):
+        def fake(url, timeout=20, headers=None, ttl=0):
+            if "mix=2" in url:
+                raise RuntimeError("boom")
+            return '<a href="https://proxy.dnbradio.com/1.mp3">'
+
+        with mock.patch.object(dnbradio.http, "fetch", side_effect=fake):
+            found = dnbradio.stream_urls(["1", "2"], timeout=1, workers=2)
+        self.assertEqual(found, {"1": "https://proxy.dnbradio.com/1.mp3"})
+
+
+class ResolveDnbStreamsTests(unittest.TestCase):
+    def test_resolves_only_dnb_rows_in_one_batch(self):
+        items = [
+            {"kind": "pack", "identifier": "pack-1"},
+            {"kind": "dnb", "id": "10"},
+            {"kind": "episode", "url": "https://x/1.mp3"},
+            {"kind": "dnb", "id": "11"},
+        ]
+        with mock.patch.object(latest.dnbradio, "stream_urls",
+                               return_value={"10": "https://p/10.mp3"}) as urls:
+            found = latest.resolve_dnb_streams(items)
+        self.assertEqual(found, {"10": "https://p/10.mp3"})
+        self.assertEqual(urls.call_args[0][0], ["10", "11"])
+        self.assertEqual(urls.call_args[1]["timeout"], latest.DNB_RESOLVE_TIMEOUT)
+        self.assertEqual(urls.call_args[1]["workers"], latest.DNB_RESOLVE_WORKERS)
+
+    def test_no_dnb_rows_does_not_touch_the_network(self):
+        with mock.patch.object(latest.dnbradio, "stream_urls") as urls:
+            self.assertEqual(latest.resolve_dnb_streams([{"kind": "pack"}]), {})
+            self.assertEqual(latest.resolve_dnb_streams([]), {})
+        self.assertFalse(urls.called)
+
+    def test_a_failed_batch_returns_no_streams_instead_of_raising(self):
+        items = [{"kind": "dnb", "id": "10"}]
+        with mock.patch.object(latest.dnbradio, "stream_urls", side_effect=RuntimeError("boom")):
+            self.assertEqual(latest.resolve_dnb_streams(items), {})
 
 
 if __name__ == "__main__":

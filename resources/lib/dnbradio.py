@@ -9,11 +9,16 @@ import html as html_module
 import re
 import urllib.parse
 
-from . import http
+from . import http, kodi
 
 BASE = "https://dnbradio.com"
 RECORDINGS = BASE + "/recordings"
 RECORDINGS_TTL = 10 * 60
+
+# Directory builds resolve several mixes at once; keep the batch short so an
+# unreachable host cannot stall the "Latest" folder.
+RESOLVE_TIMEOUT = 3.0
+RESOLVE_WORKERS = 8
 
 MIX_RE = re.compile(r'href="/listen\?mix=(\d+)"\s+title="([^"]+)"', re.IGNORECASE)
 MP3_RE = re.compile(r'(?:href|src)="(https?://[^"]+?\.mp3[^"]*)"', re.IGNORECASE)
@@ -61,9 +66,48 @@ def parse_listen(page):
     return html_module.unescape(match.group(1))
 
 
-def stream_url(mix_id):
+def stream_url(mix_id, timeout=25):
     """Resolve a mix id to a playable MP3 URL, or '' if the page changed."""
-    return parse_listen(http.fetch(link(mix_id), timeout=25, headers={"Referer": RECORDINGS}))
+    return parse_listen(http.fetch(link(mix_id), timeout=timeout, headers={"Referer": RECORDINGS}))
+
+
+def stream_urls(mix_ids, timeout=RESOLVE_TIMEOUT, workers=RESOLVE_WORKERS):
+    """Resolve several mix ids concurrently, dropping the ones that fail.
+
+    Returns ``{mix_id: mp3_url}`` for the ids that resolved.  Directory builds
+    must stay snappy, so the requests run in parallel with a short timeout: an
+    unreachable host costs one timeout, not one per row.  Failed ids are simply
+    absent so the caller can drop the dead playable row instead of shipping it.
+    """
+    unique = []
+    for mix_id in mix_ids or []:
+        text = str(mix_id or "").strip()
+        if text and text not in unique:
+            unique.append(text)
+    if not unique:
+        return {}
+    if len(unique) == 1:
+        url = stream_url(unique[0], timeout=timeout)
+        return {unique[0]: url} if url else {}
+    found = {}
+    try:
+        from concurrent.futures import ThreadPoolExecutor
+
+        count = max(1, min(int(workers or 1), len(unique)))
+        with ThreadPoolExecutor(max_workers=count) as pool:
+            jobs = [(pool.submit(stream_url, mix_id, timeout), mix_id) for mix_id in unique]
+            for job, mix_id in jobs:
+                try:
+                    url = job.result()
+                except Exception as exc:  # one bad page must not drop the batch
+                    kodi.log("DNB stream resolve failed for mix %s (%s)" % (mix_id, exc), level=30)
+                    continue
+                if url:
+                    found[mix_id] = url
+    except Exception as exc:  # never let the batch take the directory down
+        kodi.log("DNB stream batch failed (%s)" % exc, level=30)
+        return {}
+    return found
 
 
 def link(mix_id):
