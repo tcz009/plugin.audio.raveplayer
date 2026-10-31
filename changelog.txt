@@ -1,3 +1,7 @@
+3.9.10
+- Archive playback uses the item's own storage node (d1) instead of the archive.org/download redirect, which sometimes lands on a 500-returning node — fixes Rinse FM sets hanging/failing on Kodi.
+- Archive item open now shows a "Loading set…" notification and reports when a set has no audio.
+
 3.9.9
 - Kool FM live now uses the current Kool London stream (Rinse proxy) instead of radio-browser's fuzzy "Kool" results, which could return KISSTORY or overseas Kool stations.
 - Rinse FM added: live stream, archive filter and Rave Nights entry.

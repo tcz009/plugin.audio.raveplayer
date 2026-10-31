@@ -468,9 +468,10 @@ def archive_item(handle, params):
         kodi.notify("That pack is no longer listed.")
         kodi.end_directory(handle, "songs")
         return
+    kodi.notify("Loading set…")
     tracks = archive.audio_files(identifier)
     if not tracks:
-        kodi.notify("No audio files in that item.")
+        kodi.notify("No audio files in that set — try another.")
     thumb = archive.thumb(identifier)
     pack_title = archive.item_title(identifier) or identifier.replace("-", " ")
     for index, track in enumerate(tracks):
