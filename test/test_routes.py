@@ -168,6 +168,7 @@ class RouteRenderTests(unittest.TestCase):
         self.assertEqual(item["art"]["fanart"], thumb)
         self.assertEqual(item["art"]["thumb"], thumb)
         plot = item["info"]["music"]["plot"]
+        self.assertEqual(item["info"]["music"].get("comment"), plot)
         self.assertIn("Carl Cox", plot)
         self.assertIn("Dreamscape", plot)
         self.assertIn("1995", plot)
@@ -191,12 +192,15 @@ class RouteRenderTests(unittest.TestCase):
         self.assertEqual(resolved["art"]["fanart"], "http://fanart")
         self.assertEqual(resolved["info"]["music"]["title"], "Tape 1")
         self.assertIn("Carl Cox", resolved["info"]["music"]["plot"])
+        self.assertEqual(resolved["info"]["music"].get("comment"),
+                         resolved["info"]["music"]["plot"])
 
     def test_play_resolver_without_fanart_keeps_the_old_art(self):
         routes.play(1, {"url": "https://x/1.mp3", "thumb": "http://thumb"})
         resolved = xbmcplugin.RESOLVED[-1]
         self.assertEqual(resolved["art"], {"thumb": "http://thumb", "icon": "http://thumb"})
         self.assertNotIn("plot", resolved["info"]["music"])
+        self.assertNotIn("comment", resolved["info"]["music"])
 
     def test_search_with_query_paginates_without_a_dialog(self):
         docs = [{"identifier": "pack-1", "title": "Pack One"}]

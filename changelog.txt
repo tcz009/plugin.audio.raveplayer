@@ -1,3 +1,7 @@
+Rave Player 3.9.6
+- Now-playing detail is visible on the device: Kodi's music InfoTag has no
+  "plot" field, so the parsed DJ/venue/date is also written to "comment" (the
+  field the music info dialog shows). Verified on Kodi 22 on the Shield.
 Rave Player 3.9.5
 - Now playing: an Archive tape/track resolves with the pack cover as artwork
   and a plot that includes the DJ, venue/event and date parsed from the item

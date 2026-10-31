@@ -56,7 +56,10 @@ def track_item(handle, url, label, thumb=None, fanart=None, plot=None, artist=No
         "thumb": thumb or kodi.ICON,
         "fanart": fanart or DEFAULT_FANART,
     }
-    info = {"title": plain(title or label), "plot": plot or "", "mediatype": "music"}
+    # Kodi's music InfoTag has no plot; "comment" is the field the music
+    # info dialog displays, so set both (plot kept for other consumers/tests).
+    info = {"title": plain(title or label), "plot": plot or "", "comment": plot or "",
+            "mediatype": "music"}
     if artist:
         info["artist"] = plain(artist)
     if album:

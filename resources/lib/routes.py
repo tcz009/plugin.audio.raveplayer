@@ -307,7 +307,8 @@ def _play_tracks(tracks, identifier, start=0, shuffle=False):
         info = {
             "title": track["title"],
             "album": album,
-            "plot": plotted,
+            "plot": plotted,       # kept for compatibility
+            "comment": plotted,    # the field Kodi's music info actually shows
             "mediatype": "music",
         }
         if track.get("duration"):
@@ -961,7 +962,8 @@ def play(handle, params):
     item.setArt(art)
     info = {"title": ui.plain(label)}
     if plotted:
-        info["plot"] = plotted
+        info["plot"] = plotted      # kept for compatibility
+        info["comment"] = plotted   # displayed by Kodi's music info
     item.setInfo("music", info)
     item.setProperty("IsPlayable", "true")
     xbmcplugin.setResolvedUrl(handle, True, item)
