@@ -11,6 +11,7 @@ import os
 import random
 import re
 import sys
+import time
 import traceback
 import urllib.parse
 
@@ -22,7 +23,7 @@ from . import (archive, downloads, dnbradio, favourites, feeds,
                getdarker as getdarker_source, hardscore as hardscore_source,
                handoff, http, kodi, latest, legacy, mixcloud as mixcloud_source,
                moxser as moxser_source, nowplaying, pirate as pirate_source,
-               radio, ui)
+               radio, spinner, ui)
 
 ROWS_PER_PAGE = 50
 MAX_ROWS_PER_PAGE = 200
@@ -1539,20 +1540,42 @@ def download_start(handle, params):
     heading = "Replace download?" if plan.get("existing") else "Download?"
     if not kodi.dialog().yesno(heading, text):
         return
-    progress = xbmcgui.DialogProgress()
-    progress.create("Rave Player", "Downloading…")
-    try:
-        def update(done, total):
-            try:
-                percent = int((done * 100) / total) if total else 0
-                progress.update(max(0, min(percent, 100)), message="Downloading…")
-            except Exception:
-                pass
+    overlay = None
+    dialog = None
+    if kodi.setting_bool("spinner_overlay", False):
+        try:
+            candidate = spinner.SpinnerWindow()
+            if candidate.open():
+                overlay = candidate
+        except Exception as exc:
+            kodi.log("spinner overlay unavailable (%s)" % exc, level=30)
+    if overlay is None:
+        dialog = xbmcgui.DialogProgress()
+        dialog.create("Rave Player", "Downloading…")
+    started = time.monotonic()
 
-        result = downloads.download(plan, progress=update,
-                                    cancelled=progress.iscanceled)
+    def update(done, total):
+        try:
+            percent = int((done * 100) / total) if total else 0
+            if overlay is not None:
+                overlay.update(done, total, time.monotonic() - started, title)
+            elif dialog is not None:
+                dialog.update(max(0, min(percent, 100)), message="Downloading…")
+        except Exception:
+            pass
+
+    def cancelled():
+        if overlay is not None:
+            return overlay.iscanceled()
+        return bool(dialog.iscanceled()) if dialog is not None else False
+
+    try:
+        result = downloads.download(plan, progress=update, cancelled=cancelled)
     finally:
-        progress.close()
+        if overlay is not None:
+            overlay.close()
+        if dialog is not None:
+            dialog.close()
     if result.get("ok"):
         kodi.notify("Downloaded: %s" % ui.plain(title)[:60])
     elif "cancel" in str(result.get("reason") or "").lower():

@@ -124,6 +124,17 @@ Mixcloud/SoundCloud/YouTube/live/HLS rows are not downloadable.
   deleted.
 - Context path: `RunPlugin(plugin://plugin.audio.raveplayer/?mode=download_start&url=…&title=…&source=…)`.
 
+### Spinning-head download window (3.9.19 prototype, opt-in)
+
+Enable **Settings → General → Spinning-head download window (prototype)** to
+replace the plain download progress dialog with a small WindowXML overlay:
+rotating Rave Player head (10 frames, 10 fps), filename, percent, done/total,
+remaining time and “Back / Stop to cancel”. It is non-modal, updated from the
+download loop, closes on success/cancel/failure, and silently falls back to the
+ordinary `DialogProgress` if the window cannot be created. See
+[`docs/SPINNER-3.9.19.md`](docs/SPINNER-3.9.19.md) for the spec, preview/GIF,
+cost/risks and the opt-in recommendation. Default is **off**.
+
 ## Why it was rebuilt rather than patched
 
 The 2014 add-on was Python 2, ran on `xbmc.python` 2.1.0 (Kodi 13), and

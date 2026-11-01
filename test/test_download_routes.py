@@ -122,6 +122,77 @@ class DownloadRouteTests(unittest.TestCase):
         self.assertIn("Size:", message)
         self.assertIn("Free space:", message)
 
+    def test_download_start_uses_spinner_when_enabled(self):
+        plan = {"allowed": True, "reason": "", "size": 1024,
+                "free": 1024 * 1024 * 1024, "existing": False}
+        calls = []
+
+        class FakeSpinner(object):
+            def __init__(self):
+                calls.append("init")
+
+            def open(self):
+                calls.append("open")
+                return True
+
+            def update(self, done, total, elapsed=None, filename=""):
+                calls.append("update")
+
+            def iscanceled(self):
+                return False
+
+            def close(self):
+                calls.append("close")
+
+        def fake_download(plan_row, progress=None, cancelled=None):
+            progress(512, 1024)
+            return {"ok": True, "reason": ""}
+
+        with mock.patch.object(routes.kodi, "setting_bool", return_value=True), \
+                mock.patch.object(routes.spinner, "SpinnerWindow", FakeSpinner), \
+                mock.patch.object(routes.downloads, "plan", return_value=plan), \
+                mock.patch.object(routes.downloads, "download", side_effect=fake_download), \
+                mock.patch.object(routes.kodi, "notify"):
+            routes.download_start(1, {"url": "https://archive.org/a.mp3",
+                                      "title": "Set", "source": "Archive.org"})
+        self.assertEqual(calls, ["init", "open", "update", "close"])
+
+    def test_download_start_falls_back_to_dialog_if_spinner_fails(self):
+        plan = {"allowed": True, "reason": "", "size": 1024,
+                "free": 1024 * 1024 * 1024, "existing": False}
+        calls = []
+
+        class BrokenSpinner(object):
+            def __init__(self):
+                pass
+
+            def open(self):
+                return False
+
+        class FakeDialog(object):
+            def create(self, *args, **kwargs):
+                calls.append("create")
+
+            def update(self, *args, **kwargs):
+                pass
+
+            def iscanceled(self):
+                return False
+
+            def close(self):
+                calls.append("close")
+
+        with mock.patch.object(routes.kodi, "setting_bool", return_value=True), \
+                mock.patch.object(routes.spinner, "SpinnerWindow", BrokenSpinner), \
+                mock.patch.object(routes.xbmcgui, "DialogProgress", FakeDialog), \
+                mock.patch.object(routes.downloads, "plan", return_value=plan), \
+                mock.patch.object(routes.downloads, "download",
+                                  return_value={"ok": True, "reason": ""}), \
+                mock.patch.object(routes.kodi, "notify"):
+            routes.download_start(1, {"url": "https://archive.org/a.mp3",
+                                      "title": "Set", "source": "Archive.org"})
+        self.assertEqual(calls, ["create", "close"])
+
     def test_download_start_refuses_low_space(self):
         plan = {"allowed": False, "reason": "Not enough free space.",
                 "size": 0, "free": 0, "existing": False}

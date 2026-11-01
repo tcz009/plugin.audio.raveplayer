@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window type="dialog" id="14000">
+    <coordinates>
+        <system>1</system>
+        <posx>0</posx>
+        <posy>0</posy>
+    </coordinates>
+    <controls>
+        <control type="image" id="100">
+            <description>Spinning Rave Player head</description>
+            <posx>560</posx>
+            <posy>170</posy>
+            <width>160</width>
+            <height>160</height>
+            <aspectratio>keep</aspectratio>
+            <align>center</align>
+        </control>
+        <control type="label" id="101">
+            <description>Filename</description>
+            <posx>240</posx>
+            <posy>360</posy>
+            <width>800</width>
+            <height>40</height>
+            <align>center</align>
+            <font>font13</font>
+            <label>Preparing download…</label>
+        </control>
+        <control type="progress" id="106">
+            <description>Download progress</description>
+            <posx>440</posx>
+            <posy>420</posy>
+            <width>400</width>
+            <height>18</height>
+            <info>progress</info>
+        </control>
+        <control type="label" id="102">
+            <description>Percent</description>
+            <posx>240</posx>
+            <posy>450</posy>
+            <width>800</width>
+            <height>32</height>
+            <align>center</align>
+            <font>font12</font>
+            <label>0%</label>
+        </control>
+        <control type="label" id="103">
+            <description>Size</description>
+            <posx>240</posx>
+            <posy>486</posy>
+            <width>800</width>
+            <height>28</height>
+            <align>center</align>
+            <font>font10</font>
+            <label>0 B of 0 B</label>
+        </control>
+        <control type="label" id="104">
+            <description>Remaining</description>
+            <posx>240</posx>
+            <posy>518</posy>
+            <width>800</width>
+            <height>28</height>
+            <align>center</align>
+            <font>font10</font>
+            <label>Starting…</label>
+        </control>
+        <control type="label" id="105">
+            <description>Cancel hint</description>
+            <posx>240</posx>
+            <posy>570</posy>
+            <width>800</width>
+            <height>28</height>
+            <align>center</align>
+            <font>font10</font>
+            <label>Back / Stop to cancel</label>
+        </control>
+    </controls>
+    <defaultcontrol>106</defaultcontrol>
+</window>

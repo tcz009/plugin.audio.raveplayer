@@ -1,3 +1,15 @@
+Rave Player 3.9.19
+- Prototype spinning-head download window (Kodi, opt-in): a small custom
+  WindowXML overlay with 10 pre-rendered rotated head frames (128/256px,
+  10 fps), filename, percent, done/total, remaining time and a Back/Stop cancel
+  hint. Updated from the download loop, non-modal, closes on success/cancel/
+  failure, and falls back to the existing DialogProgress if the window cannot be
+  created. Idle still frame during long network stalls (no animation thread).
+- New setting "Spinning-head download window (prototype)" defaults OFF; the
+  ordinary progress dialog remains the default. Preview/spec and regeneration
+  script in docs/SPINNER-3.9.19.md; frames in resources/art/spinner/.
+- Tests: 394 -> 403 (frame math/files/XML, window lifecycle/fallback, overlay
+  route selection and close).
 Rave Player 3.9.18
 - Explicit downloads/offline phase 1: "Download" context action on direct
   MP3/M4A items from Archive.org tracks, Moxser mix MP3s, Hardscore MP3/M4A

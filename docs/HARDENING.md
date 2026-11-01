@@ -1,12 +1,13 @@
-# HARDENING — Rave Player Kodi add-on 3.9.18
+# HARDENING — Rave Player Kodi add-on 3.9.19
 
 **Branches:** `hardening/3.9.11` (tag `v3.9.10-review`), `hardening/3.9.12` (from 3.9.11 `main`), and
 `hardening/3.9.13` (from 3.9.12 `main` at `7ff12e6`) and `hardening/3.9.14` (from 3.9.13 `main` at `4f5cbe2`) and
 `hardening/3.9.15` (from 3.9.14 `main` at `dc4cd9c`) and
 `hardening/3.9.16` (from 3.9.15 `main` at `b0a515a`) and
 `hardening/3.9.17` (from 3.9.16 `main` at `614e6ad`) and
-`hardening/3.9.18` (from 3.9.17 `main` at `4007f52`; this pass).
-**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.18 · **Result:** 3.9.18, **394 offline tests OK** (was 207; 369 at 3.9.17)
+`hardening/3.9.18` (from 3.9.17 `main` at `4007f52`) and
+`hardening/3.9.19` (from 3.9.18 `main` at `c413a3d`; this prototype pass).
+**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.19 · **Result:** 3.9.19, **403 offline tests OK** (was 207; 394 at 3.9.18)
 **Date:** 2026-11-01 · **Not pushed / not released.**
 
 Scope: 3.9.11–3.9.13 were internal hardening passes — real, provable defects
@@ -25,7 +26,7 @@ Nothing was deferred silently.
 
 | | |
 |---|---|
-| Suite | **394 tests OK** (was 207; 369 at 3.9.17): +187 offline tests, no network/Kodi needed |
+| Suite | **403 tests OK** (was 207; 394 at 3.9.18): +196 offline tests, no network/Kodi needed |
 | P0/P1 findings | **0 open** (K1, K2, K3 fixed) |
 | Review findings | Adversarial K1–K11 all addressed (3.9.11/3.9.12); independent-review A1–A5, A7–A9, A11, A12 fixed in 3.9.13 (§9); A8 was already fixed and re-tested; A10/A13 remain known/accepted residuals. |
 | Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,getdarker,handoff,hardscore,http,kodi,latest,legacy,mixcloud,moxser,pirate,radio,routes,ui}.py`, `resources/pirate-radio.json` |
@@ -231,7 +232,7 @@ python3 -m unittest test.test_routes test.test_http test.test_cache \
     test.test_archive test.test_parsers test.test_favourites test.test_compat -v
 ```
 
-Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → 334 at 3.9.15 → 360 at 3.9.16 → 369 at 3.9.17 → **394 at 3.9.18** (+187). The suite remains
+Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → 334 at 3.9.15 → 360 at 3.9.16 → 369 at 3.9.17 → 394 at 3.9.18 → **403 at 3.9.19** (+196). The suite remains
 fully offline (stubs in `test/stubs`), needs no Kodi and no network, and runs
 in ≈1–2 s.
 
@@ -294,17 +295,20 @@ resources/lib/mixcloud.py   + curated Mixcloud accounts (Kodi add-on hand-off, 3
 resources/lib/pirate.py     + Pirate Radio Archives data loader (3.9.14)
 resources/lib/handoff.py    + official Kodi add-on detection + plugin:// URLs (3.9.16)
 resources/lib/downloads.py  + explicit offline downloads, metadata, storage guard (3.9.18)
+resources/lib/spinner.py    + spinning-head overlay/frame math/fallback (3.9.19)
+resources/skins/Default/720p/raveplayer-spinner.xml
+resources/art/spinner/      + 20 pre-rendered head frames (3.9.19)
 resources/pirate-radio.json + curated Risk FM / Weekend Rush / Flava FM data (3.9.14)
 default.py                  + last-resort main() guard
 test/…                      121 new tests + stub support (+ slow-drip/redirect/art/description regressions)
 docs/HARDENING.md           this file
 docs/CODE-REVIEW.md         K11 accuracy (module list, Kodi/Python note)
 AGENTS.md                   K11 accuracy (local-only; git-excluded, not in the commit diff)
-addon.xml / changelog.txt   3.9.18 (3.9.11–3.9.17 earlier passes)
+addon.xml / changelog.txt   3.9.19 (3.9.11–3.9.18 earlier passes)
 ```
 
 Per the Lead's instruction the branch is committed locally but **not pushed**;
-`dist/` and `repo/` were rebuilt for 3.9.18 after this feature.
+`dist/` and `repo/` were rebuilt for 3.9.19 after this prototype.
 
 > Branch note: `hardening/3.9.12` also contains an unrelated docs/CI commit
 > `d323075` that landed on the shared worktree while this branch was checked
@@ -922,3 +926,35 @@ atomic files), `test/test_download_routes.py` (context menus on the four
 sources, no Download on platform/podcast/legacy rows, Favourites Downloads
 entry, view local/missing rows, confirmation size/free text, start/delete
 routes). 369 → **394 tests**.
+
+---
+
+## 16. Spinning-head download overlay prototype (3.9.19)
+
+Opt-in cosmetic prototype for the 3.9.18 download flow; default off, so the
+plain `DialogProgress` remains the default. Full spec/preview:
+`docs/SPINNER-3.9.19.md`.
+
+- **Window:** custom `xbmcgui.WindowXML` (`resources/skins/Default/720p/raveplayer-spinner.xml`, dialog 14000) with image 100, filename 101, percent 102, size 103, remaining 104, cancel hint 105, progress 106.
+- **Frames:** 10 pre-rendered PNGs at 256px (and 128px) in
+  `resources/art/spinner/`; circular alpha mask, 36° steps, 10 fps; frame index
+  `int(elapsed*10)%10`; no GIF dependency. Regenerate with
+  `python3 scripts/make-spinner.py` (Pillow dev-only).
+- **Lifecycle:** `download_start` opens the overlay only when the
+  `spinner_overlay` setting is on; progress callback updates it from the
+  download loop; `finally` closes it on success/cancel/failure; if
+  `WindowXML` construction/`show()` fails, the route uses the existing
+  `DialogProgress`; update failures close the overlay and do not stop the
+  download. Back/Stop sets the cancel flag, which the download loop polls.
+- **Cost/risks:** ~512 KB frames + 4 KB XML, no runtime dependency. Non-modal
+  `WindowXML.show()` is assumed (Kodi standard); a modal future/skin would
+  need the setting off. Animation depends on progress updates rather than a
+  separate UI thread (thread-safety). Skin layout authored for Estuary 720p;
+  fallback covers failure. No Shield capture was available; preview is a mock
+  rendered from the real overlay spec.
+- **Tests:** `test/test_spinner.py` (frames/XML, index, formatting, lifecycle,
+  open failure, cancel), `test/test_download_routes.py` (overlay selected and
+  closed; automatic dialog fallback when window open fails). 394 → **403**.
+- **Recommendation:** keep opt-in for the Shield trial; promote to default only
+  after device validation. Replacing the notification outright now would couple
+  a cosmetic prototype to the download path.
