@@ -16,6 +16,7 @@ import codecs
 import gzip
 import http.client
 import io
+import ipaddress
 import json
 import re
 import socket
@@ -33,12 +34,119 @@ DEFAULT_TIMEOUT = 20
 MAX_BODY_BYTES = 8 * 1024 * 1024  # 8 MiB compressed body, and 8 MiB decompressed
 READ_CHUNK_BYTES = 64 * 1024
 ROUTE_BUDGET_SECONDS = 20.0
+MAX_REDIRECTS = 3
+
+_REDIRECT_CODES = frozenset((301, 302, 303, 307, 308))
+
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Refuse automatic redirects; ``_request`` follows them manually
+    so every hop can be validated and charged to the route budget."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirectHandler)
 
 _XML_ENCODING_RE = re.compile(br"""<\?xml[^>]*encoding=["']([A-Za-z0-9._-]+)""", re.IGNORECASE)
 
 _deadline = None
 _budget_exhausted = False
 _state_lock = threading.Lock()
+_host_cache = {}
+_HOST_CACHE_MAX = 256
+
+
+# -------------------------------------------------------------- url safety
+
+
+def blocked_address(address):
+    """True for loopback/link-local/private/metadata-style IP addresses."""
+    text = str(address or "").split("%", 1)[0].strip()
+    try:
+        ip = ipaddress.ip_address(text)
+    except ValueError:
+        return True  # not an address we can verify: refuse it
+    if ip.version == 6 and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    return bool(
+        ip.is_loopback
+        or ip.is_link_local
+        or ip.is_private
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    )
+
+
+def host_is_blocked(hostname, port):
+    """Resolve a host and return True when any answer is non-public.
+
+    Literal IPs are checked without a DNS lookup.  Every A/AAAA answer must be
+    public (a mixed answer covers DNS-rebinding style hosts), and an
+    unresolvable host is refused because Kodi could not play it anyway.
+    """
+    text = str(hostname or "").strip().strip("[]")
+    if not text:
+        return True
+    try:
+        literal = ipaddress.ip_address(text)
+    except ValueError:
+        literal = None
+    if literal is not None:
+        return blocked_address(literal)
+    key = (text.lower(), port or 0)
+    # Memoise per route only: one play_all can otherwise resolve the same
+    # archive.org host for every track (A3/A10 performance), while direct
+    # helper calls and tests stay uncached.
+    budgeted = remaining() is not None
+    if budgeted:
+        with _state_lock:
+            cached = _host_cache.get(key)
+        if cached is not None:
+            return cached
+    try:
+        infos = socket.getaddrinfo(text, port or 0, 0, socket.SOCK_STREAM)
+    except (socket.gaierror, OSError, UnicodeError, ValueError):
+        blocked = True
+    else:
+        blocked = not infos or any(blocked_address(info[4][0]) for info in infos)
+    if budgeted:
+        with _state_lock:
+            if len(_host_cache) < _HOST_CACHE_MAX:
+                _host_cache[key] = blocked
+    return blocked
+
+
+def is_public_http_url(value):
+    """True for an http(s) URL whose host resolves only to public addresses."""
+    text = str(value or "").strip()
+    if not text:
+        return False
+    try:
+        split = urllib.parse.urlsplit(text)
+    except ValueError:
+        return False
+    if split.scheme.lower() not in ("http", "https") or not split.netloc:
+        return False
+    try:
+        port = split.port
+        hostname = split.hostname
+    except ValueError:
+        return False
+    return not host_is_blocked(hostname, port)
+
+
+def safe_stream_url(value):
+    """Return a playable public http(s) stream URL (``|Header=`` preserved)."""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    base = text.split("|", 1)[0].strip()
+    if not is_public_http_url(base):
+        return ""
+    return text
 
 
 # --------------------------------------------------------------------- budget
@@ -59,6 +167,7 @@ def begin_route(seconds=ROUTE_BUDGET_SECONDS):
     with _state_lock:
         _deadline = time.monotonic() + max(0.0, budget)
         _budget_exhausted = False
+        _host_cache.clear()
 
 
 def end_route():
@@ -67,6 +176,7 @@ def end_route():
     with _state_lock:
         _deadline = None
         _budget_exhausted = False
+        _host_cache.clear()
 
 
 def remaining():
@@ -135,6 +245,34 @@ def _charset(headers, raw):
     return charset
 
 
+def _set_read_timeout(response, seconds):
+    """Best-effort: clamp the next socket recv to the remaining deadline."""
+    sock = getattr(response, "_sock", None)
+    if sock is None:
+        fp = getattr(response, "fp", None)
+        raw = getattr(fp, "raw", None) if fp is not None else None
+        sock = getattr(raw, "_sock", None)
+    if sock is not None:
+        try:
+            sock.settimeout(max(0.001, float(seconds)))
+        except (OSError, ValueError, AttributeError):
+            pass
+
+
+def _recv(response, size):
+    """Read whatever one recv/wake-up returns (A1 slow-drip guard).
+
+    ``HTTPResponse.read(n)`` blocks until *n* bytes/EOF/timeout, which lets a
+    one-byte-per-second upstream hold the plugin thread for the whole body.
+    ``read1`` returns after a single socket recv, so the caller's wall-clock
+    deadline is checked between every network wake-up.
+    """
+    reader = getattr(response, "read1", None)
+    if reader is None:
+        reader = response.read
+    return reader(size)
+
+
 def _read_limited(response, timeout):
     """Read a response body with a byte cap and a wall-clock deadline.
 
@@ -153,10 +291,12 @@ def _read_limited(response, timeout):
         return None
     chunks, total = [], 0
     while True:
-        if time.monotonic() > deadline:
+        left = deadline - time.monotonic()
+        if left <= 0:
             kodi.log("response read exceeded its deadline; abandoning", level=30)
             return None
-        chunk = response.read(READ_CHUNK_BYTES)
+        _set_read_timeout(response, left)
+        chunk = _recv(response, READ_CHUNK_BYTES)
         if not chunk:
             break
         if not isinstance(chunk, (bytes, bytearray)):
@@ -214,41 +354,84 @@ def _decode(response, timeout=DEFAULT_TIMEOUT):
 
 
 def _cache_key(kind, url, headers):
-    header_part = "&".join(
-        "%s=%s" % (str(key).lower(), value)
-        for key, value in sorted((headers or {}).items())
-    )
+    # JSON encoding is injective: the old "k=v&k=v" form let header pairs like
+    # ("Referer": "a&b=c") collide with ("Referer": "a", "b": "c").
+    normalized = {str(key).lower(): str(value) for key, value in (headers or {}).items()}
+    header_part = json.dumps(normalized, sort_keys=True, separators=(",", ":"))
     return "http:%s:%s:%s" % (kind, url, header_part)
 
 
 def _request(url, timeout, headers):
-    """Perform one request and return the decoded body, or None on failure."""
-    try:
-        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-        for key, value in (headers or {}).items():
-            request.add_header(str(key), str(value))
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return _decode(response, timeout)
-    except urllib.error.HTTPError as exc:
+    """Perform one request and return the decoded body, or None on failure.
+
+    Redirects are followed manually (max 3 hops): every hop is validated as a
+    public http(s) URL, gets its own budget-clamped timeout, and never runs
+    urllib's unvalidated automatic redirect chain (A2).
+    """
+    current = str(url or "")
+    if not current.lower().startswith(("http://", "https://")):
+        kodi.log("refusing non-http(s) request: %r" % current, level=30)
+        return None
+    hops = 0
+    while True:
+        hop_timeout = _effective_timeout(timeout)
+        if hop_timeout <= 0:
+            kodi.log("network budget exhausted; abandoning request to %s" % current, level=30)
+            return None
         try:
-            exc.close()
-        except Exception:
-            pass
-        kodi.log("fetch failed: %s (%s)" % (url, exc), level=30)
-        return None
-    except (
-        urllib.error.URLError,
-        http.client.HTTPException,
-        socket.timeout,
-        OSError,
-        ValueError,
-        TypeError,
-        EOFError,
-        zlib.error,
-        UnicodeError,
-    ) as exc:
-        kodi.log("fetch failed: %s (%s)" % (url, exc), level=30)
-        return None
+            request = urllib.request.Request(current, headers={"User-Agent": USER_AGENT})
+            for key, value in (headers or {}).items():
+                request.add_header(str(key), str(value))
+            with _OPENER.open(request, timeout=hop_timeout) as response:
+                return _decode(response, hop_timeout)
+        except urllib.error.HTTPError as exc:
+            location = None
+            try:
+                if exc.headers:
+                    location = exc.headers.get("Location")
+            except Exception:
+                location = None
+            if exc.code in _REDIRECT_CODES and location:
+                if hops >= MAX_REDIRECTS:
+                    kodi.log("too many redirects for %s; abandoning" % url, level=30)
+                    _close_quietly(exc)
+                    return None
+                try:
+                    target = urllib.parse.urljoin(current, location)
+                except ValueError:
+                    target = ""
+                if not is_public_http_url(target):
+                    kodi.log("refusing redirect from %s to %r (non-public/invalid)"
+                             % (current, target), level=30)
+                    _close_quietly(exc)
+                    return None
+                hops += 1
+                _close_quietly(exc)
+                current = target
+                continue
+            kodi.log("fetch failed: %s (%s)" % (current, exc), level=30)
+            _close_quietly(exc)
+            return None
+        except (
+            urllib.error.URLError,
+            http.client.HTTPException,
+            socket.timeout,
+            OSError,
+            ValueError,
+            TypeError,
+            EOFError,
+            zlib.error,
+            UnicodeError,
+        ) as exc:
+            kodi.log("fetch failed: %s (%s)" % (current, exc), level=30)
+            return None
+
+
+def _close_quietly(response):
+    try:
+        response.close()
+    except Exception:
+        pass
 
 
 def _fetch_for_cache(url, timeout, headers):

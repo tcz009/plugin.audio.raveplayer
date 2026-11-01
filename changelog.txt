@@ -1,3 +1,25 @@
+Rave Player 3.9.13
+- Independent-review hardening (docs/HARDENING.md §9): response bodies are now
+  truly wall-clock bounded — read1() plus a per-recv socket timeout — so a
+  slow-drip upstream cannot hold Kodi past the 2 s/20 s deadlines.
+- Redirects are no longer followed by urllib automatically: each hop must be a
+  public http(s) URL, is resolved/validated like playback, and is charged to
+  the route budget; chains are capped at 3 hops (loopback/LAN/ftp redirects
+  are refused).
+- play_all now applies the same public-host guard as play, so hostile Archive
+  metadata cannot point Kodi at loopback/LAN; storage nodes must be
+  *.archive.org. Host lookups are memoised per route.
+- Quadratically-scanned tag stripping in descriptions/titles is now linear with
+  bounded input (hostile "<a"*N / "[COLOR"*N input no longer hangs the UI).
+- Feed XML supplied as bytes (including UTF-16) is refused, closing the
+  entity-marker encoding bypass. Favourites fsync before the atomic rename;
+  cache keys are injective for hostile header values; station favicons and
+  play thumb/fanart accept only public http(s) URLs.
+- Docs/CODE-REVIEW refreshed for 3.9.13. Known residuals: the play-host DNS
+  lookup is synchronous (memoised per route); Kodi 22's legacy music "plot"
+  InfoTag warning remains (comment is also set).
+- Tests: 272 -> 295 (offline).
+
 Rave Player 3.9.12
 - "Latest" and "Podcasts & Mixes" now fetch their RSS feeds concurrently in a
   bounded pool (max 5 workers), so one slow or dead feed no longer serialises

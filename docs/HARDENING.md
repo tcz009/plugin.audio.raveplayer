@@ -1,8 +1,8 @@
-# HARDENING — Rave Player Kodi add-on 3.9.12
+# HARDENING — Rave Player Kodi add-on 3.9.13
 
-**Branches:** `hardening/3.9.11` (from tag `v3.9.10-review`, HEAD `b0f8c7f`) and
-`hardening/3.9.12` (branched from 3.9.11 `main` at `d61e036`; 3.9.12 code/tests/docs in `1f32d46`)
-**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.12 · **Result:** 3.9.12, **272 offline tests OK** (was 207; 259 at 3.9.11)
+**Branches:** `hardening/3.9.11` (tag `v3.9.10-review`), `hardening/3.9.12` (from 3.9.11 `main`), and
+`hardening/3.9.13` (from 3.9.12 `main` at `7ff12e6`; this pass).
+**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.13 · **Result:** 3.9.13, **295 offline tests OK** (was 207; 259 at 3.9.11; 272 at 3.9.12)
 **Date:** 2026-11-01 · **Not pushed / not released.**
 
 Scope: internal hardening only — real, provable defects in the runtime code and
@@ -20,10 +20,10 @@ direction was followed. Nothing was deferred silently.
 
 | | |
 |---|---|
-| Suite | **272 tests OK** (was 207; 259 at 3.9.11): +65 offline tests, no network/Kodi needed |
+| Suite | **295 tests OK** (was 207; 272 at 3.9.12): +88 offline tests, no network/Kodi needed |
 | P0/P1 findings | **0 open** (K1, K2, K3 fixed) |
-| Adversarial findings | 11/11 addressed; the two follow-ups deferred at 3.9.11 (K3 parallel feeds, K6 private-IP guard) are closed in 3.9.12 (§8). Only K9's plot-field widening remains out of scope. |
-| Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,http,kodi,latest,legacy,radio,routes}.py` |
+| Review findings | Adversarial K1–K11 all addressed (3.9.11/3.9.12); independent-review A1–A5, A7–A9, A11, A12 fixed in 3.9.13 (§9); A8 was already fixed and re-tested; A10/A13 remain known/accepted residuals. |
+| Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,http,kodi,latest,legacy,radio,routes,ui}.py` |
 | Tests changed | `test/test_{archive,cache,compat,favourites,http,latest,parsers,routes}.py`, `test/stubs/{xbmc,xbmcplugin}.py` |
 | Docs | `docs/HARDENING.md` (this file), `docs/CODE-REVIEW.md`, `changelog.txt`, `addon.xml`; `AGENTS.md` fixed locally (git-excluded by design, never published) |
 | Compatibility | Python 3.9 grammar floor enforced; no module/API removed in 3.9–3.14 is used; Kodi 22 (Python 3.14) not runnable in this environment (see §6) |
@@ -169,7 +169,7 @@ regression — the 3.9.8 cascade tests still pass).
 now says version **3.9.10** at tag `v3.9.10-review`, hardening on
 `hardening/3.9.11`, suite **259 tests** (207 at the tag) and records 3.9.8–3.9.11
 in the recent-history line; its stale "expect 193 OK" rule was corrected too.
-`addon.xml`/`changelog.txt` were at 3.9.11 for that pass (3.9.12 now; §8). (`AGENTS.md` is listed in
+`addon.xml`/`changelog.txt` are at 3.9.13 for this pass (§9). (`AGENTS.md` is listed in
 `.git/info/exclude` as never-published workspace instructions, so its correction
 is local-only and not part of the branch diff.)
 **Tests:** `test_compat` guards the runtime against the documented 3.9 floor and
@@ -226,7 +226,7 @@ python3 -m unittest test.test_routes test.test_http test.test_cache \
     test.test_archive test.test_parsers test.test_favourites test.test_compat -v
 ```
 
-Test count: 207 → 259 at 3.9.11 → **272 at 3.9.12** (+65). The suite remains
+Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → **295 at 3.9.13** (+88). The suite remains
 fully offline (stubs in `test/stubs`), needs no Kodi and no network, and runs
 in ≈1–2 s.
 
@@ -269,28 +269,29 @@ Notable reproductions that are now covered instead of escaping:
 ## 7. Files changed (no push, no release, no repo/ or dist/ changes)
 
 ```
-resources/lib/http.py       + bounded reads/decompression, wall-clock route budget
-resources/lib/cache.py      + maintenance/eviction, oversized-entry guard
-resources/lib/archive.py    + filename/dir validation, host validation, overflow-safe numerics
-resources/lib/feeds.py      + entity guard, http(s)-only enclosures, overflow-safe durations,
-                              episodes_many bounded thread pool (3.9.12)
+resources/lib/http.py       + read1 slow-drip bound, public/budgeted redirects, injective cache keys,
+                              per-route DNS memo, bounded reads/decompression
+resources/lib/cache.py      + maintenance/eviction, oversized-entry guard, thread-safe counter
+resources/lib/archive.py    + filename/dir validation, archive.org-only storage nodes, overflow-safe numerics
+resources/lib/feeds.py      + entity guard (UTF-16/bytes refused), bounded descriptions,
+                              episodes_many bounded thread pool
 resources/lib/radio.py      + scheme allow-list, 8 s mirror timeout, 10 min station cache
 resources/lib/legacy.py     + URL-path traversal guard, http(s)-only JungleTapes media
-resources/lib/favourites.py + advisory lock around load-modify-save
+resources/lib/favourites.py + advisory lock around load-modify-save, fsync before rename
 resources/lib/kodi.py       + idempotent end_directory tracking
-resources/lib/routes.py     + top-level guard, route budget, play scheme + private-IP gate,
-                              K9 escaping, non-destructive failure path, rave encoding fix
+resources/lib/routes.py     + top-level guard, route budget, play + play_all public-host gate,
+                              art-URL gate, linear descriptions, K9 escaping, non-destructive failure
 resources/lib/latest.py     + parallel feed fetch (3.9.12)
 default.py                  + last-resort main() guard
-test/…                      65 new tests + stub support
+test/…                      87 new tests + stub support (+ slow-drip/redirect/art/description regressions)
 docs/HARDENING.md           this file
 docs/CODE-REVIEW.md         K11 accuracy (module list, Kodi/Python note)
 AGENTS.md                   K11 accuracy (local-only; git-excluded, not in the commit diff)
-addon.xml / changelog.txt   3.9.12 (3.9.11 was the first hardening pass)
+addon.xml / changelog.txt   3.9.13 (3.9.11/3.9.12 earlier passes)
 ```
 
 Per the Lead's instruction the branch is committed locally but **not pushed**;
-`dist/` and `repo/` were not touched (so the 3.9.12 repo zip/catalogue remain a
+`dist/` and `repo/` were not touched (so the 3.9.13 repo zip/catalogue remain a
 publish-time step).
 
 > Branch note: `hardening/3.9.12` also contains an unrelated docs/CI commit
@@ -377,3 +378,165 @@ unresolvable host all rejected with notify + failed resolve; public host allowed
 `|Header=` suffix preserved. DNS is monkeypatched (`getaddrinfo`) in every test.
 
 **Status: fixed.**
+
+---
+
+## 9. Independent review 2026-11 — add-on findings (3.9.13)
+
+The independent reviewer held 3.9.12; the add-on findings and their disposition
+are below. A6 was explicitly withdrawn by the reviewer (Kodi ships Python 3.11+
+and the py3.9 int limit does not reach the supported targets); A10/A13 remain
+known/accepted residuals (documented, not silently dropped).
+
+### A1 — P1 — `_read_limited` did not actually bound a slow-drip body
+
+**Finding:** the deadline was checked only between `response.read(65536)` calls;
+because `HTTPResponse.read(n)` blocks until n bytes/EOF/socket timeout, a server
+dripping one byte per interval could hold Kodi's plugin thread far past the 2 s
+budget (reviewer reproduced 12.09 s). This made the K3/K4 wall-clock claim false.
+
+**Fix:** `_read_limited` now calls `read1()` (one recv's worth per wake-up),
+recomputes the wall-clock deadline before every read, and clamps the underlying
+socket timeout to the remaining deadline (`_set_read_timeout` best-effort; body
+caps and decompression caps unchanged). A slow-drip response can no longer
+outlive its deadline by more than one recv.
+
+**Tests:** `test_http.ReadBoundTests` — `SlowDripResponse` (1 byte per 20 ms)
+abandoned at a 0.12 s deadline, and `fetch` under a 0.15 s route budget returns
+`None` in <0.8 s. The old implementation returned the slow body / blocked and
+fails these tests.
+
+### A2 — P2 — Redirects were unvalidated and unbudgeted
+
+**Finding:** `urllib` followed redirects automatically: a public URL could
+redirect to loopback/LAN (SSRF-ish) and a 10-hop chain escaped the 20 s budget;
+`ftp:` was followed too.
+
+**Fix:** automatic redirects are disabled (`_NoRedirectHandler`); `_request`
+follows redirects manually, at most 3 hops. Every target is resolved as a public
+http(s) URL via the same host guard as playback (mixed/private/unresolvable
+answers refused) and each hop gets a fresh `_effective_timeout` clamp, so the
+route budget is charged across the whole chain. Redirect response bodies are
+closed; a refused/non-public hop returns `None` with a log line.
+
+**Tests:** `test_http.RedirectHardeningTests` — public redirect followed; loopback
+redirect refused; `ftp:` refused; hostname resolving private refused; 4th hop
+refused after 3 redirects; mid-chain slow hops bounded by a 0.25 s budget; the
+auto-redirect handler is confirmed absent from the opener. All redirect targets
+are DNS-mocked, so the suite stays offline.
+
+### A3 — P2 — `play_all` / `_play_tracks` bypassed the private-IP guard
+
+**Finding:** `play` had the 3.9.12 public-host guard, but `play_all` built the
+music playlist directly from `archive.audio_files()` URLs, so hostile Archive
+metadata (`d1=127.0.0.1`, etc.) could still point Kodi at loopback/LAN/an
+arbitrary host.
+
+**Fix:**
+- `_play_tracks` re-validates every track URL through the shared
+  `http.safe_stream_url` guard, skips bad rows with a notification, and returns
+  `False` when nothing is playable (`play_all` then notifies as before).
+- Defence in depth: `archive._direct_base` accepts storage nodes only under
+  `archive.org` (real nodes are `*.archive.org`), so hostile metadata cannot use
+  the direct-node optimisation at all; it falls back to the public
+  `archive.org/download/` URL.
+- The host guard is memoised per route, so a pack with many tracks on one host
+  does not do one DNS lookup per track.
+
+**Tests:** `test_playlist.PlayAllUrlGuardTests` — a private track is skipped and
+never reaches `xbmc.PlayList` while public tracks still play; an all-private pack
+does not start playback and notifies. `test_archive.ArchiveUrlSafetyTests` —
+`evil.example.com`, `127.0.0.1`, `localhost`, `192.168.1.10` storage nodes are
+rejected; `ia*.us.archive.org` is kept.
+
+### A4 — P2 — Quadratic tag-stripping regexes
+
+**Finding:** `routes._clean_description`, `feeds._description` and `ui._MARKUP_RE`
+used unbounded `[^>]*` / `[^\]]*` after an opening token; hostile
+`"<a" * 131072` or `"[COLOR" * N` input made the regex engine rescan to
+end-of-string each time (16.7 s for 256 KiB; a hang for larger input).
+
+**Fix:** every scan is capped (descriptions 8 KiB, labels 1 KiB) and repetition
+inside the tag pattern is bounded (`[^>]{0,512}` / `[^\]]{0,100}?`), making the
+substitution linear in the capped input. Final output limits are unchanged
+(600/400 chars; markup-stripped labels).
+
+**Tests:** `test_routes.DescriptionBoundTests` (131 KiB of `<a` returns ≤600
+chars in <0.5 s), `test_parsers.FeedHardeningTests` (130 KiB description returns
+≤`DESCRIPTION_LIMIT` in <0.5 s), `test_ui` (`"[COLOR" * 70000` capped and <0.5 s).
+
+### A5 — P3 — UTF-16 entity-declaration bypass
+
+**Finding:** `feeds.parse` scanned bytes with `decode("ascii", "replace")` for
+`<!ENTITY`; UTF-16 XML has interleaved NULs so the marker was missed and
+ElementTree auto-detected UTF-16 and expanded the entities.
+
+**Fix:** `feeds.parse` refuses `bytes`/`bytearray` input outright (the HTTP layer
+always returns decoded text). The existing entity-marker guard now only ever
+sees `str`, so UTF-16/other byte encodings cannot bypass it.
+
+**Tests:** `test_parsers.FeedHardeningTests.test_utf16_byte_xml_is_refused`
+(UTF-16 and UTF-16-LE both `[]`).
+
+### A7 — P3 — Favourites atomic write lacked fsync
+
+**Fix:** the temporary JSON file is flushed and `os.fsync`ed before
+`os.replace`, so a sudden power loss cannot leave the rename pointing at
+unflushed data.
+
+**Test:** `test_favourites.FavouriteTests.test_save_fsyncs_before_the_atomic_rename`.
+
+### A8 — P3 — `stations_by_name` exposed stations without a stream URL
+
+**Status: already fixed in 3.9.11/3.9.12.** `radio._search()` (used by both
+`stations()` and `stations_by_name()`) drops entries whose `stream_url()` is
+empty. Re-verified by the existing
+`test_parsers.RadioTests.test_stations_by_name_tries_next_mirror_and_needs_a_stream`;
+no code change was needed.
+
+### A9 — P3 — Cache key was ambiguous for hostile header values
+
+**Finding:** the key joined `k=v` pairs with `&`, so header
+`{"Referer": "a&b=c"}` collided with `{"Referer": "a", "b": "c"}`; a poisoned
+cache entry could be served for a different header set.
+
+**Fix:** header pairs are lower-cased and JSON-encoded with sorted keys into the
+key (`json.dumps`, compact separators), which is injective. Existing cache
+entries become misses on upgrade (self-healing; TTLs are short).
+
+**Tests:** `test_http.CacheKeyTests` — the colliding pairs now differ; header
+case remains normalised.
+
+### A11 — P3 — Unvalidated art URLs reached Kodi's image loader
+
+**Finding:** station favicons and the `thumb`/`fanart` plugin parameters were
+passed to `setArt` unvalidated, so metadata could ask Kodi to fetch
+`http://127.0.0.1/…` or a `file:` path as artwork.
+
+**Fix:** `_safe_art` accepts only public http(s) URLs (same host guard as
+playback) and otherwise falls back to the add-on icon; applied to station
+favicons, `play`'s thumb/fanart, and the play URL's thumb parameter.
+
+**Tests:** `test_routes.ArtUrlGuardTests` — a loopback station favicon becomes
+the add-on icon; `play` with `file:///etc/passwd` thumb and a public stream
+resolves but uses the add-on icon.
+
+### A12 — P3 — Stale review/docs claims
+
+**Fix:** `docs/CODE-REVIEW.md` now says 3.9.13, 295 tests, and describes the
+current behaviour (20 s budget, validated redirects, shared play/play_all guard,
+no queue clear, current cache key/eviction, Kodi 22 `plot` warning accepted).
+This file records the independent-review fixes and corrects the earlier K4
+blanket claim: response reads are now genuinely bounded (A1).
+
+### A10 / A13 — known/accepted residuals
+
+- **A10 — DNS resolution in the play/redirect guard is synchronous.** The first
+  lookup for a host can still block on the OS resolver; repeated lookups within
+  one route are memoised. The guard is required for the private-IP protection;
+  an async/resolved-host cache remains a possible follow-up (documented in
+  CODE-REVIEW and here).
+- **A13 — Kodi 22 logs an "Unknown Music Info Key" warning for the legacy
+  `plot` field on music InfoTags.** `comment` is the supported field and is set
+  as well; removing `plot` would break older consumers, so this is accepted and
+  documented in CODE-REVIEW.

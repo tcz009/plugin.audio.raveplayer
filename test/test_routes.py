@@ -4,6 +4,7 @@
 import os
 import socket
 import sys
+import time
 import unittest
 import urllib.parse
 from unittest import mock
@@ -182,29 +183,29 @@ class RouteRenderTests(unittest.TestCase):
         self.assertIn("plot=", item["url"])
 
     def test_play_resolver_sets_fanart_and_plot_on_the_resolved_item(self):
-        with mock.patch.object(routes.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
+        with mock.patch.object(routes.http.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
             routes.play(1, {
             "url": "https://archive.org/download/p/1.mp3",
             "label": "[I]Tape 1[/I]",
-            "thumb": "http://thumb",
-            "fanart": "http://fanart",
+            "thumb": "https://art.example.test/thumb",
+            "fanart": "https://art.example.test/fanart",
                 "plot": "Carl Cox · Dreamscape · 1995 — From archive.org item p",
             })
         resolved = xbmcplugin.RESOLVED[-1]
         self.assertTrue(resolved["ok"])
         self.assertEqual(resolved["path"], "https://archive.org/download/p/1.mp3")
-        self.assertEqual(resolved["art"]["thumb"], "http://thumb")
-        self.assertEqual(resolved["art"]["fanart"], "http://fanart")
+        self.assertEqual(resolved["art"]["thumb"], "https://art.example.test/thumb")
+        self.assertEqual(resolved["art"]["fanart"], "https://art.example.test/fanart")
         self.assertEqual(resolved["info"]["music"]["title"], "Tape 1")
         self.assertIn("Carl Cox", resolved["info"]["music"]["plot"])
         self.assertEqual(resolved["info"]["music"].get("comment"),
                          resolved["info"]["music"]["plot"])
 
     def test_play_resolver_without_fanart_keeps_the_old_art(self):
-        with mock.patch.object(routes.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
-            routes.play(1, {"url": "https://example.test/1.mp3", "thumb": "http://thumb"})
+        with mock.patch.object(routes.http.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
+            routes.play(1, {"url": "https://example.test/1.mp3", "thumb": "https://art.example.test/thumb"})
         resolved = xbmcplugin.RESOLVED[-1]
-        self.assertEqual(resolved["art"], {"thumb": "http://thumb", "icon": "http://thumb"})
+        self.assertEqual(resolved["art"], {"thumb": "https://art.example.test/thumb", "icon": "https://art.example.test/thumb"})
         self.assertNotIn("plot", resolved["info"]["music"])
         self.assertNotIn("comment", resolved["info"]["music"])
 
@@ -426,7 +427,7 @@ class PlaybackFailureTests(unittest.TestCase):
             self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"], url)
 
     def test_play_accepts_http_urls_with_a_header_suffix(self):
-        with mock.patch.object(routes.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
+        with mock.patch.object(routes.http.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
             routes.play(1, {"url": "https://example.test/a.mp3|Referer=https://example.test/"})
         resolved = xbmcplugin.RESOLVED[-1]
         self.assertTrue(resolved["ok"])
@@ -435,7 +436,7 @@ class PlaybackFailureTests(unittest.TestCase):
     def test_dnb_play_resolves_and_plays(self):
         with mock.patch.object(routes.dnbradio, "stream_url",
                                return_value="https://proxy.dnbradio.com/10.mp3"), \
-                mock.patch.object(routes.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
+                mock.patch.object(routes.http.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
             routes.dnb_play(1, {"id": "10", "label": "Show"})
         resolved = xbmcplugin.RESOLVED[-1]
         self.assertTrue(resolved["ok"])
@@ -451,7 +452,7 @@ class PlaybackFailureTests(unittest.TestCase):
 
     def test_play_success_does_not_clear_the_playlist(self):
         with mock.patch.object(routes.xbmc, "PlayList") as playlist, \
-                mock.patch.object(routes.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
+                mock.patch.object(routes.http.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
             routes.play(1, {"url": "https://example.test/1.mp3"})
         self.assertTrue(xbmcplugin.RESOLVED[-1]["ok"])
         self.assertFalse(playlist.called)
@@ -630,7 +631,7 @@ class PlaybackHostGuardTests(unittest.TestCase):
                  (address, 80)) for address in addresses]
 
     def _play(self, url, resolver):
-        with mock.patch.object(routes.socket, "getaddrinfo", side_effect=resolver), \
+        with mock.patch.object(routes.http.socket, "getaddrinfo", side_effect=resolver), \
                 mock.patch.object(routes.kodi, "notify") as notify:
             routes.play(1, {"url": url})
         return xbmcplugin.RESOLVED[-1], notify
@@ -690,6 +691,43 @@ class PlaybackHostGuardTests(unittest.TestCase):
         self.assertTrue(resolved["ok"])
         self.assertTrue(resolved["path"].endswith(
             "|Referer=https://example.test/&User-Agent=Mozilla/5.0"))
+
+
+class DescriptionBoundTests(unittest.TestCase):
+    """A4: hostile descriptions must be stripped in linear time."""
+
+    def test_hostile_description_is_capped_and_fast(self):
+        started = time.monotonic()
+        text = routes._clean_description("<a" * 131072)
+        elapsed = time.monotonic() - started
+        self.assertLessEqual(len(text), 600)
+        self.assertLess(elapsed, 0.5, elapsed)
+
+
+class ArtUrlGuardTests(unittest.TestCase):
+    """A11: third-party art URLs get the same public-host guard as streams."""
+
+    def setUp(self):
+        del xbmcplugin.RESOLVED[:]
+        del xbmcplugin.ITEMS[:]
+
+    def test_station_loopback_favicon_is_dropped(self):
+        station = {"name": "Station", "url": "https://stream.example.test/a",
+                   "favicon": "http://127.0.0.1/icon.png"}
+        with mock.patch.object(routes.radio, "display", return_value=("Station", "")), \
+                mock.patch.object(routes.radio, "stream_url",
+                                  return_value="https://stream.example.test/a"), \
+                mock.patch.object(routes.http.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
+            routes._station_items(1, [station], "Live")
+        self.assertEqual(xbmcplugin.ITEMS[0]["art"].get("thumb"), routes.kodi.ICON)
+
+    def test_play_drops_local_file_thumb_and_keeps_public_stream(self):
+        with mock.patch.object(routes.http.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
+            routes.play(1, {"url": "https://stream.example.test/a.mp3",
+                            "thumb": "file:///etc/passwd"})
+        resolved = xbmcplugin.RESOLVED[-1]
+        self.assertTrue(resolved["ok"])
+        self.assertEqual(resolved["art"]["thumb"], routes.kodi.ICON)
 
 
 if __name__ == "__main__":

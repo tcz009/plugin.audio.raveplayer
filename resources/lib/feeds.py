@@ -21,7 +21,9 @@ ATOM = "{http://www.w3.org/2005/Atom}"
 
 FEED_TTL = 900
 DESCRIPTION_LIMIT = 400
-FEED_WORKERS = 5  # bounded parallelism for multi-feed routes
+FEED_WORKERS = 5
+_DESCRIPTION_SCAN_LIMIT = 8192
+_TAG_RE = re.compile(r"<[A-Za-z/!][^>]{0,512}>")  # bounded parallelism for multi-feed routes
 
 
 def registry():
@@ -146,17 +148,23 @@ def _description(item):
     raw = _text(item, "description", ITUNES + "summary", ATOM + "summary")
     if not raw:
         return ""
-    text = html_module.unescape(raw)
-    text = re.sub(r"<[A-Za-z/!][^>]*>", " ", text)
+    text = html_module.unescape(raw[:_DESCRIPTION_SCAN_LIMIT])
+    # Bounded repetition keeps this linear on hostile "<a<a<a…" input (A4).
+    text = _TAG_RE.sub(" ", text)
     return " ".join(text.split())[:DESCRIPTION_LIMIT]
 
 
 def parse(xml_text):
-    """Parse an RSS/Atom document into episode dicts (no I/O)."""
-    if isinstance(xml_text, bytes):
-        marker_text = xml_text.decode("ascii", "replace")
-    else:
-        marker_text = str(xml_text or "")
+    """Parse an RSS/Atom document into episode dicts (no I/O).
+
+    Byte input is refused: the HTTP layer always decodes first, and scanning
+    raw bytes for ``<!ENTITY`` was bypassable with UTF-16 (A5), where ElementTree
+    auto-detects the encoding and expands entities we never saw as ASCII.
+    """
+    if isinstance(xml_text, (bytes, bytearray)):
+        kodi.log("feed ignored: XML must be decoded before parsing", level=30)
+        return []
+    marker_text = str(xml_text or "")
     # A feed never needs internal entity declarations, and Expat's entity
     # expansion can be abused for a denial of service ("billion laughs").
     if "<!ENTITY" in marker_text.upper():

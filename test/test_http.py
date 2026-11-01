@@ -34,11 +34,37 @@ class FakeResponse(object):
         self._offset += len(chunk)
         return chunk
 
+    def read1(self, size=-1):
+        """Like HTTPResponse.read1: one recv's worth of data."""
+        return self.read(size)
+
     def __enter__(self):
         return self
 
     def __exit__(self, *exc_info):
         return False
+
+
+class SlowDripResponse(FakeResponse):
+    """A hostile server: one body byte per short sleep, never EOF early."""
+
+    def __init__(self, body, delay=0.02):
+        FakeResponse.__init__(self, body)
+        self.delay = delay
+
+    def read1(self, size=-1):
+        if self._offset >= len(self.body):
+            return b""
+        time.sleep(self.delay)
+        chunk = self.body[self._offset:self._offset + 1]
+        self._offset += len(chunk)
+        return chunk
+
+
+def _redirect_error(location, code=302):
+    headers = Message()
+    headers["Location"] = location
+    return urllib.error.HTTPError("https://start.example/x", code, "Found", headers, None)
 
 
 class DecodeTests(unittest.TestCase):
@@ -67,11 +93,11 @@ class DecodeTests(unittest.TestCase):
         headers = Message()
         headers["Content-Encoding"] = "gzip"
         response = FakeResponse(b"this is not gzip", headers)
-        with mock.patch("urllib.request.urlopen", return_value=response):
+        with mock.patch.object(http._OPENER, "open", return_value=response):
             self.assertIsNone(http._request("https://example.test/x", 5, None))
 
     def test_network_error_returns_none(self):
-        with mock.patch("urllib.request.urlopen", side_effect=urllib.error.URLError("offline")):
+        with mock.patch.object(http._OPENER, "open", side_effect=urllib.error.URLError("offline")):
             self.assertIsNone(http._request("https://example.test/x", 5, None))
 
 
@@ -224,7 +250,7 @@ class ResponseHardeningTests(unittest.TestCase):
 
     def test_non_string_header_values_do_not_raise(self):
         response = FakeResponse(b"ok", Message())
-        with mock.patch("urllib.request.urlopen", return_value=response):
+        with mock.patch.object(http._OPENER, "open", return_value=response):
             self.assertEqual(http._request("https://example.test/x", 5, {"X-N": 1}), "ok")
 
     def test_declared_content_length_over_the_cap_is_rejected(self):
@@ -233,6 +259,123 @@ class ResponseHardeningTests(unittest.TestCase):
         response = FakeResponse(b"x", headers)
         with mock.patch.object(http, "MAX_BODY_BYTES", 10):
             self.assertIsNone(http._read_limited(response, 5))
+
+
+class ReadBoundTests(unittest.TestCase):
+    """A1: a slow-drip body must not outlive its wall-clock deadline."""
+
+    def test_slow_drip_body_is_abandoned_at_the_deadline(self):
+        response = SlowDripResponse(b"x" * 200, delay=0.02)
+        started = time.monotonic()
+        self.assertIsNone(http._read_limited(response, 0.12))
+        elapsed = time.monotonic() - started
+        self.assertLess(elapsed, 0.8, elapsed)
+
+    def test_fetch_of_slow_drip_body_is_bounded_by_the_budget(self):
+        response = SlowDripResponse(b"x" * 200, delay=0.02)
+        http.begin_route(0.15)
+        try:
+            started = time.monotonic()
+            with mock.patch.object(http._OPENER, "open", return_value=response):
+                self.assertIsNone(http.fetch("https://slow.example/x", timeout=20))
+            elapsed = time.monotonic() - started
+        finally:
+            http.end_route()
+        self.assertLess(elapsed, 0.8, elapsed)
+
+
+class RedirectHardeningTests(unittest.TestCase):
+    """A2: redirects are public-http(s), validated per hop and budgeted."""
+
+    def setUp(self):
+        self.infos = [(2, 1, 6, "", ("93.184.216.34", 443))]
+
+    def _follow(self, responses):
+        opener = mock.Mock()
+        opener.open.side_effect = responses
+        with mock.patch.object(http, "_OPENER", opener), \
+                mock.patch.object(http.socket, "getaddrinfo", return_value=self.infos):
+            return http._request("https://start.example/x", 5, None), opener
+
+    def test_non_http_initial_url_is_refused(self):
+        opener = mock.Mock()
+        with mock.patch.object(http, "_OPENER", opener):
+            self.assertIsNone(http._request("ftp://example.test/x", 5, None))
+        self.assertFalse(opener.open.called)
+
+    def test_automatic_redirect_handler_is_disabled(self):
+        self.assertTrue(any(isinstance(handler, http._NoRedirectHandler)
+                            for handler in http._OPENER.handlers))
+
+    def test_public_redirect_is_followed(self):
+        body, opener = self._follow([
+            _redirect_error("https://next.example/y"),
+            FakeResponse(b"payload", Message()),
+        ])
+        self.assertEqual(body, "payload")
+        self.assertEqual(opener.open.call_count, 2)
+
+    def test_redirect_to_loopback_is_refused(self):
+        body, opener = self._follow([_redirect_error("http://127.0.0.1/secret")])
+        self.assertIsNone(body)
+        self.assertEqual(opener.open.call_count, 1)
+
+    def test_redirect_to_ftp_is_refused(self):
+        body, opener = self._follow([_redirect_error("ftp://example.test/file")])
+        self.assertIsNone(body)
+        self.assertEqual(opener.open.call_count, 1)
+
+    def test_redirect_to_a_private_hostname_is_refused(self):
+        opener = mock.Mock()
+        opener.open.side_effect = [_redirect_error("https://lan.example/x")]
+        priv = [(2, 1, 6, "", ("192.168.1.20", 443))]
+        with mock.patch.object(http, "_OPENER", opener), \
+                mock.patch.object(http.socket, "getaddrinfo", return_value=priv):
+            self.assertIsNone(http._request("https://start.example/x", 5, None))
+        self.assertEqual(opener.open.call_count, 1)
+
+    def test_redirect_chain_is_capped_at_three_hops(self):
+        body, opener = self._follow([
+            _redirect_error("https://a.example/1"),
+            _redirect_error("https://a.example/2"),
+            _redirect_error("https://a.example/3"),
+            _redirect_error("https://a.example/4"),
+        ])
+        self.assertIsNone(body)
+        self.assertEqual(opener.open.call_count, 4)
+
+    def test_redirects_are_budgeted_between_hops(self):
+        def slow_redirect(*args, **kwargs):
+            time.sleep(0.12)
+            raise _redirect_error("https://next.example/again")
+
+        opener = mock.Mock()
+        opener.open.side_effect = slow_redirect
+        http.begin_route(0.25)
+        try:
+            started = time.monotonic()
+            with mock.patch.object(http, "_OPENER", opener), \
+                    mock.patch.object(http.socket, "getaddrinfo", return_value=self.infos):
+                self.assertIsNone(http._request("https://start.example/x", 20, None))
+            elapsed = time.monotonic() - started
+        finally:
+            http.end_route()
+        self.assertLess(elapsed, 0.8, elapsed)
+        self.assertGreaterEqual(opener.open.call_count, 1)
+
+
+class CacheKeyTests(unittest.TestCase):
+    """A9: the cache key must be injective for hostile header values."""
+
+    def test_awkward_header_values_do_not_collide(self):
+        one = http._cache_key("text", "https://x/feed", {"Referer": "a&b=c"})
+        two = http._cache_key("text", "https://x/feed", {"Referer": "a", "b": "c"})
+        self.assertNotEqual(one, two)
+
+    def test_header_keys_are_case_insensitive(self):
+        one = http._cache_key("text", "https://x/feed", {"Referer": "a"})
+        two = http._cache_key("text", "https://x/feed", {"referer": "a"})
+        self.assertEqual(one, two)
 
 
 if __name__ == "__main__":

@@ -203,6 +203,12 @@ def _direct_base(data):
         node = node.strip()
         if not node or len(node) > 253 or not _HOST_RE.match(node) or ".." in node:
             continue
+        # A3 defence-in-depth: a hostile d1/server value must not point Kodi at
+        # an arbitrary host (loopback/LAN included).  Real Archive nodes are
+        # always archive.org subdomains.
+        lowered = node.lower()
+        if lowered != "archive.org" and not lowered.endswith(".archive.org"):
+            continue
         return "https://%s%s/" % (node, directory)
     return ""
 

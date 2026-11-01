@@ -12,15 +12,20 @@ DEFAULT_FANART = kodi.FANART
 
 # Kodi display markup, e.g. [COLOR gray]...[/COLOR] or [I]...[/I].  Label text
 # may carry it; the media metadata title must not, or the OSD shows the tags.
+MAX_MARKUP_CHARS = 1024
 _MARKUP_RE = re.compile(
-    r"\[/?(?:COLOR|B|I|U|LIGHT|CAPITALIZE|LOWERCASE|UPPERCASE|CR)(?:[^\]]*)\]",
+    r"\[/?(?:COLOR|B|I|U|LIGHT|CAPITALIZE|LOWERCASE|UPPERCASE|CR)(?:[^\]]{0,100})?\]",
     re.IGNORECASE,
 )
 
 
 def plain(text):
-    """Return display text without Kodi markup tags."""
-    return _MARKUP_RE.sub("", str(text or ""))
+    """Return display text without Kodi markup tags.
+
+    Input is capped and the tag-attribute repetition is bounded so hostile
+    "[COLOR" x N text cannot scan quadratically (A4).
+    """
+    return _MARKUP_RE.sub("", str(text or "")[:MAX_MARKUP_CHARS])
 
 
 def add_item(handle, url, label, is_folder=True, art=None, info=None, playable=False, context=None):

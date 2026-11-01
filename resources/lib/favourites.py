@@ -88,6 +88,8 @@ def save(entries):
         ) as handle:
             temporary = handle.name
             json.dump(cleaned, handle, ensure_ascii=False, indent=0)
+            handle.flush()
+            os.fsync(handle.fileno())  # A7: durable before the rename
         os.replace(temporary, path)
         return True
     except OSError:

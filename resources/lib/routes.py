@@ -7,11 +7,9 @@ adding a source is a one-line change rather than another 40-line scraper.
 
 import datetime
 import html
-import ipaddress
 import os
 import random
 import re
-import socket
 import sys
 import traceback
 import urllib.parse
@@ -273,12 +271,13 @@ def _station_items(handle, stations, plot):
         name = ui.plain(name)
         meta = ui.plain(meta)
         stream = radio.stream_url(station)
+        favicon = _safe_art(station.get("favicon"), None)
         label = "%s  [I]%s[/I]" % (name, meta) if meta else name
         ui.track_item(
             handle,
-            url_for(mode="play", url=stream, label=name, thumb=station.get("favicon") or ""),
+            url_for(mode="play", url=stream, label=name, thumb=favicon or ""),
             label,
-            thumb=station.get("favicon") or None,
+            thumb=favicon,
             plot=plot,
             artist=meta or None,
             title=name,
@@ -291,16 +290,28 @@ def _page_plot(total, page, rows):
     return "Page %d of %d · %d items" % (page, pages, total)
 
 
+# A4: bound the number of characters scanned after each "<" so hostile
+# input like "<a" * 131072 cannot make the regex engine rescan to end-of-string
+# (old pattern was O(n^2): 16.7 s for a 256 KiB description).
+_TAG_RE = re.compile(r"<[A-Za-z/!][^>]{0,512}>")
+_DESCRIPTION_SCAN_LIMIT = 8192
+
+
 def _clean_description(value):
     if not value:
         return ""
-    text = html.unescape(_as_text(value))
-    text = re.sub(r"<[A-Za-z/!][^>]*>", " ", text)
+    text = _as_text(value)[:_DESCRIPTION_SCAN_LIMIT]
+    text = html.unescape(text)
+    text = _TAG_RE.sub(" ", text)
     return " ".join(text.split())[:600]
 
 
 def _play_tracks(tracks, identifier, start=0, shuffle=False):
-    """Build and start a Kodi music playlist from Archive tracks."""
+    """Build and start a Kodi music playlist from Archive tracks.
+
+    Every URL is re-validated here (A3): ``play_all`` builds the playlist
+    directly, so it must not become a bypass of the ``play`` host guard.
+    """
     selected = list(tracks)
     if shuffle:
         random.shuffle(selected)
@@ -308,15 +319,30 @@ def _play_tracks(tracks, identifier, start=0, shuffle=False):
         selected = selected[start:]
     if not selected:
         return False
+    playable = []
+    dropped = 0
+    for track in selected:
+        url = _playable_url(track.get("url", ""))
+        if not url:
+            dropped += 1
+            kodi.log("play_all: skipping non-public track URL for %r" % track.get("title"),
+                     level=30)
+            continue
+        playable.append((track, url))
+    if dropped:
+        kodi.notify("Skipped %d track%s with a non-public stream address."
+                    % (dropped, "" if dropped == 1 else "s"))
+    if not playable:
+        return False
     album = identifier.replace("-", " ")
     thumb = archive.thumb(identifier)
     pack_title = archive.item_title(identifier) or album
     playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
     playlist.clear()
-    for track in selected:
+    for track, url in playable:
         details = nowplaying.parse(pack_title, track["title"])
         plotted = nowplaying.plot("From archive.org item %s" % identifier, details)
-        item = xbmcgui.ListItem(path=track["url"])
+        item = xbmcgui.ListItem(path=url)
         item.setArt({"thumb": thumb, "icon": thumb, "fanart": thumb})
         info = {
             "title": ui.plain(track["title"]),
@@ -328,7 +354,7 @@ def _play_tracks(tracks, identifier, start=0, shuffle=False):
         if track.get("duration"):
             info["duration"] = track["duration"]
         item.setInfo("music", info)
-        playlist.add(track["url"], item)
+        playlist.add(url, item)
     xbmc.Player().play(playlist)
     return True
 
@@ -1051,87 +1077,37 @@ def about(handle, params):
     kodi.end_directory(handle, "files")
 
 
-def _blocked_address(address):
-    """True for loopback/link-local/private/metadata-style IP addresses."""
-    text = str(address or "").split("%", 1)[0].strip()
-    try:
-        ip = ipaddress.ip_address(text)
-    except ValueError:
-        return True  # not an address we can verify: refuse it
-    if ip.version == 6 and ip.ipv4_mapped is not None:
-        ip = ip.ipv4_mapped
-    return bool(
-        ip.is_loopback
-        or ip.is_link_local
-        or ip.is_private
-        or ip.is_multicast
-        or ip.is_reserved
-        or ip.is_unspecified
-    )
-
-
-def _host_blocked(hostname, port):
-    """Resolve a stream host and block non-public answers.
-
-    Every A/AAAA answer must be public: refusing a mixed answer also covers a
-    DNS-rebinding style host that returns one public and one private address.
-    Unresolvable hosts are refused (Kodi could not play them anyway).
-    """
-    text = str(hostname or "").strip().strip("[]")
-    if not text:
-        return True
-    try:
-        literal = ipaddress.ip_address(text)
-    except ValueError:
-        literal = None
-    if literal is not None:
-        return _blocked_address(literal)
-    try:
-        infos = socket.getaddrinfo(text, port or 0, 0, socket.SOCK_STREAM)
-    except (socket.gaierror, OSError, UnicodeError, ValueError):
-        return True
-    if not infos:
-        return True
-    return any(_blocked_address(info[4][0]) for info in infos)
-
-
 def _playable_url(value):
     """Return the URL only when it is a playable, public http(s) stream.
 
-    Kodi streams may carry a ``|Header=…`` suffix, so validate the part before
-    the pipe.  Never resolve file:/special:/plugin:/smb: URLs handed in by a
-    skin, another add-on or a .strm file, and refuse hosts that resolve to
-    loopback/link-local/private/metadata addresses (K6 follow-up).  The LAN
-    trade-off is documented in docs/HARDENING.md.
+    Delegates to :func:`http.safe_stream_url` (scheme + resolved-host guard);
+    Kodi ``|Header=…`` suffixes are preserved.  Used by both the ``play`` route
+    and the ``play_all`` playlist builder (A3: the playlist path must not be a
+    bypass).
+    """
+    return http.safe_stream_url(value)
+
+
+def _safe_art(value, fallback=None):
+    """Only public http(s) art URLs are accepted; anything else falls back.
+
+    Third-party favicons/thumb parameters otherwise reach Kodi's image loader
+    unchanged (A11).  Local add-on paths are replaced by the caller's fallback
+    icon, which is the same image in the normal case.
     """
     text = str(value or "").strip()
     if not text:
-        return ""
-    base = text.split("|", 1)[0].strip()
-    try:
-        split = urllib.parse.urlsplit(base)
-    except ValueError:
-        return ""
-    if split.scheme.lower() not in ("http", "https") or not split.netloc:
-        return ""
-    try:
-        port = split.port
-    except ValueError:
-        return ""
-    try:
-        hostname = split.hostname
-    except ValueError:
-        return ""
-    if _host_blocked(hostname, port):
-        return ""
-    return text
+        return fallback
+    if text.lower().startswith(("http://", "https://")):
+        return text if _playable_url(text) else fallback
+    return fallback
 
 
 def play(handle, params):
     stream = _playable_url(params.get("url", ""))
     label = params.get("label", "Rave Player")
-    thumb = params.get("thumb") or kodi.ICON
-    fanart = params.get("fanart") or ""
+    thumb = _safe_art(params.get("thumb"), kodi.ICON)
+    fanart = _safe_art(params.get("fanart"), "")
     plotted = params.get("plot") or ""
     if not stream:
         _fail_playback(handle,

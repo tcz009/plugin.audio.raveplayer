@@ -3,6 +3,7 @@
 
 import os
 import sys
+import time
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -26,6 +27,13 @@ class PlainTextTests(unittest.TestCase):
     def test_keeps_bracketed_words_that_are_not_markup(self):
         self.assertEqual(ui.plain("[Live] Set"), "[Live] Set")
         self.assertEqual(ui.plain("1994 [Part 2]"), "1994 [Part 2]")
+
+    def test_hostile_markup_text_is_bounded_and_linear(self):
+        started = time.monotonic()
+        result = ui.plain("[COLOR" * 70000)
+        elapsed = time.monotonic() - started
+        self.assertLessEqual(len(result), ui.MAX_MARKUP_CHARS)
+        self.assertLess(elapsed, 0.5, elapsed)
 
 
 class ListItemInfoTests(unittest.TestCase):

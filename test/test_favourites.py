@@ -106,6 +106,11 @@ class FavouriteTests(unittest.TestCase):
         leftovers = [name for name in os.listdir(self.directory) if name.startswith(".favourites-")]
         self.assertEqual(leftovers, [])
 
+    def test_save_fsyncs_before_the_atomic_rename(self):
+        with mock.patch.object(favourites.os, "fsync", wraps=os.fsync) as fsync:
+            self.assertTrue(favourites.save([{"kind": "pack", "target": "x", "title": "X"}]))
+        self.assertTrue(fsync.called)
+
     def test_save_failure_is_reported(self):
         blocker = os.path.join(self.directory, "not-a-directory")
         with open(blocker, "w", encoding="utf-8") as handle:

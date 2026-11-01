@@ -8,7 +8,9 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import unittest
+import xml.etree.ElementTree as ET
 from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -518,6 +520,22 @@ def _item_with_duration(value):
     duration = ET.SubElement(node, "{http://www.itunes.com/dtds/podcast-1.0.0}duration")
     duration.text = value
     return node
+
+
+class FeedHardeningTests(unittest.TestCase):
+    def test_utf16_byte_xml_is_refused(self):
+        xml = '<?xml version="1.0"?><rss><channel><item><title>x</title></item></channel></rss>'
+        self.assertEqual(feeds.parse(xml.encode("utf-16")), [])
+        self.assertEqual(feeds.parse(xml.encode("utf-16-le")), [])
+
+    def test_description_stripping_is_bounded_and_linear(self):
+        item = ET.Element("item")
+        ET.SubElement(item, "description").text = "<a" * 130000
+        started = time.monotonic()
+        text = feeds._description(item)
+        elapsed = time.monotonic() - started
+        self.assertLessEqual(len(text), feeds.DESCRIPTION_LIMIT)
+        self.assertLess(elapsed, 0.5, elapsed)
 
 
 if __name__ == "__main__":

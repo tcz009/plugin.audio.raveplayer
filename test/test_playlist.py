@@ -2,6 +2,7 @@
 """Offline tests for "Play all" / "Shuffle pack" playlist building."""
 
 import os
+import socket
 import sys
 import unittest
 from unittest import mock
@@ -14,6 +15,8 @@ import xbmc  # noqa: E402
 import xbmcplugin  # noqa: E402
 
 from resources.lib import routes  # noqa: E402
+
+PUBLIC_INFOS = [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 443))]
 
 TRACKS = [
     {"title": "One", "url": "https://archive.org/download/p/1.mp3", "duration": 61},
@@ -32,6 +35,10 @@ class PlayAllTests(unittest.TestCase):
         )
         patcher.start()
         self.addCleanup(patcher.stop)
+        dns = mock.patch.object(routes.http.socket, "getaddrinfo",
+                                return_value=PUBLIC_INFOS)
+        dns.start()
+        self.addCleanup(dns.stop)
 
     def _played_urls(self):
         playlist = xbmc.PLAYED[-1]
@@ -92,6 +99,38 @@ class PlayAllTests(unittest.TestCase):
                 mock.patch.object(routes.kodi, "notify"):
             routes.play_all(1, {})
         self.assertFalse(audio.called)
+
+
+class PlayAllUrlGuardTests(unittest.TestCase):
+    """A3: play_all must apply the same public-URL guard as play."""
+
+    def setUp(self):
+        del xbmc.PLAYED[:]
+        patcher = mock.patch.object(routes.archive, "item_title", return_value="Pack")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        dns = mock.patch.object(routes.http.socket, "getaddrinfo",
+                                return_value=PUBLIC_INFOS)
+        dns.start()
+        self.addCleanup(dns.stop)
+
+    def test_private_track_is_skipped_and_not_played(self):
+        tracks = TRACKS + [{"title": "Evil", "url": "https://127.0.0.1/evil.mp3"}]
+        with mock.patch.object(routes.archive, "audio_files", return_value=tracks), \
+                mock.patch.object(routes.kodi, "notify") as notify:
+            routes.play_all(1, {"id": "p"})
+        playlist = xbmc.PLAYED[-1]
+        self.assertEqual([url for url, _item in playlist.items],
+                         [track["url"] for track in TRACKS])
+        self.assertTrue(notify.called)
+
+    def test_all_private_tracks_does_not_start_playback(self):
+        tracks = [{"title": "Evil", "url": "https://127.0.0.1/evil.mp3"}]
+        with mock.patch.object(routes.archive, "audio_files", return_value=tracks), \
+                mock.patch.object(routes.kodi, "notify") as notify:
+            routes.play_all(1, {"id": "p"})
+        self.assertEqual(xbmc.PLAYED, [])
+        self.assertTrue(notify.called)
 
 
 if __name__ == "__main__":

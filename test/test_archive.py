@@ -158,6 +158,16 @@ class ArchiveUrlSafetyTests(unittest.TestCase):
         # Very long digit strings must not escape as a traceback either.
         archive._duration("1:" + "9" * 6000)
 
+    def test_direct_base_rejects_non_archive_storage_nodes(self):
+        for node in ("evil.example.com", "127.0.0.1", "localhost", "192.168.1.10"):
+            data = {"dir": "/0/items/pack", "d1": node}
+            self.assertEqual(archive._direct_base(data), "", node)
+
+    def test_direct_base_keeps_archive_subdomains(self):
+        data = {"dir": "/0/items/pack", "d1": "ia801234.us.archive.org"}
+        self.assertEqual(archive._direct_base(data),
+                         "https://ia801234.us.archive.org/0/items/pack/")
+
 
 if __name__ == "__main__":
     unittest.main()
