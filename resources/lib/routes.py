@@ -862,24 +862,16 @@ def filter_list(handle, params):
 
 
 def _fail_playback(handle, message):
-    """Fail a resolution safely: tell the user, then stop dead.
+    """Fail a resolve without touching the user's current playback.
 
     A playable item inside a mixed folder can make Kodi build a music playlist
     from the whole folder.  The "Latest" cascade is stopped at the source: its
-    directory is typed ``files`` and unresolvable rows are dropped.  A failure
-    here therefore only stops the current playback attempt — it must not clear
-    the user's music queue, which is not ours to discard.
+    directory is typed ``files`` and unresolvable rows are dropped.  A failed
+    resolve only reports failure for this plugin handle; it must not stop or
+    clear a track the user is already playing (especially if a programmatic
+    invocation hits an invalid play URL).
     """
-    # Do not clear the music playlist: that is the user's queue, not ours.
-    # The folder-content fix (``files``) is what stops a built-up folder from
-    # cascading; a failed resolve only needs to stop the current attempt.
     kodi.notify(message)
-    try:
-        player = xbmc.Player()
-        if player.isPlaying():
-            player.stop()
-    except Exception:  # stopping is best-effort; never mask the failure
-        kodi.log("could not stop playback after a failed resolve")
     xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
 
 

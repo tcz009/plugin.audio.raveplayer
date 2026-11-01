@@ -1,4 +1,4 @@
-# HARDENING — Rave Player Kodi add-on 3.9.21
+# HARDENING — Rave Player Kodi add-on 3.9.22
 
 **Branches:** `hardening/3.9.11` (tag `v3.9.10-review`), `hardening/3.9.12` (from 3.9.11 `main`), and
 `hardening/3.9.13` (from 3.9.12 `main` at `7ff12e6`) and `hardening/3.9.14` (from 3.9.13 `main` at `4f5cbe2`) and
@@ -8,8 +8,9 @@
 `hardening/3.9.18` (from 3.9.17 `main` at `4007f52`) and
 `hardening/3.9.19` (from 3.9.18 `main` at `c413a3d`) and
 `hardening/3.9.20` (from 3.9.19 `main` at `1141748`) and
-`hardening/3.9.21` (from 3.9.20 `main` at `3ec49b6`; docs/UX pass).
-**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.21 · **Result:** 3.9.21, **403 offline tests OK** (was 207; unchanged from 3.9.19)
+`hardening/3.9.21` (from 3.9.20 `main` at `3ec49b6`) and
+`hardening/3.9.22` (from 3.9.21 `6745a15`; playback audit).
+**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.22 · **Result:** 3.9.22, **409 offline tests OK** (403 + 6 playback-audit tests)
 **Date:** 2026-11-01 · **Not pushed / not released.**
 
 Scope: 3.9.11–3.9.13 were internal hardening passes — real, provable defects
@@ -234,7 +235,7 @@ python3 -m unittest test.test_routes test.test_http test.test_cache \
     test.test_archive test.test_parsers test.test_favourites test.test_compat -v
 ```
 
-Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → 334 at 3.9.15 → 360 at 3.9.16 → 369 at 3.9.17 → 394 at 3.9.18 → 403 at 3.9.19 → 403 at 3.9.20 → **403 at 3.9.21** (unchanged). The suite remains
+Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → 334 at 3.9.15 → 360 at 3.9.16 → 369 at 3.9.17 → 394 at 3.9.18 → 403 at 3.9.19 → 403 at 3.9.20 → 403 at 3.9.21 → **409 at 3.9.22** (+6 playback audit). The suite remains
 fully offline (stubs in `test/stubs`), needs no Kodi and no network, and runs
 in ≈1–2 s.
 
@@ -307,11 +308,11 @@ test/…                      121 new tests + stub support (+ slow-drip/redirect
 docs/HARDENING.md           this file
 docs/CODE-REVIEW.md         K11 accuracy (module list, Kodi/Python note)
 AGENTS.md                   K11 accuracy (local-only; git-excluded, not in the commit diff)
-addon.xml / changelog.txt   3.9.21 (3.9.11–3.9.20 earlier passes)
+addon.xml / changelog.txt   3.9.22 (3.9.11–3.9.21 earlier passes)
 ```
 
 Per the Lead's instruction the branch is committed locally but **not pushed**;
-`dist/` and `repo/` were rebuilt for 3.9.21 after this docs/UX pass.
+`dist/` and `repo/` were rebuilt for 3.9.22 after the playback audit.
 
 > Branch note: `hardening/3.9.12` also contains an unrelated docs/CI commit
 > `d323075` that landed on the shared worktree while this branch was checked
@@ -1007,3 +1008,16 @@ No player, route, URL or label behaviour changed.
   root/hubs, Kool/Rinse live, pack playback, download + Downloads view, spinner
   toggle, hand-off absence (no browser/Downloader) and About credits. 403 tests
   remain unchanged.
+
+---
+
+## 19. Playback audit (3.9.22)
+
+No autonomous playback path exists. Only `play`/`dnb_play` (explicit list
+item) and `play_all` (explicit context action) can start audio; directory
+routes, Latest on-air rows, favourites streams, Downloads, About and the
+spinner only build ListItems. The Shield incident evidence is external ADB
+input injection (logcat 20:27–29), not add-on code. `_fail_playback` no longer
+calls `Player.stop()` on a failed resolve, so a bad/programmatic play URL cannot
+interrupt unrelated playback. Regression tests: `test/test_playback_audit.py`;
+see `docs/PLAYBACK-AUDIT.md`. Suite 403 → 409.

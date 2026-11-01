@@ -1,3 +1,16 @@
+Rave Player 3.9.22
+- Playback audit after a Shield incident: no route self-starts playback.
+  Playback is limited to the explicit play/dnb-play routes and the explicit
+  "Play all from here" / "Shuffle pack" context action. Directory routes,
+  Latest on-air rows, favourites kind=stream, downloads and the spinner only
+  build list items and never call PlayList/Player.play/setResolvedUrl.
+- A failed resolve no longer calls Player.stop(), so a bad/programmatic play
+  URL cannot interrupt unrelated user playback. It only fails the resolve and
+  notifies.
+- Regression tests assert root/hubs/Latest/archive/favourites/downloads/about
+  routes never start playback and that explicit play routes still do.
+- No URL/label changes; 403 -> 405 tests.
+
 Rave Player 3.9.21
 - README/menu refresh: 3.9.20/3.9.21 nine-row root, four hubs, Favourites >
   Downloads and the opt-in spinner are documented with current menu renders.
