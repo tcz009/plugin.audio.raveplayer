@@ -1,11 +1,12 @@
-# HARDENING — Rave Player Kodi add-on 3.9.17
+# HARDENING — Rave Player Kodi add-on 3.9.18
 
 **Branches:** `hardening/3.9.11` (tag `v3.9.10-review`), `hardening/3.9.12` (from 3.9.11 `main`), and
 `hardening/3.9.13` (from 3.9.12 `main` at `7ff12e6`) and `hardening/3.9.14` (from 3.9.13 `main` at `4f5cbe2`) and
 `hardening/3.9.15` (from 3.9.14 `main` at `dc4cd9c`) and
 `hardening/3.9.16` (from 3.9.15 `main` at `b0a515a`) and
-`hardening/3.9.17` (from 3.9.16 `main` at `614e6ad`; this pass).
-**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.17 · **Result:** 3.9.17, **369 offline tests OK** (was 207; 360 at 3.9.16)
+`hardening/3.9.17` (from 3.9.16 `main` at `614e6ad`) and
+`hardening/3.9.18` (from 3.9.17 `main` at `4007f52`; this pass).
+**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.18 · **Result:** 3.9.18, **394 offline tests OK** (was 207; 369 at 3.9.17)
 **Date:** 2026-11-01 · **Not pushed / not released.**
 
 Scope: 3.9.11–3.9.13 were internal hardening passes — real, provable defects
@@ -24,7 +25,7 @@ Nothing was deferred silently.
 
 | | |
 |---|---|
-| Suite | **369 tests OK** (was 207; 360 at 3.9.16): +162 offline tests, no network/Kodi needed |
+| Suite | **394 tests OK** (was 207; 369 at 3.9.17): +187 offline tests, no network/Kodi needed |
 | P0/P1 findings | **0 open** (K1, K2, K3 fixed) |
 | Review findings | Adversarial K1–K11 all addressed (3.9.11/3.9.12); independent-review A1–A5, A7–A9, A11, A12 fixed in 3.9.13 (§9); A8 was already fixed and re-tested; A10/A13 remain known/accepted residuals. |
 | Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,getdarker,handoff,hardscore,http,kodi,latest,legacy,mixcloud,moxser,pirate,radio,routes,ui}.py`, `resources/pirate-radio.json` |
@@ -230,7 +231,7 @@ python3 -m unittest test.test_routes test.test_http test.test_cache \
     test.test_archive test.test_parsers test.test_favourites test.test_compat -v
 ```
 
-Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → 334 at 3.9.15 → 360 at 3.9.16 → **369 at 3.9.17** (+162). The suite remains
+Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → 334 at 3.9.15 → 360 at 3.9.16 → 369 at 3.9.17 → **394 at 3.9.18** (+187). The suite remains
 fully offline (stubs in `test/stubs`), needs no Kodi and no network, and runs
 in ≈1–2 s.
 
@@ -292,17 +293,18 @@ resources/lib/getdarker.py  + GetDarker RSS pages (3.9.14)
 resources/lib/mixcloud.py   + curated Mixcloud accounts (Kodi add-on hand-off, 3.9.16)
 resources/lib/pirate.py     + Pirate Radio Archives data loader (3.9.14)
 resources/lib/handoff.py    + official Kodi add-on detection + plugin:// URLs (3.9.16)
+resources/lib/downloads.py  + explicit offline downloads, metadata, storage guard (3.9.18)
 resources/pirate-radio.json + curated Risk FM / Weekend Rush / Flava FM data (3.9.14)
 default.py                  + last-resort main() guard
 test/…                      121 new tests + stub support (+ slow-drip/redirect/art/description regressions)
 docs/HARDENING.md           this file
 docs/CODE-REVIEW.md         K11 accuracy (module list, Kodi/Python note)
 AGENTS.md                   K11 accuracy (local-only; git-excluded, not in the commit diff)
-addon.xml / changelog.txt   3.9.17 (3.9.11–3.9.16 earlier passes)
+addon.xml / changelog.txt   3.9.18 (3.9.11–3.9.17 earlier passes)
 ```
 
 Per the Lead's instruction the branch is committed locally but **not pushed**;
-`dist/` and `repo/` were rebuilt for 3.9.17 after this fix.
+`dist/` and `repo/` were rebuilt for 3.9.18 after this feature.
 
 > Branch note: `hardening/3.9.12` also contains an unrelated docs/CI commit
 > `d323075` that landed on the shared worktree while this branch was checked
@@ -863,3 +865,60 @@ Shield report: Mixcloud links opened Android's Downloader although
   item URL and no `plugin://` path is emitted.
 - 360 → **369 tests**. Mixcloud/YouTube hand-offs unchanged when present;
   SoundCloud remains web-version-only.
+
+---
+
+## 15. Downloads / offline phase 1 (3.9.18)
+
+Explicit user downloads only — no automatic download anywhere. Shared
+eligibility with web 1.6.16 (motion-1x1): the same four sources, extensions,
+source-host allow-list, public-host predicate and filename scheme.
+
+### 15.1 Eligibility (single predicate)
+
+`downloads.eligible(url, source, check_host=False)` is the single direct-file
+predicate. Eligible only when all hold:
+- source is exactly one of `Archive.org`, `Moxser.com`, `Hardscore.com`,
+  `Pirate Radio Archives`;
+- public `http`/`https`, no URL credentials, path ends `.mp3`/`.m4a`;
+- host matches that source's allow-list (`*.archive.org`,
+  `moxser.com`/`enceladus.feralhosting.com`, `hardscore.com`);
+- not a platform page; the start route re-checks the resolved public host.
+Excluded: podcast/RSS, Legacy, GetDarker, Mixcloud/SoundCloud/YouTube pages,
+live/HLS, and all auto-download. Context menus use the cheap check; the
+`download_start` route always re-runs the full public-host `plan`.
+
+### 15.2 Files, names, guards
+
+- Directory: `special://userdata/downloads/raveplayer/` via `xbmcvfs`.
+- Filename: `<sanitized-title>-<8hex sha1(url)>.mp3/.m4a`; separators/control/
+  reserved names removed, length capped.
+- `http.probe_media` HEAD validates `Content-Type` (`audio/*` or
+  `application/octet-stream`) and known `Content-Length`; 500 MiB per-file,
+  2 GiB total saved, and a 256 MiB free-space reserve. The confirmation dialog
+  reports size + free space before any transfer.
+- Atomic write: `.part` via `xbmcvfs.File`, close, rename to final; metadata
+  index `downloads.json` written after success. Cancel/failure deletes `.part`
+  and never leaves a final file/index row. Overwrite asks first and replaces.
+
+### 15.3 View / delete / playback
+
+- **Favourites → Downloads** (`?mode=downloads_menu`): local files with
+  size/date; selecting plays the local path (offline, no network); delete
+  context removes file + metadata. Missing files show “missing” and can be
+  deleted. Back returns to Favourites.
+- No network is used by the view. No auto-download.
+
+### 15.4 Context paths and tests
+
+Context action URL (only on eligible rows):
+`RunPlugin(plugin://plugin.audio.raveplayer/?mode=download_start&url=<encoded>&title=<encoded>&source=<source>)`
+with source one of the four approved labels. Delete:
+`RunPlugin(…?mode=download_delete&key=<key>)`.
+
+Tests: `test/test_downloads.py` (predicate, sanitisation, plan/caps/free
+space, success/cancel/failure cleanup, overwrite, delete, missing/partial,
+atomic files), `test/test_download_routes.py` (context menus on the four
+sources, no Download on platform/podcast/legacy rows, Favourites Downloads
+entry, view local/missing rows, confirmation size/free text, start/delete
+routes). 369 → **394 tests**.

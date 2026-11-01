@@ -106,6 +106,24 @@ marked “web version only”. Direct sources (Moxser MP3s, Hardscore MP3s,
 archive.org, tape packs, Kool/Rinse live) are unchanged. About & Sources is a
 read-only credits screen.
 
+## Downloads & offline (3.9.18)
+
+Explicit downloads only (no auto-download). A **Download** action appears in
+the context menu for direct MP3/M4A items from the four approved sources:
+Archive.org tracks, Moxser mix MP3s, Hardscore MP3/M4A and Pirate Radio
+Archives direct files. Podcast/RSS, Legacy, GetDarker and all
+Mixcloud/SoundCloud/YouTube/live/HLS rows are not downloadable.
+
+- Files are written atomically through `xbmcvfs` to
+  `special://userdata/downloads/raveplayer/` as
+  `<sanitised-title>-<8hex>.mp3/.m4a`; cancel/failure leaves no partial file.
+- Storage guard: 500 MiB per file, 2 GiB total, 256 MiB free-space reserve;
+  size and free space are shown before starting.
+- **Favourites → Downloads** lists local files with size/date, plays the local
+  copy offline and deletes file + metadata. Missing files are marked and can be
+  deleted.
+- Context path: `RunPlugin(plugin://plugin.audio.raveplayer/?mode=download_start&url=…&title=…&source=…)`.
+
 ## Why it was rebuilt rather than patched
 
 The 2014 add-on was Python 2, ran on `xbmc.python` 2.1.0 (Kodi 13), and
@@ -167,6 +185,7 @@ raveplayer/
 │       ├── mixcloud.py     # curated Mixcloud accounts (open page)
 │       ├── pirate.py       # Pirate Radio Archives data loader
 │       ├── handoff.py      # official Kodi add-on detection + plugin URLs
+│       ├── downloads.py    # explicit offline downloads + local index
 │       ├── radio.py        # radio-browser.info provider
 │       ├── latest.py       # "Latest", "Surprise me", by-year queries
 │       ├── favourites.py   # JSON favourites store

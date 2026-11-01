@@ -1,3 +1,23 @@
+Rave Player 3.9.18
+- Explicit downloads/offline phase 1: "Download" context action on direct
+  MP3/M4A items from Archive.org tracks, Moxser mix MP3s, Hardscore MP3/M4A
+  and Pirate Radio Archives direct files only. Podcast/RSS, Legacy, GetDarker
+  and all Mixcloud/SoundCloud/YouTube/live/HLS rows are not downloadable.
+- Downloads run in a RunPlugin background route, write atomically via xbmcvfs
+  to special://userdata/downloads/raveplayer/, use sanitised
+  `<slug>-<8hex>.mp3/.m4a` names, show a progress dialog with cancel, ask
+  before overwriting, and clean up `.part` files on cancel/failure.
+- Storage guard: HEAD probe verifies audio Content-Type and known
+  Content-Length; 500 MiB per file, 2 GiB total saved, keep 256 MiB free;
+  size/free space shown in the confirmation before any network transfer.
+- Favourites now has a Downloads entry: local files with size/date, offline
+  playback from the local copy, delete action removes file + metadata; works
+  with no network. Missing files are shown as "missing" and can be deleted.
+- Eligibility predicate/constants mirrored with web 1.6.16 (motion-1x1):
+  same four sources, extensions, source-host allow-list, public-host checks,
+  filename scheme and caps.
+- Tests: 369 -> 394 (mocked xbmcvfs/downloads, eligibility, storage, cleanup).
+
 Rave Player 3.9.17
 - Fixed a raw-platform URL leak that could hand a Mixcloud page to Android's
   Downloader when plugin.audio.mixcloud was absent. The optional-add-on gate is

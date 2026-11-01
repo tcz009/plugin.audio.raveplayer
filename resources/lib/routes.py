@@ -18,7 +18,7 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 
-from . import (archive, dnbradio, favourites, feeds,
+from . import (archive, downloads, dnbradio, favourites, feeds,
                getdarker as getdarker_source, hardscore as hardscore_source,
                handoff, http, kodi, latest, legacy, mixcloud as mixcloud_source,
                moxser as moxser_source, nowplaying, pirate as pirate_source,
@@ -36,7 +36,8 @@ ROUTE_BUDGET_SECONDS = http.ROUTE_BUDGET_SECONDS
 # Routes that resolve a single stream instead of building a directory, and
 # context-menu routes whose caller never expects a directory at all.
 PLAYBACK_MODES = frozenset(("play", "dnb_play"))
-RUNPLUGIN_MODES = frozenset(("play_all", "fav_add", "fav_remove"))
+RUNPLUGIN_MODES = frozenset(("play_all", "fav_add", "fav_remove",
+                             "download_start", "download_delete"))
 
 # Archive.org phrase queries. These are broad on purpose: the Archive's
 # full-text index is what keeps this add-on alive when fan sites disappear.
@@ -618,7 +619,7 @@ def archive_item(handle, params):
                 ("Play all from here", "RunPlugin(%s)" % url_for(
                     mode="play_all", id=identifier, start=index)),
                 _favourite("stream", track["url"], track_title, "Archive.org"),
-            ],
+            ] + _download_context(track["url"], track_title, "Archive.org"),
         )
     kodi.end_directory(handle, "songs")
 
@@ -642,6 +643,11 @@ def fav_list(handle, params):
     entries = favourites.load()
     if not entries:
         kodi.notify("No favourites yet — use the context menu on a pack or show.")
+    download_rows = downloads.list_downloads()
+    ui.menu_item(handle, url_for(mode="downloads_menu"),
+                 "Downloads  [COLOR gray](%d)[/COLOR]" % len(download_rows),
+                 icon=art("tapepacks.png"),
+                 plot="Offline downloads — play from the local copy or delete.")
     for entry in entries:
         entry_key = favourites.key(entry)
         title = ui.plain(entry["title"])
@@ -1173,6 +1179,17 @@ def _handoff_target(url, title):
     return kind, target
 
 
+def _download_context(url, title, source):
+    """Context-menu Download action for eligible direct audio files only."""
+    if not downloads.eligible(url, source, check_host=False):
+        return []
+    return [(
+        "Download",
+        "RunPlugin(%s)" % url_for(mode="download_start", url=url,
+                                  title=title, source=source),
+    )]
+
+
 def _platform_item(handle, url, label, title, icon, plot):
     """Render a platform page as an add-on hand-off row, or omit it.
 
@@ -1259,7 +1276,8 @@ def moxser_mix(handle, params):
             fanart=flyer,
             plot=plotted,
             title=title,
-            context=[_favourite("stream", details["mp3_url"], title, "Moxser.com")],
+            context=[_favourite("stream", details["mp3_url"], title, "Moxser.com")]
+            + _download_context(details["mp3_url"], title, "Moxser.com"),
         )
     else:
         kodi.notify("No direct MP3 on that Moxser page — nothing to play in Kodi.")
@@ -1285,7 +1303,7 @@ def hardscore(handle, params):
                 title=title,
                 context=[
                     _favourite("stream", media[0], title, "Hardscore.com"),
-                ],
+                ] + _download_context(media[0], title, "Hardscore.com"),
             )
         elif row.get("page_url"):
             ui.menu_item(
@@ -1313,7 +1331,8 @@ def hardscore_event(handle, params):
             handle, url_for(mode="play", url=url, label=title), title,
             thumb=art("hardcore.png"), plot="Hardscore.com",
             title=title,
-            context=[_favourite("stream", url, title, "Hardscore.com")],
+            context=[_favourite("stream", url, title, "Hardscore.com")]
+            + _download_context(url, title, "Hardscore.com"),
         )
     shown = _handoff_link_items(handle, details["links"], title,
                                 art("hardcore.png"),
@@ -1466,10 +1485,93 @@ def pirate_station(handle, params):
             plot=plot,
             album=group["station"],
             title=title,
-            context=[_favourite("stream", stream, title, group["station"])],
+            context=[_favourite("stream", stream, title, group["station"])]
+            + _download_context(stream, title, "Pirate Radio Archives"),
         )
     ui.menu_item(handle, url_for(mode="pirate_menu"), "Back")
     kodi.end_directory(handle, "files")
+
+
+def downloads_menu(handle, params):
+    rows = downloads.list_downloads()
+    if not rows:
+        kodi.notify("No downloads yet — use Download in an item's context menu.")
+    for row in rows:
+        label = ui.plain(row["title"])
+        if row.get("exists"):
+            label += "  [COLOR gray](%s)[/COLOR]" % downloads.format_size(row["size"])
+            ui.track_item(
+                handle,
+                row["path"],
+                label,
+                thumb=art("tapepacks.png"),
+                plot="Downloaded · %s · %s" % (row["source"], row["added"][:10]),
+                album="Downloads",
+                title=row["title"],
+                context=[("Delete download", "RunPlugin(%s)" % url_for(
+                    mode="download_delete", key=row["key"]))],
+            )
+        else:
+            ui.menu_item(
+                handle,
+                url_for(mode="downloads_menu"),
+                label + "  [COLOR gray](missing)[/COLOR]",
+                icon=art("tapepacks.png"),
+                plot="The file is missing — delete the entry or download it again.",
+                context=[("Delete download", "RunPlugin(%s)" % url_for(
+                    mode="download_delete", key=row["key"]))],
+            )
+    ui.menu_item(handle, url_for(mode="fav_list"), "Back")
+    kodi.end_directory(handle, "files")
+
+
+def download_start(handle, params):
+    url = params.get("url", "")
+    title = params.get("title", "Rave Player download")
+    source = params.get("source", "")
+    plan = downloads.plan(url, title, source)
+    if not plan.get("allowed"):
+        kodi.notify(plan.get("reason") or "Download not available.")
+        return
+    text = "%s\nSize: %s\nFree space: %s" % (
+        ui.plain(title), downloads.format_size(plan["size"]),
+        downloads.format_size(plan["free"]))
+    heading = "Replace download?" if plan.get("existing") else "Download?"
+    if not kodi.dialog().yesno(heading, text):
+        return
+    progress = xbmcgui.DialogProgress()
+    progress.create("Rave Player", "Downloading…")
+    try:
+        def update(done, total):
+            try:
+                percent = int((done * 100) / total) if total else 0
+                progress.update(max(0, min(percent, 100)), message="Downloading…")
+            except Exception:
+                pass
+
+        result = downloads.download(plan, progress=update,
+                                    cancelled=progress.iscanceled)
+    finally:
+        progress.close()
+    if result.get("ok"):
+        kodi.notify("Downloaded: %s" % ui.plain(title)[:60])
+    elif "cancel" in str(result.get("reason") or "").lower():
+        kodi.notify("Download cancelled.")
+    else:
+        kodi.notify("Download failed: %s" % str(result.get("reason") or "unknown")[:120])
+
+
+def download_delete(handle, params):
+    key = params.get("key", "")
+    if not key:
+        return
+    if not kodi.dialog().yesno("Delete download?", "Remove this file and its metadata?"):
+        return
+    if downloads.delete(key):
+        kodi.notify("Download deleted")
+    else:
+        kodi.notify("That download was not found")
+    kodi.refresh()
 
 
 def search(handle, params):
@@ -1609,6 +1711,9 @@ HANDLERS = {
     "getdarker": getdarker,
     "getdarker_page": getdarker_page,
     "mixcloud_account": mixcloud_account,
+    "downloads_menu": downloads_menu,
+    "download_start": download_start,
+    "download_delete": download_delete,
     "pirate_menu": pirate_menu,
     "pirate_station": pirate_station,
     "legacy_menu": legacy_menu,

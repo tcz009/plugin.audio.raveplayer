@@ -158,7 +158,7 @@ class RouteRenderTests(unittest.TestCase):
             routes.archive_item(1, {"id": "pack-1"})
         item = xbmcplugin.ITEMS[0]
         context = [label for label, _command in item["context"]]
-        self.assertEqual(context, ["Play all from here", "Add to favourites"])
+        self.assertEqual(context, ["Play all from here", "Add to favourites", "Download"])
         self.assertIn("start=0", item["context"][0][1])
         self.assertEqual(item["info"]["music"]["duration"], 61)
 
@@ -296,7 +296,7 @@ class RouteRenderTests(unittest.TestCase):
         self.assertTrue(any("mode=legacy_jt_show" in url for url in urls))
         self.assertTrue(any("mode=dnb_play" in url for url in urls))
         self.assertTrue(any("mode=play" in url and "url=https" in url for url in urls))
-        self.assertEqual(len(urls), 5)
+        self.assertEqual(len(urls), 6)
 
     def test_fav_add_reports_already_saved_and_refreshes(self):
         with mock.patch.object(routes.favourites, "has", return_value=True), \

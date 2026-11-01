@@ -13,6 +13,7 @@ Hardening in 3.9.11:
 """
 
 import codecs
+import contextlib
 import gzip
 import http.client
 import io
@@ -483,6 +484,77 @@ def fetch_json(url, timeout=DEFAULT_TIMEOUT, headers=None, ttl=0):
     return cache.remember(
         key, ttl, lambda: _parse_json(url, fetch(url, timeout=timeout, headers=headers))
     )
+
+
+@contextlib.contextmanager
+def open_media(url, timeout=DEFAULT_TIMEOUT):
+    """Open a validated public media URL for streaming (downloads).
+
+    Only direct media URLs are accepted (the caller checks the audio
+    extension).  Redirects are blocked by the safe opener; a redirecting media
+    URL fails the download rather than escaping validation.  ``|Header=``
+    suffixes are parsed into request headers for compatibility.
+    """
+    text = safe_stream_url(url)
+    if not text:
+        raise ValueError("not a public media URL")
+    base, separator, suffix = text.partition("|")
+    headers = {"User-Agent": USER_AGENT}
+    if separator:
+        for pair in suffix.split("&"):
+            key, _sep, value = pair.partition("=")
+            if key:
+                headers[key] = urllib.parse.unquote(value)
+    effective = _effective_timeout(timeout)
+    if effective <= 0:
+        raise ValueError("network budget exhausted")
+    request = urllib.request.Request(base, headers=headers)
+    response = _OPENER.open(request, timeout=effective)
+    try:
+        yield response
+    finally:
+        _close_quietly(response)
+
+
+def probe_media(url, timeout=DEFAULT_TIMEOUT):
+    """HEAD a direct media URL and return size/type/final URL, or ``{}``.
+
+    Redirects are blocked by the safe opener (the direct sources are final
+    URLs); the final URL is re-checked against the public-host guard.
+    """
+    text = safe_stream_url(url)
+    if not text:
+        return {}
+    base = text.split("|", 1)[0]
+    effective = _effective_timeout(timeout)
+    if effective <= 0:
+        return {}
+    try:
+        request = urllib.request.Request(base, method="HEAD",
+                                         headers={"User-Agent": USER_AGENT})
+        with _OPENER.open(request, timeout=effective) as response:
+            final = response.geturl()
+            if not is_public_http_url(final):
+                return {}
+            headers = response.headers
+            try:
+                size = int((headers.get("Content-Length") if headers else 0) or 0)
+            except (TypeError, ValueError):
+                size = 0
+            content_type = str((headers.get("Content-Type") if headers else "") or "")
+            return {
+                "size": max(0, size),
+                "content_type": content_type.split(";", 1)[0].strip().lower(),
+                "final_url": final,
+            }
+    except (ValueError, TypeError, urllib.error.URLError, http.client.HTTPException,
+            socket.timeout, OSError):
+        return {}
+
+
+def probe_size(url, timeout=DEFAULT_TIMEOUT):
+    """Best-effort Content-Length for a direct media URL; 0 when unknown."""
+    return int(probe_media(url, timeout=timeout).get("size") or 0)
 
 
 def quote(value):

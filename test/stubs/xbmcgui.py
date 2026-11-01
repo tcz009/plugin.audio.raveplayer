@@ -48,6 +48,49 @@ class _Dialog(object):
     def ok(self, *args, **kwargs):
         pass
 
+    def yesno(self, *args, **kwargs):
+        return True
+
+
+Dialog = _Dialog
+
+
+class DialogProgress(object):
+    def __init__(self, *args, **kwargs):
+        self.percent = 0
+        self.cancelled = False
+
+    def create(self, *args, **kwargs):
+        pass
+
+    def update(self, percent, *args, **kwargs):
+        self.percent = percent
+
+    def iscanceled(self):
+        return self.cancelled
+
+    def close(self):
+        pass
+
+
+class DialogProgressBG(object):
+    def __init__(self, *args, **kwargs):
+        self.percent = 0
+        self.message = ""
+        self.finished = False
+
+    def create(self, *args, **kwargs):
+        pass
+
+    def update(self, percent, *args, **kwargs):
+        self.percent = percent
+
+    def isFinished(self):
+        return self.finished
+
+    def close(self):
+        pass
+
 
 class ListItem(object):
     def __init__(self, label="", path=""):
