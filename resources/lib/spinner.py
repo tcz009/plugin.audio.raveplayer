@@ -104,7 +104,7 @@ class SpinnerWindow(object):
             return False
         try:
             self.window = window_class(
-                WINDOW_XML, os.path.join(self.addon_path, SKIN_DIR)
+                WINDOW_XML, self.addon_path
             )
             self.window.show()
             return True
