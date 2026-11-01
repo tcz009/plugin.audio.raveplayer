@@ -1691,16 +1691,30 @@ def about(handle, params):
         ("Source: Mixcloud", "radio.png",
          "Rave Archive UK and GetDarker cloudcasts — via the Kodi Mixcloud add-on."),
         ("Source: SoundCloud", "radio.png",
-         "Web version only — SoundCloud is not part of the Kodi build."),
+         "Web version only — SoundCloud is not part of the Kodi build; "
+         "there is no Kodi source row or hand-off."),
         ("Source: radio-browser.info", "radio.png", "Live radio station directory."),
         ("Source: Moxser.com", "rave.png",
          "Curated dance-music mix archive and direct MP3s."),
         ("Source: Hardscore.com", "hardcore.png",
          "Oldskool hardcore/jungle archive and direct MP3s."),
+        ("Source: DNB Radio", "hardcore.png",
+         "Jungle and drum & bass shows and direct MP3s from dnbradio.com."),
         ("Source: GetDarker.com", "jungle.png",
          "Dubstep/garage/underground sets (Kodi Mixcloud add-on)."),
+        ("Source: Podcast & mix RSS feeds", "radio.png",
+         "Jungle Lab, Viper, Toro and the other podcast feeds."),
+        ("Source: Pirate Radio Archives", "pirate-archive.png",
+         "Curated Risk FM, Weekend Rush and Flava FM recordings; "
+         "credits are shown on each recording."),
         ("Live radio: Kool FM & Rinse FM", "radio.png",
          "Kool London and Rinse FM live streams (via admin.stream.rinse.fm)."),
+        ("Source: RaveTapePacks.com", "tapepacks.png",
+         "Full tape packs; playback URLs carry the required Referer header."),
+        ("Source: JungleTapes.com", "jungle.png",
+         "Toronto jungle/drum & bass radio shows from the site sitemap."),
+        ("Source: Toronto Rave Mixtape Archive", "rave.png",
+         "1990s Toronto rave mixtapes."),
     ]
     for label, icon, plot in rows:
         ui.info_item(handle, label, plot=plot, icon=art(icon))

@@ -13,6 +13,7 @@ fanart), and draws a Kodi 22 / Estuary-style directory screen with Pillow.
 Outputs, under docs/theme-2026/:
     root-<label>.png     nine-row root screen (focus on row 1)
     hubs-<label>.png     2x2 montage of the four hub screens
+    downloads-<label>.png  Favourites > Downloads view with sample local files
     menu-<label>.json    the captured ListItem data the renders were made from
 
 This is an approximation of Estuary's "List" view for review, not a device
@@ -239,6 +240,67 @@ def render_hubs(label, version):
     return data
 
 
+def render_downloads(label, version):
+    """Render the Favourites > Downloads list with a deterministic sample index."""
+    import json
+    import shutil
+    import tempfile
+
+    from resources.lib import downloads
+
+    work = tempfile.mkdtemp(prefix="rave-downloads-shot-")
+    old = os.environ.get(downloads.DIR_ENV)
+    os.environ[downloads.DIR_ENV] = work
+    try:
+        files = [
+            ("dreamscape-19-toil-and-trouble-1995-a1b2c3d4.mp3", 48 * 1024 * 1024,
+             "Dreamscape 19 — Toil & Trouble", "Archive.org", "2026-10-31T20:14:00Z"),
+            ("kool-fm-94-2-1994-e5f6a7b8.mp3", 27 * 1024 * 1024,
+             "Kool FM 94.2 — 1994", "Pirate Radio Archives", "2026-10-30T19:42:00Z"),
+        ]
+        index = []
+        for filename, size, title, source, added in files:
+            path = os.path.join(work, filename)
+            with open(path, "wb") as handle:
+                handle.truncate(size)  # sparse: size is what the UI shows
+            index.append({
+                "key": filename.rsplit("-", 1)[-1].split(".")[0],
+                "filename": filename,
+                "title": title,
+                "source": source,
+                "url": "",
+                "size": size,
+                "added": added,
+            })
+        index.append({
+            "key": "missingc",
+            "filename": "missing-pack-c0ffee00.mp3",
+            "title": "Missing pack — delete me",
+            "source": "Archive.org",
+            "url": "",
+            "size": 12 * 1024 * 1024,
+            "added": "2026-10-29T18:00:00Z",
+        })
+        with open(os.path.join(work, downloads.METADATA_NAME), "w", encoding="utf-8") as handle:
+            json.dump(index, handle)
+        items = capture("downloads_menu")
+        # Kodi renders [COLOR] tags; this preview is plain text.
+        for item in items:
+            item["label"] = ui.plain(item["label"])
+        fan = os.path.join(ROOT, "resources", "art", "fanart-favourites.jpg")
+        img = render_screen(items[:5], fan, version, "Favourites › Downloads")
+        out = os.path.join(OUT, "downloads-%s.png" % label)
+        img.save(out, "PNG", optimize=True)
+        print("wrote", out)
+        return items
+    finally:
+        if old is None:
+            os.environ.pop(downloads.DIR_ENV, None)
+        else:
+            os.environ[downloads.DIR_ENV] = old
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--label", choices=("before", "after"), required=True)
@@ -250,7 +312,9 @@ def main():
         version = "v" + re.search(r'<addon[^>]*version="([^"]+)"', handle.read()).group(1)
     root_items = render_root(args.label, version)
     hub_items = render_hubs(args.label, version)
-    data = {"version": version, "root": root_items, "hubs": hub_items}
+    download_items = render_downloads(args.label, version)
+    data = {"version": version, "root": root_items, "hubs": hub_items,
+            "downloads": download_items}
     path = os.path.join(OUT, "menu-%s.json" % args.label)
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(data, handle, indent=2)

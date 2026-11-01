@@ -1,3 +1,15 @@
+Rave Player 3.9.21
+- README/menu refresh: 3.9.20/3.9.21 nine-row root, four hubs, Favourites >
+  Downloads and the opt-in spinner are documented with current menu renders.
+- About & Sources: complete source credit list (DNB Radio, RSS feeds, Pirate
+  Radio Archives, RaveTapePacks, JungleTapes, Toronto Rave Mixtape Archive)
+  and clearer SoundCloud "web version only" wording. Every source link was
+  checked on 2026-11-01.
+- Added docs/QA-KODI.md: repeatable Shield checklist for install/update, root
+  and hubs, Kool/Rinse live, pack playback, downloads + Downloads view, spinner
+  toggle, hand-off absence (no browser/Downloader) and About credits.
+- No player/route behaviour changes; 403 tests remain unchanged.
+
 Rave Player 3.9.20
 - Performance/cleanup pass (no URL, label, route or test-count changes).
 - Latest: the three sources (feeds, Archive packs, DNB) now load concurrently
