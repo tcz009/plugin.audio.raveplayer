@@ -50,7 +50,7 @@ rebuilt in 2026 from the 2014 original.
     catalogued via the site sitemap.
   - *Toronto Rave Mixtape Archive* — 1990s Toronto rave mixtapes.
 
-## Menu (3.9.15 IA)
+## Menu (3.9.21 IA)
 
 The root is nine journey rows, not a source inventory:
 
@@ -69,9 +69,29 @@ Curated Gems · Favourites · Search the Archive · About & Sources
 - **Curated Gems** — Pirate Radio Archives · Rave Archive UK (when the Mixcloud
   add-on is installed) · Legacy Archives (2014).
 
+- **Favourites → Downloads** — local files saved by the explicit download
+  gesture (3.9.18); play offline, see size/date, delete file + metadata, and
+  spot missing files. A Download context row appears only on direct MP3/M4A
+  items from the four approved sources.
+
 Every old destination is still reachable behind a hub with the same `mode=`/
 `key=` values, so favourites and deep links keep working. Latest starts with
 the curated "on air now" Kool/Rinse streams when available.
+
+### Screenshots (3.9.20 layout, current 3.9.21 build)
+
+<p>
+<img src="docs/theme-2026/root-after.png" width="49%" alt="Nine-row Rave Player root menu">
+<img src="docs/theme-2026/hubs-after.png" width="49%" alt="Tape Packs, Mixes & Shows, Live Radio and Curated Gems hubs">
+</p>
+<p>
+<img src="docs/theme-2026/downloads-after.png" width="49%" alt="Favourites Downloads view with local files and a missing entry">
+<img src="docs/spinner-preview.png" width="49%" alt="Opt-in spinning-head download window preview">
+</p>
+
+The menu renders are generated from the add-on's real ListItem output by
+`scripts/make-theme-shots.py`; the spinner preview is from
+`docs/SPINNER-3.9.19.md`. The spinner is opt-in and defaults off.
 
 ### Kodi theme 2026 (3.9.16)
 
@@ -105,6 +125,29 @@ SoundCloud hand-off (links are ignored); it remains a plain About text credit
 marked “web version only”. Direct sources (Moxser MP3s, Hardscore MP3s,
 archive.org, tape packs, Kool/Rinse live) are unchanged. About & Sources is a
 read-only credits screen.
+
+## Sources & credits
+
+Every source used by the Kodi add-on is credited here and in **About & Sources**
+inside Kodi. All links were checked on 2026-11-01.
+
+| Source | Link | Used for |
+|---|---|---|
+| Internet Archive | <https://archive.org/> | rave tape packs, collections and audio files |
+| Mixcloud | <https://www.mixcloud.com/> | Rave Archive UK and GetDarker cloudcasts, via `plugin.audio.mixcloud` |
+| YouTube | <https://www.youtube.com/> | links handed to `plugin.video.youtube` when the source provides one |
+| SoundCloud | <https://soundcloud.com/> | **web version only** — no Kodi source row or hand-off |
+| radio-browser.info | <https://www.radio-browser.info/> | live radio station directory |
+| Moxser.com | <https://moxser.com/> | curated dance-music mix archive and direct MP3s |
+| Hardscore.com | <https://www.hardscore.com/> | oldskool hardcore/jungle archive and direct MP3s |
+| DNB Radio | <https://dnbradio.com/> | jungle/drum & bass shows and direct MP3s |
+| GetDarker.com | <https://www.getdarker.com/> | dubstep/garage/underground sets via the Mixcloud add-on |
+| Podcast & mix RSS feeds | <https://rss.com/> | Jungle Lab, Viper, Toro and the other shows |
+| Pirate Radio Archives | <https://www.hardscore.com/> | curated Risk FM, Weekend Rush and Flava FM recordings; credits per recording |
+| Kool FM / Rinse FM | <https://www.rinse.fm/> | live streams via `admin.stream.rinse.fm` |
+| RaveTapePacks.com | <https://www.ravetapepacks.com/> | full tape packs (Referer-protected files) |
+| JungleTapes.com | <https://jungletapes.com/> | 310 Toronto jungle/drum & bass radio shows |
+| Toronto Rave Mixtape Archive | <https://www.torontoravemixtapearchive.com/> | 1990s Toronto rave mixtapes |
 
 ## Downloads & offline (3.9.18)
 
