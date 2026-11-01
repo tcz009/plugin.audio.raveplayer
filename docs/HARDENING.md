@@ -1,10 +1,11 @@
-# HARDENING — Rave Player Kodi add-on 3.9.16
+# HARDENING — Rave Player Kodi add-on 3.9.17
 
 **Branches:** `hardening/3.9.11` (tag `v3.9.10-review`), `hardening/3.9.12` (from 3.9.11 `main`), and
 `hardening/3.9.13` (from 3.9.12 `main` at `7ff12e6`) and `hardening/3.9.14` (from 3.9.13 `main` at `4f5cbe2`) and
 `hardening/3.9.15` (from 3.9.14 `main` at `dc4cd9c`) and
-`hardening/3.9.16` (from 3.9.15 `main` at `b0a515a`; this pass).
-**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.16 · **Result:** 3.9.16, **360 offline tests OK** (was 207; 334 at 3.9.15)
+`hardening/3.9.16` (from 3.9.15 `main` at `b0a515a`) and
+`hardening/3.9.17` (from 3.9.16 `main` at `614e6ad`; this pass).
+**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.17 · **Result:** 3.9.17, **369 offline tests OK** (was 207; 360 at 3.9.16)
 **Date:** 2026-11-01 · **Not pushed / not released.**
 
 Scope: 3.9.11–3.9.13 were internal hardening passes — real, provable defects
@@ -23,7 +24,7 @@ Nothing was deferred silently.
 
 | | |
 |---|---|
-| Suite | **360 tests OK** (was 207; 334 at 3.9.15): +153 offline tests, no network/Kodi needed |
+| Suite | **369 tests OK** (was 207; 360 at 3.9.16): +162 offline tests, no network/Kodi needed |
 | P0/P1 findings | **0 open** (K1, K2, K3 fixed) |
 | Review findings | Adversarial K1–K11 all addressed (3.9.11/3.9.12); independent-review A1–A5, A7–A9, A11, A12 fixed in 3.9.13 (§9); A8 was already fixed and re-tested; A10/A13 remain known/accepted residuals. |
 | Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,getdarker,handoff,hardscore,http,kodi,latest,legacy,mixcloud,moxser,pirate,radio,routes,ui}.py`, `resources/pirate-radio.json` |
@@ -229,7 +230,7 @@ python3 -m unittest test.test_routes test.test_http test.test_cache \
     test.test_archive test.test_parsers test.test_favourites test.test_compat -v
 ```
 
-Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → 334 at 3.9.15 → **360 at 3.9.16** (+153). The suite remains
+Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → 334 at 3.9.15 → 360 at 3.9.16 → **369 at 3.9.17** (+162). The suite remains
 fully offline (stubs in `test/stubs`), needs no Kodi and no network, and runs
 in ≈1–2 s.
 
@@ -297,12 +298,11 @@ test/…                      121 new tests + stub support (+ slow-drip/redirect
 docs/HARDENING.md           this file
 docs/CODE-REVIEW.md         K11 accuracy (module list, Kodi/Python note)
 AGENTS.md                   K11 accuracy (local-only; git-excluded, not in the commit diff)
-addon.xml / changelog.txt   3.9.16 (3.9.11–3.9.15 earlier passes)
+addon.xml / changelog.txt   3.9.17 (3.9.11–3.9.16 earlier passes)
 ```
 
 Per the Lead's instruction the branch is committed locally but **not pushed**;
-`dist/` and `repo/` were not touched (so the 3.9.16 repo zip/catalogue remain a
-publish-time step).
+`dist/` and `repo/` were rebuilt for 3.9.17 after this fix.
 
 > Branch note: `hardening/3.9.12` also contains an unrelated docs/CI commit
 > `d323075` that landed on the shared worktree while this branch was checked
@@ -837,3 +837,29 @@ worktree/art is retained; the hand-off logic is applied on top):
 - `dist/` and `repo/` are rebuilt **after** the merge (not hand-edited) so the
   published 3.9.16 zip contains the theme, hand-off policy and SoundCloud
   removal; tests: **360**.
+
+---
+
+## 14. Raw-platform URL leak fix (3.9.17)
+
+Shield report: Mixcloud links opened Android's Downloader although
+`plugin.audio.mixcloud` was not installed. Root cause/affected paths:
+
+- The pre-hand-off Android VIEW intent (`kodi.open_external`) was the original
+  browser/Downloader trigger; 3.9.16 removed that call.
+- Residual raw-URL paths in the integrated tree could still produce
+  `https://…mixcloud.com/…` as an item or resolved play URL: saved favourites
+  (`kind=stream`), Latest/podcast episode URLs, hardscore/getdarker/legacy/radio
+  direct media, and the generic `play` route accepted any public http(s).
+- Fix: `handoff.platform_kind` is now the **single classifier** for
+  Mixcloud/SoundCloud/YouTube page URLs; `handoff.target` is the **single
+  availability gate** (absent add-on → `''`). `play`/`_playable_url` reject raw
+  platform URLs, every route that can receive one filters/hides or converts it
+  to a plugin hand-off, and `ui.add_item` has a final choke point that drops
+  any raw platform URL (log + no listitem).
+- Test: `test_ui.RawPlatformUrlTests`, `test_handoff.platform_kind/target`,
+  and `test_sources` favourites/latest/feed/play leak regressions; absent
+  add-on asserts no `mixcloud.com`/`soundcloud.com`/`youtube.com`/`youtu.be`
+  item URL and no `plugin://` path is emitted.
+- 360 → **369 tests**. Mixcloud/YouTube hand-offs unchanged when present;
+  SoundCloud remains web-version-only.

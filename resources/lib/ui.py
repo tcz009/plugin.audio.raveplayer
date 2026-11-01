@@ -6,7 +6,7 @@ import re
 import xbmcgui
 import xbmcplugin
 
-from . import kodi
+from . import handoff, kodi
 
 DEFAULT_FANART = kodi.FANART
 
@@ -29,6 +29,12 @@ def plain(text):
 
 
 def add_item(handle, url, label, is_folder=True, art=None, info=None, playable=False, context=None):
+    # Final safety choke point: no raw platform page may ever become a Kodi
+    # list-item URL (Android would hand it to Downloader). Routes hide these
+    # rows or emit plugin:// hand-offs; this guard catches any missed path.
+    if handoff.platform_kind(url):
+        kodi.log("ui: refusing raw platform URL for %r" % str(label)[:80], level=30)
+        return None
     item = xbmcgui.ListItem(label=label)
     if context:
         item.addContextMenuItems(context)

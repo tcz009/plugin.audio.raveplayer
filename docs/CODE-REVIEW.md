@@ -1,7 +1,7 @@
 # Independent code review — brief
 
 **Project:** Rave Player — Kodi audio add-on (`plugin.audio.raveplayer`)
-**Version under review:** 3.9.16 (branch `hardening/3.9.16`, theme + hand-off integrated; 3.9.15 is `main`)
+**Version under review:** 3.9.17 (branch `hardening/3.9.17`; 3.9.16 is `main`)
 **Reviewer target:** the runtime code and tests in this repo; please ignore `dist/`, `repo/`, `stage/`, `__pycache__/` and generated artwork.
 
 ## What it is
@@ -10,7 +10,7 @@ A Kodi plugin that browses and streams oldskool rave tape packs, podcasts and li
 
 - Python 3, `xbmc.python` 3.0.1, targets Kodi 20 (Nexus) – 22 (Piers); Kodi 22 ships Python 3.14.
 - Roughly 2,000 lines of runtime Python in `resources/lib/` plus `default.py`.
-- Tests: `test/`, run with `python3 -m unittest discover -s test` (360 tests, all offline; stubs in `test/stubs/`).
+- Tests: `test/`, run with `python3 -m unittest discover -s test` (369 tests, all offline; stubs in `test/stubs/`).
 
 ## Layout
 
@@ -33,7 +33,7 @@ A Kodi plugin that browses and streams oldskool rave tape packs, podcasts and li
 ## How to run
 
 ```sh
-python3 -m unittest discover -s test          # 360 tests, no network
+python3 -m unittest discover -s test          # 369 tests, no network
 python3 test/run.py latest                    # live smoke test (network)
 python3 test/run.py filter_live key=kool      # curated Kool live route
 ```

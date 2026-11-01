@@ -241,6 +241,95 @@ class NewSourceRouteTests(unittest.TestCase):
         self.assertEqual(xbmcplugin.ITEMS, [])
         self.assertTrue(notify.called)
 
+    def _assert_no_raw_platform_url(self, items, allow_plugin=()):
+        forbidden = ("mixcloud.com", "soundcloud.com", "youtube.com", "youtu.be")
+        for item in items:
+            url = item["url"]
+            for token in forbidden:
+                self.assertNotIn(token, url, item["label"])
+            self.assertTrue(url.startswith("plugin://") or "mode=" in url, url)
+        if not allow_plugin:
+            for item in items:
+                self.assertNotIn("plugin://plugin.audio.mixcloud", item["url"])
+                self.assertNotIn("plugin://plugin.video.youtube", item["url"])
+
+    def test_saved_mixcloud_favourite_is_hidden_without_addon(self):
+        entries = [{"kind": "stream", "target": "https://www.mixcloud.com/getdarker/x/",
+                    "title": "Saved Mixcloud", "source": "Mixcloud"}]
+        with mock.patch.object(routes.favourites, "load", return_value=entries), \
+                mock.patch.object(routes.handoff, "available", return_value=False):
+            routes.fav_list(1, {})
+        self.assertEqual(xbmcplugin.ITEMS, [])
+
+    def test_saved_mixcloud_favourite_hands_off_with_addon(self):
+        entries = [{"kind": "stream", "target": "https://www.mixcloud.com/getdarker/x/",
+                    "title": "Saved Mixcloud", "source": "Mixcloud"}]
+        with mock.patch.object(routes.favourites, "load", return_value=entries), \
+                mock.patch.object(routes.handoff, "available", return_value=True):
+            routes.fav_list(1, {})
+        self.assertEqual(len(xbmcplugin.ITEMS), 1)
+        self.assertIn("plugin://plugin.audio.mixcloud", xbmcplugin.ITEMS[0]["url"])
+        self.assertNotIn("mixcloud.com", xbmcplugin.ITEMS[0]["url"])
+
+    def test_latest_mixcloud_episode_is_hidden_without_addon(self):
+        items = [{"kind": "episode", "title": "Episode",
+                  "url": "https://www.mixcloud.com/getdarker/x/", "source": "Mixcloud",
+                  "when": None, "duration": None}]
+        with mock.patch.object(routes.latest, "merge", return_value=items), \
+                mock.patch.object(routes.radio, "curated", return_value=[]), \
+                mock.patch.object(routes.handoff, "available", return_value=False):
+            routes.latest_view(1, {})
+        self.assertFalse(any("mixcloud.com" in item["url"] for item in xbmcplugin.ITEMS))
+        self.assertFalse(any("plugin.audio.mixcloud" in item["url"]
+                             for item in xbmcplugin.ITEMS))
+
+    def test_latest_mixcloud_episode_hands_off_with_addon(self):
+        items = [{"kind": "episode", "title": "Episode",
+                  "url": "https://www.mixcloud.com/getdarker/x/", "source": "Mixcloud",
+                  "when": None, "duration": None}]
+        with mock.patch.object(routes.latest, "merge", return_value=items), \
+                mock.patch.object(routes.radio, "curated", return_value=[]), \
+                mock.patch.object(routes.handoff, "available", return_value=True):
+            routes.latest_view(1, {})
+        self.assertEqual(len(xbmcplugin.ITEMS), 2)  # hand-off + End of list
+        url = xbmcplugin.ITEMS[0]["url"]
+        self.assertIn("plugin://plugin.audio.mixcloud", url)
+        self.assertNotIn("mixcloud.com", url)
+
+    def test_feed_mixcloud_episode_hands_off_with_addon(self):
+        entry = {"id": "f", "name": "Feed", "url": "https://x/feed", "plot": ""}
+        episodes = [{"title": "Episode", "url": "https://www.mixcloud.com/getdarker/x/",
+                     "published": "", "description": "", "duration": None}]
+        with mock.patch.object(routes.feeds, "feed", return_value=entry), \
+                mock.patch.object(routes.feeds, "episodes", return_value=episodes), \
+                mock.patch.object(routes.handoff, "available", return_value=True):
+            routes.feed(1, {"key": "f"})
+        self.assertEqual(len(xbmcplugin.ITEMS), 1)
+        self.assertIn("plugin://plugin.audio.mixcloud", xbmcplugin.ITEMS[0]["url"])
+        self.assertNotIn("mixcloud.com", xbmcplugin.ITEMS[0]["url"])
+
+    def test_feed_mixcloud_episode_is_hidden_without_addon(self):
+        entry = {"id": "f", "name": "Feed", "url": "https://x/feed", "plot": ""}
+        episodes = [{"title": "Episode", "url": "https://www.mixcloud.com/getdarker/x/",
+                     "published": "", "description": "", "duration": None}]
+        with mock.patch.object(routes.feeds, "feed", return_value=entry), \
+                mock.patch.object(routes.feeds, "episodes", return_value=episodes), \
+                mock.patch.object(routes.handoff, "available", return_value=False):
+            routes.feed(1, {"key": "f"})
+        self.assertEqual(xbmcplugin.ITEMS, [])
+
+    def test_play_route_rejects_raw_platform_urls(self):
+        for url in ("https://www.mixcloud.com/getdarker/x/",
+                    "https://www.youtube.com/watch?v=abc",
+                    "https://soundcloud.com/a/b"):
+            with mock.patch.object(routes.kodi, "notify") as notify:
+                routes.play(1, {"url": url})
+            self.assertTrue(notify.called)
+            self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"])
+            self.assertNotIn("mixcloud.com", xbmcplugin.RESOLVED[-1]["path"])
+            self.assertNotIn("youtube.com", xbmcplugin.RESOLVED[-1]["path"])
+            self.assertNotIn("soundcloud.com", xbmcplugin.RESOLVED[-1]["path"])
+
     def test_mixcloud_account_is_hidden_without_mixcloud_addon(self):
         with mock.patch.object(routes.handoff, "available", return_value=False), \
                 mock.patch.object(routes.kodi, "notify") as notify:

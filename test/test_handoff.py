@@ -51,6 +51,19 @@ class AvailabilityTests(unittest.TestCase):
     def test_unknown_kind_is_unavailable(self):
         self.assertFalse(handoff.available("archive"))
 
+    def test_platform_kind_and_target_gate(self):
+        self.assertEqual(handoff.platform_kind("https://www.mixcloud.com/a/b/"), "mixcloud")
+        self.assertEqual(handoff.platform_kind("https://youtu.be/abc"), "youtube")
+        self.assertEqual(handoff.platform_kind("https://soundcloud.com/a/b"), "soundcloud")
+        self.assertEqual(handoff.platform_kind("https://archive.org/a.mp3"), "")
+        with mock.patch.object(handoff, "available", return_value=False):
+            self.assertEqual(handoff.target("https://www.mixcloud.com/a/b/"), "")
+            self.assertEqual(handoff.target("https://youtu.be/abc"), "")
+            self.assertEqual(handoff.target("https://soundcloud.com/a/b"), "")
+        with mock.patch.object(handoff, "available", return_value=True):
+            self.assertTrue(handoff.target("https://www.mixcloud.com/a/b/").startswith("plugin://"))
+            self.assertTrue(handoff.target("https://youtu.be/abc").startswith("plugin://"))
+
     def test_soundcloud_is_not_part_of_the_kodi_handoff(self):
         self.assertFalse(handoff.available("soundcloud"))
         self.assertFalse(hasattr(handoff, "soundcloud_play"))

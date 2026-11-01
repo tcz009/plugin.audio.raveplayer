@@ -36,6 +36,21 @@ class PlainTextTests(unittest.TestCase):
         self.assertLess(elapsed, 0.5, elapsed)
 
 
+class RawPlatformUrlTests(unittest.TestCase):
+    def setUp(self):
+        del xbmcplugin.ITEMS[:]
+
+    def test_platform_urls_never_become_list_items(self):
+        for url in ("https://www.mixcloud.com/getdarker/x/",
+                    "https://soundcloud.com/artist/track",
+                    "https://www.youtube.com/watch?v=abc123",
+                    "https://youtu.be/abc123"):
+            with self.subTest(url=url):
+                self.assertIsNone(ui.menu_item(1, url, "Platform"))
+                self.assertIsNone(ui.track_item(1, url, "Platform"))
+        self.assertEqual(xbmcplugin.ITEMS, [])
+
+
 class ListItemInfoTests(unittest.TestCase):
     def setUp(self):
         del xbmcplugin.ITEMS[:]

@@ -60,6 +60,39 @@ def _split(value):
         return None
 
 
+def platform_kind(value):
+    """Return ``mixcloud``/``youtube``/``soundcloud`` for a platform URL, else ''.
+
+    This is the single classifier used by every route gate.  It deliberately
+    also recognises SoundCloud so raw SoundCloud URLs are rejected/hidden even
+    though SoundCloud has no Kodi hand-off.
+    """
+    split = _split(value)
+    if split is None:
+        return ""
+    host = (split.hostname or "").lower()
+    if host in ("mixcloud.com", "www.mixcloud.com"):
+        return "mixcloud"
+    if host in ("youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"):
+        return "youtube"
+    if host in ("soundcloud.com", "www.soundcloud.com", "m.soundcloud.com",
+                "on.soundcloud.com"):
+        return "soundcloud"
+    return ""
+
+
+def target(value, title=""):
+    """Return the official ``plugin://`` hand-off for a platform URL, or ''."""
+    kind = platform_kind(value)
+    if not kind or not available(kind):
+        return ""
+    if kind == "mixcloud":
+        return mixcloud_target(value, title)
+    if kind == "youtube":
+        return youtube_target(value, title)
+    return ""  # SoundCloud is web-version-only
+
+
 def mixcloud_search(query):
     return MIXCLOUD + "?mode=30&key=cloudcast&offset=0&query=" + _quote(query)
 

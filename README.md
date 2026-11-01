@@ -97,7 +97,9 @@ directly are handed to the official Kodi add-ons through `plugin://` paths:
 | Mixcloud (Rave Archive UK, GetDarker, cloudcasts) | `plugin.audio.mixcloud` | `?mode=40&key=<cloudcast path>` or `?mode=30&key=cloudcast&query=…` |
 | YouTube links | `plugin.video.youtube` | `play/?video_id=<id>` or `search/?q=…` |
 
-If the add-on is missing the row is hidden entirely — no dead links.
+If the add-on is missing the row is hidden entirely — no dead links. 3.9.17
+also gates raw platform URLs at the play resolver and the final list-item helper,
+so a saved/deep-linked Mixcloud/YouTube page can never become a raw item URL.
 **SoundCloud is not part of the Kodi build:** there is no content row and no
 SoundCloud hand-off (links are ignored); it remains a plain About text credit
 marked “web version only”. Direct sources (Moxser MP3s, Hardscore MP3s,

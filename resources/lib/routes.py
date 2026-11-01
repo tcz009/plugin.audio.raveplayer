@@ -274,7 +274,9 @@ def _station_items(handle, stations, plot):
         name, meta = radio.display(station)
         name = ui.plain(name)
         meta = ui.plain(meta)
-        stream = radio.stream_url(station)
+        stream = _playable_url(radio.stream_url(station))
+        if not stream:
+            continue
         favicon = _safe_art(station.get("favicon"), None)
         label = "%s  [I]%s[/I]" % (name, meta) if meta else name
         ui.track_item(
@@ -660,6 +662,16 @@ def fav_list(handle, params):
             ui.track_item(handle, url_for(mode="dnb_play", id=entry["target"], label=title),
                           title, thumb=art("jungle.png"), plot="DNB Radio", context=context)
         else:
+            kind = handoff.platform_kind(entry["target"])
+            if kind:
+                target = handoff.target(entry["target"], title)
+                if not target:
+                    continue  # missing add-on: hide, never emit a raw platform URL
+                ui.menu_item(handle, target, title + "  [COLOR gray](add-on)[/COLOR]",
+                             icon=art("radio.png"),
+                             plot="Saved %s link — opens in the Kodi add-on." % kind,
+                             context=context)
+                continue
             ui.track_item(handle, url_for(mode="play", url=entry["target"], label=title),
                           title, thumb=art("radio.png"),
                           plot="Saved stream · %s" % source if source else "Saved stream",
@@ -862,13 +874,18 @@ def latest_view(handle, params):
                          title=title,
                          context=_pack_context(item["identifier"], title))
         elif item["kind"] == "episode":
+            if handoff.platform_kind(item["url"]):
+                if not _platform_item(handle, item["url"], label, title,
+                                      art("radio.png"), source):
+                    continue
+                continue
             ui.track_item(handle, url_for(mode="play", url=item["url"], label=title), label,
                           thumb=art("radio.png"), plot=source, title=title,
                           duration=item.get("duration"),
                           context=[_favourite("stream", item["url"], title, source)])
         else:
             stream = streams.get(str(item.get("id") or ""))
-            if not stream:
+            if not stream or handoff.platform_kind(stream):
                 # Host unreachable / listen page changed: do not offer the row.
                 continue
             ui.track_item(handle, url_for(mode="play", url=stream, label=title), label,
@@ -959,6 +976,12 @@ def feed(handle, params):
         label = title
         if episode.get("published"):
             label = "%s  [COLOR gray](%s)[/COLOR]" % (label, ui.plain(episode["published"])[:16])
+        if handoff.platform_kind(episode["url"]):
+            if not _platform_item(handle, episode["url"], label, title,
+                                  art("radio.png"),
+                                  episode.get("description") or entry.get("plot") or ""):
+                continue
+            continue
         ui.track_item(
             handle,
             url_for(mode="play", url=episode["url"], label=title),
@@ -1049,14 +1072,17 @@ def legacy_jt_show(handle, params):
     if not tracks:
         kodi.notify("No audio on that show.")
     for track in tracks:
+        stream = _playable_url(track["url"])
+        if not stream:
+            continue
         name = ui.plain(track["name"])
         ui.track_item(
             handle,
-            url_for(mode="play", url=track["url"], label=name, thumb=art("jungle.png")),
+            url_for(mode="play", url=stream, label=name, thumb=art("jungle.png")),
             name,
             thumb=art("jungle.png"),
             plot="JungleTapes.com · %s" % ui.plain(key.replace("-", " ")),
-            context=[_favourite("stream", track["url"], name, "JungleTapes.com")],
+            context=[_favourite("stream", stream, name, "JungleTapes.com")],
         )
     kodi.end_directory(handle, "songs")
 
@@ -1066,14 +1092,17 @@ def legacy_toronto(handle, params):
     if not tracks:
         kodi.notify("Toronto archive did not answer — try again later.")
     for track in tracks:
+        stream = _playable_url(track["url"])
+        if not stream:
+            continue
         name = ui.plain(track["name"])
         ui.track_item(
             handle,
-            url_for(mode="play", url=track["url"], label=name, thumb=art("rave.png")),
+            url_for(mode="play", url=stream, label=name, thumb=art("rave.png")),
             name,
             thumb=art("rave.png"),
             plot="Toronto Rave Mixtape Archive",
-            context=[_favourite("stream", track["url"], name, "Toronto Rave Archive")],
+            context=[_favourite("stream", stream, name, "Toronto Rave Archive")],
         )
     kodi.end_directory(handle, "songs")
 
@@ -1109,7 +1138,9 @@ def legacy_pack(handle, params):
         kodi.end_directory(handle, "songs")
         return
     for track in entry["tracks"]:
-        url = legacy.playable(track["url"])
+        url = _playable_url(legacy.playable(track["url"]))
+        if not url:
+            continue
         name = ui.plain(track["name"])
         ui.track_item(
             handle,
@@ -1127,25 +1158,32 @@ def legacy_pack(handle, params):
 
 
 def _handoff_target(url, title):
-    """Return (addon kind, plugin:// URL) for a third-party link, or None.
+    """Return (addon kind, plugin:// URL) for a platform link, or None.
 
     Rules: only official Kodi add-ons are used; if the relevant add-on is not
-    installed the link is not offered at all (no dead rows, no browser).
+    installed the link is not offered at all (no dead rows, no browser, no raw
+    platform URL).  ``handoff.platform_kind`` is the single classifier.
     """
-    text = str(url or "").strip()
-    lower = text.lower()
-    if "youtube.com/" in lower or "youtu.be/" in lower:
-        kind, builder = "youtube", handoff.youtube_target
-    elif "mixcloud.com/" in lower:
-        kind, builder = "mixcloud", handoff.mixcloud_target
-    else:
+    kind = handoff.platform_kind(url)
+    if not kind:
         return None
-    if not handoff.available(kind):
-        return None
-    target = builder(text, title)
+    target = handoff.target(url, title)
     if not target:
         return None
     return kind, target
+
+
+def _platform_item(handle, url, label, title, icon, plot):
+    """Render a platform page as an add-on hand-off row, or omit it.
+
+    Returns True when a row was emitted.  If the add-on is absent the row is
+    omitted entirely (the single availability gate lives in ``handoff.target``).
+    """
+    target = handoff.target(url, title or label)
+    if not target:
+        return False
+    ui.menu_item(handle, target, label, icon=icon, plot=plot)
+    return True
 
 
 _HANDOFF_LABELS = {
@@ -1236,16 +1274,17 @@ def hardscore(handle, params):
         title = ui.plain(row["title"])
         date = row.get("date") or ""
         label = title + ("  [COLOR gray](%s)[/COLOR]" % ui.plain(date) if date else "")
-        if row["media_urls"]:
+        media = [url for url in row["media_urls"] if _playable_url(url)]
+        if media:
             ui.track_item(
                 handle,
-                url_for(mode="play", url=row["media_urls"][0], label=title),
+                url_for(mode="play", url=media[0], label=title),
                 label,
                 thumb=art("hardcore.png"),
                 plot=row.get("description") or "Hardscore.com",
                 title=title,
                 context=[
-                    _favourite("stream", row["media_urls"][0], title, "Hardscore.com"),
+                    _favourite("stream", media[0], title, "Hardscore.com"),
                 ],
             )
         elif row.get("page_url"):
@@ -1269,7 +1308,7 @@ def hardscore_event(handle, params):
         kodi.end_directory(handle, "files")
         return
     title = ui.plain(details["title"])
-    for url in details["media_urls"]:
+    for url in [u for u in details["media_urls"] if _playable_url(u)]:
         ui.track_item(
             handle, url_for(mode="play", url=url, label=title), title,
             thumb=art("hardcore.png"), plot="Hardscore.com",
@@ -1323,7 +1362,7 @@ def getdarker_page(handle, params):
         kodi.end_directory(handle, "files")
         return
     title = ui.plain(details["title"])
-    for url in details["media_urls"]:
+    for url in [u for u in details["media_urls"] if _playable_url(u)]:
         ui.track_item(handle, url_for(mode="play", url=url, label=title), title,
                       thumb=art("jungle.png"), plot="GetDarker",
                       title=title,
@@ -1408,6 +1447,9 @@ def pirate_station(handle, params):
         kodi.end_directory(handle, "files")
         return
     for entry in playable:
+        stream = _playable_url(entry["stream_url"])
+        if not stream:
+            continue
         title = ui.plain(entry["title"])
         djs = ", ".join(entry["djs"])
         year = entry["year"] if entry["year"] is not None else "year unknown"
@@ -1418,14 +1460,13 @@ def pirate_station(handle, params):
             plot += " · %s" % entry["note"]
         ui.track_item(
             handle,
-            url_for(mode="play", url=entry["stream_url"], label=title),
+            url_for(mode="play", url=stream, label=title),
             title,
             thumb=art("pirate-archive.png"),
             plot=plot,
             album=group["station"],
             title=title,
-            context=[_favourite("stream", entry["stream_url"], title,
-                                group["station"])],
+            context=[_favourite("stream", stream, title, group["station"])],
         )
     ui.menu_item(handle, url_for(mode="pirate_menu"), "Back")
     kodi.end_directory(handle, "files")
@@ -1486,10 +1527,12 @@ def _playable_url(value):
     """Return the URL only when it is a playable, public http(s) stream.
 
     Delegates to :func:`http.safe_stream_url` (scheme + resolved-host guard);
-    Kodi ``|Header=…`` suffixes are preserved.  Used by both the ``play`` route
-    and the ``play_all`` playlist builder (A3: the playlist path must not be a
-    bypass).
+    Kodi ``|Header=…`` suffixes are preserved.  Platform page URLs
+    (Mixcloud/YouTube/SoundCloud) are never direct media: reject them so a
+    stale favourite/deep link cannot resolve to a raw page URL either.
     """
+    if handoff.platform_kind(value):
+        return ""
     return http.safe_stream_url(value)
 
 

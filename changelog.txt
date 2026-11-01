@@ -1,3 +1,17 @@
+Rave Player 3.9.17
+- Fixed a raw-platform URL leak that could hand a Mixcloud page to Android's
+  Downloader when plugin.audio.mixcloud was absent. The optional-add-on gate is
+  now the single gate for every path: saved favourites, Latest/podcast episode
+  URLs, Hardscore/GetDarker media, legacy/radio direct URLs and the `play`
+  route all reject Mixcloud/SoundCloud/YouTube page URLs; nothing emits an
+  https platform URL as a list-item/play URL. A final `ui.add_item` choke point
+  drops any raw platform URL, so no future route can regress it.
+- If the official add-on is present, the only emitted URL is the plugin://
+  hand-off; if absent the row/link is omitted entirely (including saved
+  favourites). Mixcloud/YouTube behaviour from 3.9.16 is unchanged otherwise;
+  SoundCloud remains web-only and is not hand-off-able.
+- Tests: 360 -> 369 (raw-URL leak, favourites/latest/feed/play, UI guard).
+
 Rave Player 3.9.16
 - 2026 Kodi theme pass (no skin fork; logo/wordmark untouched): every one of the
   nine root rows, the four hubs and the four key sources now has a 2026 sticker
