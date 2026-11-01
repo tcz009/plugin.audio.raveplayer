@@ -1,3 +1,22 @@
+Rave Player 3.9.14
+- New sources: Moxser Mixes (sitemap index -> mixes sitemaps -> mix pages,
+  6 h cache, <=1 request/second, browser UA, direct MP3s), Hardscore Archive
+  (RSS + post pages, direct MP3/M4A where present, post link fallback),
+  Rave Archive UK (its curated Mixcloud account) and GetDarker (RSS set pages
+  plus the getdarker Mixcloud archive). Mixcloud is web-only (its streams are
+  HLS and the sanctioned player is its widget), so those rows open the source
+  page in the platform browser instead of pretending to resolve audio.
+- New "Pirate Radio Archives" menu + resources/pirate-radio.json using the web
+  app's schema (station, year, title, djs, source_url, stream_url, credit;
+  optional note): Risk FM 107.1 (Beat Sanctuary, Andy Campbell/Daniel James/
+  Fat Daddy Zak + David Morris Dec 1996), Weekend Rush 92.3 (Hardscore: Force
+  of One Crew Jun 1993; DJ Infinity & DJ Freedom with MCs Trojan & Concrete
+  25 Jun 1995) and Flava FM (A-Team old-school Mixcloud; MegaUpload dead).
+  Unconfirmed Beat Sanctuary/Flava pages are left empty with a note.
+- All new source HTTP goes through the existing route budget, public-host/
+  redirect guards and cache; parsers are fixture-tested and fail-soft.
+- Tests: 295 -> 328 (offline).
+
 Rave Player 3.9.13
 - Independent-review hardening (docs/HARDENING.md §9): response bodies are now
   truly wall-clock bounded — read1() plus a per-recv socket timeout — so a

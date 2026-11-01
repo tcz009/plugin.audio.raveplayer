@@ -1,18 +1,19 @@
-# HARDENING — Rave Player Kodi add-on 3.9.13
+# HARDENING — Rave Player Kodi add-on 3.9.14
 
 **Branches:** `hardening/3.9.11` (tag `v3.9.10-review`), `hardening/3.9.12` (from 3.9.11 `main`), and
-`hardening/3.9.13` (from 3.9.12 `main` at `7ff12e6`; this pass).
-**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.13 · **Result:** 3.9.13, **295 offline tests OK** (was 207; 259 at 3.9.11; 272 at 3.9.12)
+`hardening/3.9.13` (from 3.9.12 `main` at `7ff12e6`) and `hardening/3.9.14` (from 3.9.13 `main` at `4f5cbe2`; this pass).
+**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.14 · **Result:** 3.9.14, **328 offline tests OK** (was 207; 295 at 3.9.13)
 **Date:** 2026-11-01 · **Not pushed / not released.**
 
-Scope: internal hardening only — real, provable defects in the runtime code and
-their test coverage. No new features, no re-layout, no UX change beyond two
-failure-path notifications and the removal of one destructive side effect;
-3.9.12 adds parallel feed fetching and a private-IP playback deny-list (the
-deliberate LAN self-host trade-off is documented in §8.2).
-Adversarial pre-review findings K1–K11 are folded in; every one is addressed
-below, with explicit deferral notes where the Lead's "smallest safe version"
-direction was followed. Nothing was deferred silently.
+Scope: 3.9.11–3.9.13 were internal hardening passes — real, provable defects
+in the runtime code and their test coverage, with no UX change beyond failure
+notifications and the removal of one destructive side effect. 3.9.14 is the
+one feature pass in this document: it adds the Moxser, Hardscore, Rave Archive
+UK and GetDarker sources plus the curated Pirate Radio Archives, all built on
+the same HTTP/route guards (§10). Adversarial review K1–K11 and independent
+review A1–A13 are folded in; every item is addressed below, with explicit
+deferral notes where the Lead's "smallest safe version" direction was followed.
+Nothing was deferred silently.
 
 ---
 
@@ -20,11 +21,11 @@ direction was followed. Nothing was deferred silently.
 
 | | |
 |---|---|
-| Suite | **295 tests OK** (was 207; 272 at 3.9.12): +88 offline tests, no network/Kodi needed |
+| Suite | **328 tests OK** (was 207; 295 at 3.9.13): +121 offline tests, no network/Kodi needed |
 | P0/P1 findings | **0 open** (K1, K2, K3 fixed) |
 | Review findings | Adversarial K1–K11 all addressed (3.9.11/3.9.12); independent-review A1–A5, A7–A9, A11, A12 fixed in 3.9.13 (§9); A8 was already fixed and re-tested; A10/A13 remain known/accepted residuals. |
-| Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,http,kodi,latest,legacy,radio,routes,ui}.py` |
-| Tests changed | `test/test_{archive,cache,compat,favourites,http,latest,parsers,routes}.py`, `test/stubs/{xbmc,xbmcplugin}.py` |
+| Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,getdarker,hardscore,http,kodi,latest,legacy,mixcloud,moxser,pirate,radio,routes,ui}.py`, `resources/pirate-radio.json` |
+| Tests changed | `test/test_{archive,cache,compat,favourites,http,latest,parsers,routes,playlist,ui}.py` plus new `test_{moxser,hardscore,mixcloud,pirate,sources}.py`, `test/stubs/{xbmc,xbmcplugin}.py` |
 | Docs | `docs/HARDENING.md` (this file), `docs/CODE-REVIEW.md`, `changelog.txt`, `addon.xml`; `AGENTS.md` fixed locally (git-excluded by design, never published) |
 | Compatibility | Python 3.9 grammar floor enforced; no module/API removed in 3.9–3.14 is used; Kodi 22 (Python 3.14) not runnable in this environment (see §6) |
 
@@ -226,7 +227,7 @@ python3 -m unittest test.test_routes test.test_http test.test_cache \
     test.test_archive test.test_parsers test.test_favourites test.test_compat -v
 ```
 
-Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → **295 at 3.9.13** (+88). The suite remains
+Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → **328 at 3.9.14** (+121). The suite remains
 fully offline (stubs in `test/stubs`), needs no Kodi and no network, and runs
 in ≈1–2 s.
 
@@ -282,16 +283,22 @@ resources/lib/kodi.py       + idempotent end_directory tracking
 resources/lib/routes.py     + top-level guard, route budget, play + play_all public-host gate,
                               art-URL gate, linear descriptions, K9 escaping, non-destructive failure
 resources/lib/latest.py     + parallel feed fetch (3.9.12)
+resources/lib/moxser.py     + Moxser sitemap/page -> direct MP3 (3.9.14)
+resources/lib/hardscore.py  + Hardscore RSS + post-page media (3.9.14)
+resources/lib/getdarker.py  + GetDarker RSS pages (3.9.14)
+resources/lib/mixcloud.py   + curated Mixcloud accounts (page link-out, 3.9.14)
+resources/lib/pirate.py     + Pirate Radio Archives data loader (3.9.14)
+resources/pirate-radio.json + curated Risk FM / Weekend Rush / Flava FM data (3.9.14)
 default.py                  + last-resort main() guard
-test/…                      87 new tests + stub support (+ slow-drip/redirect/art/description regressions)
+test/…                      121 new tests + stub support (+ slow-drip/redirect/art/description regressions)
 docs/HARDENING.md           this file
 docs/CODE-REVIEW.md         K11 accuracy (module list, Kodi/Python note)
 AGENTS.md                   K11 accuracy (local-only; git-excluded, not in the commit diff)
-addon.xml / changelog.txt   3.9.13 (3.9.11/3.9.12 earlier passes)
+addon.xml / changelog.txt   3.9.14 (3.9.11–3.9.13 earlier passes)
 ```
 
 Per the Lead's instruction the branch is committed locally but **not pushed**;
-`dist/` and `repo/` were not touched (so the 3.9.13 repo zip/catalogue remain a
+`dist/` and `repo/` were not touched (so the 3.9.14 repo zip/catalogue remain a
 publish-time step).
 
 > Branch note: `hardening/3.9.12` also contains an unrelated docs/CI commit
@@ -540,3 +547,129 @@ blanket claim: response reads are now genuinely bounded (A1).
   `plot` field on music InfoTags.** `comment` is the supported field and is set
   as well; removing `plot` would break older consumers, so this is accepted and
   documented in CODE-REVIEW.
+
+---
+
+## 10. New sources (3.9.14)
+
+Fifth pass: add the Moxser, Hardscore, Rave Archive UK and GetDarker sources
+plus the curated **Pirate Radio Archives** menu. All provider HTTP goes through
+the existing `http.fetch` contract, so the 20 s route budget, public-host and
+redirect guards, cache and fail-soft handling apply unchanged. Tests are
+fixture/mock-only; no live network in the suite.
+
+### 10.1 Moxser — sitemap/page adapter
+
+**What:** `resources/lib/moxser.py` fetches
+`https://moxser.com/sitemaps-1-sitemap.xml`, selects the
+`sitemaps-1-section-mixes-*.xml` entries (max 4), parses mix page URLs plus the
+sitemap `image:image` title/flyer and date, then on selection fetches one mix
+page and extracts `og:title`/`og:image`/first public `.mp3` link (e.g. the
+`enceladus.feralhosting.com/moxser/...mp3` host; the files are `audio/mpeg`
+with Range support).
+
+**Guards/politeness:** 6 h TTL for sitemaps and mix pages, a hard ≤1
+request/second throttle, browser User-Agent, page URLs restricted to
+`https://moxser.com/mixes/…`, MP3 candidates go through
+`http.safe_stream_url`, and every failure returns `[]`/`{}` (no traceback).
+The list route fetches only the two sitemaps; the per-mix page fetch happens
+when the user opens a row, so the 20 s route budget is respected.
+
+**Tests:** `test/test_moxser.py` — sitemap index selection, sitemap
+title/date/flyer parsing, cache TTL + browser UA assertions, page title/date/
+flyer/MP3 extraction, unsafe MP3 dropped, foreign page URLs never fetched,
+fail-soft, throttle sleeps.
+
+**Menu:** `Pirate Radio Archives` is independent; Moxser is
+`plugin://plugin.audio.raveplayer/?mode=moxser`, detail
+`?mode=moxser_mix&page=<mix-page>`.
+
+### 10.2 Hardscore — RSS + post pages
+
+**What:** `resources/lib/hardscore.py` parses the WordPress RSS
+(`https://www.hardscore.com/?feed=rss2`) into title/page URL/date/direct media
+(enclosure or MP3/M4A link in the description). Rows with media play in Kodi;
+rows without media open `?mode=hardscore_event&page=…`, which extracts media
+and outbound SoundCloud/Mixcloud/YouTube links from the post page and falls
+back to opening the post.
+
+**Gotcha found live:** Hardscore's “Bad Behavior” filter returns HTTP 403 to a
+bare urllib request even with a browser UA; the adapter adds an
+`Accept: application/rss+xml,application/xml,text/xml,*/*` header (verified
+live) and keeps the browser UA for page fetches.
+
+**Tests:** `test/test_hardscore.py` — feed enclosure/page-only rows, date,
+cache/UA assertions, post-page media/link extraction, foreign-host refusal,
+fail-soft. **Menu:** `?mode=hardscore` / `?mode=hardscore_event`.
+
+### 10.3 Rave Archive UK and GetDarker — curated Mixcloud
+
+**What:** `resources/lib/mixcloud.py` wraps the public Mixcloud API
+(`api.mixcloud.com/<account>/cloudcasts/`) for the two curated accounts
+(`ravearchiveuk`, `getdarker`) with a 1 h TTL; `resources/lib/getdarker.py`
+also lists the GetDarker RSS set pages via the shared Hardscore parser.
+
+**Deliberate limitation:** Mixcloud audio is HLS and the sanctioned player is
+their iframe widget; there is no legitimate direct stream for Kodi. Rows
+therefore validate the page URL and call `kodi.open_external` (Android VIEW
+intent; dialog with the URL on other platforms) instead of pretending to
+resolve audio. Rave Archive UK is surfaced through its Mixcloud account; its
+WordPress RSS has no enclosures.
+
+**Tests:** `test/test_mixcloud.py` (curated registry, API mapping, hostile/
+malformed account and URL filtering, TTL, fail-soft);
+`test/test_sources.py` routes for both accounts and `open_url`.
+**Menu:** `?mode=mixcloud_account&key=rave-archive-uk` and
+`?mode=mixcloud_account&key=getdarker`; GetDarker RSS at `?mode=getdarker`.
+
+### 10.4 Pirate Radio Archives — data + menu
+
+**What:** `resources/pirate-radio.json` uses the web app's exact schema:
+`station, year, title, djs, source_url, stream_url, credit` (plus optional
+`note` when a page URL could not be confirmed). `resources/lib/pirate.py`
+validates/loads and groups by station; routes list stations then their
+recordings: direct `stream_url` → play, `source_url` → open page, neither →
+show the metadata/note.
+
+Seeded data:
+- **Risk FM 107.1** — Beat Sanctuary, Andy Campbell / Daniel James / Fat Daddy
+  Zak and the David Morris December 1996 SoundCloud link. The exact Beat
+  Sanctuary/SoundCloud URLs could not be confirmed, so `source_url`/
+  `stream_url` are empty and the row carries a note (known metadata kept, as
+  required); the closest confirmed recording (David Morris, Risk 107.1, 29 July
+  1995, Mixcloud) is named in the note.
+- **Weekend Rush 92.3** — Force of One Crew (June 1993) and DJ Infinity & DJ
+  Freedom with MCs Trojan & Concrete (25 June 1995), both with confirmed
+  Hardscore post URLs and direct MP3s.
+- **Flava FM** — A-Team old-school Mixcloud playlist; the original MegaUpload
+  links are dead and no stable playlist URL could be confirmed, so the row has
+  empty URLs, `year: null` and a note.
+
+**Tests:** `test/test_pirate.py` — exact field-name/schema set, station order
+and grouping, confirmed Hardscore source/stream URLs, unconfirmed rows have
+empty URLs + note, malformed/missing data ignored. `test/test_sources.py` —
+menu/station routes, metadata-only rows notify and never offer fake playback.
+**Menu:** `?mode=pirate_menu` → `?mode=pirate_station&station=…` →
+`?mode=pirate_note&station=…&title=…` for metadata-only rows;
+`?mode=open_url&url=…` for source pages; direct MP3s use the existing
+`?mode=play&url=…` route.
+
+### 10.5 Root menu paths added
+
+```
+Latest
+...
+Podcasts & Mixes
+DNB Radio Archive
+Moxser Mixes                         ?mode=moxser
+Hardscore Archive                    ?mode=hardscore
+Rave Archive UK                      ?mode=mixcloud_account&key=rave-archive-uk
+GetDarker                            ?mode=getdarker
+Pirate Radio Archives                ?mode=pirate_menu
+Legacy Sites
+...
+```
+
+`GetDarker` lists the RSS set pages (and a first row to the getdarker
+Mixcloud account); every page/detail route ends a directory (`files` for mixed
+folder/playable lists) so Kodi never spins.

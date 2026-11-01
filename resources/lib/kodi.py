@@ -37,6 +37,31 @@ def refresh():
     xbmc.executebuiltin("Container.Refresh")
 
 
+def open_external(url):
+    """Best-effort open a source page for sources Kodi cannot stream.
+
+    Android gets an external VIEW intent; elsewhere a dialog shows the URL
+    (Kodi has no portable browser builtin).  Never raises to the plugin thread.
+    """
+    text = str(url or "").strip()
+    if not text.lower().startswith(("http://", "https://")):
+        return False
+    try:
+        if xbmc.getCondVisibility("System.Platform.Android"):
+            xbmc.executebuiltin(
+                "StartAndroidActivity(,android.intent.action.VIEW,,%s)" % text
+            )
+            return True
+    except Exception as exc:  # pragma: no cover - platform-specific
+        log("could not open Android intent (%s)" % exc, level=xbmc.LOGWARNING)
+    try:
+        dialog().ok("Open this page", text)
+        return True
+    except Exception as exc:  # pragma: no cover - defensive
+        log("could not show source URL (%s)" % exc, level=xbmc.LOGWARNING)
+        return False
+
+
 def translate_path(path):
     """Turn a Kodi ``special://`` path into a real filesystem path."""
     text = str(path or "")

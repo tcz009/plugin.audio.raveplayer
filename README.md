@@ -35,6 +35,14 @@ rebuilt in 2026 from the 2014 original.
   unknown titles are left unchanged).
 - **Settings that matter** — results per page, episodes per podcast feed,
   live-station limit, and hiding empty feeds.
+- **New archives (3.9.14)** — *Moxser Mixes* (direct MP3s from the Moxser
+  sitemap), *Hardscore Archive* (RSS + post pages; direct MP3/M4A when
+  present), *Rave Archive UK* and *GetDarker* (curated Mixcloud accounts —
+  these open the source page, because Mixcloud streams are HLS and play in
+  their own widget), and **Pirate Radio Archives** (curated Risk FM 107.1,
+  Weekend Rush 92.3 and Flava FM recordings; `resources/pirate-radio.json`,
+  same `station/year/title/djs/source_url/stream_url/credit` schema as the
+  web app, with an optional `note` for unconfirmed pages).
 - **Legacy sites** — the 2014 sources that are still standing:
   - *RaveTapePacks.com* — full tape packs. Its files are hotlink-protected, so
     playback URLs carry a `Referer` suffix that Kodi sends as a real header.
@@ -89,6 +97,7 @@ raveplayer/
 ├── resources/
 │   ├── feeds.json          # podcast feeds (data, not code)
 │   ├── filters.json        # quick filters (data, not code)
+│   ├── pirate-radio.json   # curated Pirate Radio Archives (shared schema)
 │   ├── settings.xml
 │   └── lib/
 │       ├── routes.py       # menu + routing (sections are data, not code)
@@ -96,6 +105,11 @@ raveplayer/
 │       ├── feeds.py        # RSS/Atom podcast provider
 │       ├── dnbradio.py     # DNBRADIO.com recordings
 │       ├── legacy.py       # ravetapepacks.com / jungletapes.com / Toronto
+│       ├── moxser.py       # Moxser sitemap/page provider
+│       ├── hardscore.py    # Hardscore RSS/post provider
+│       ├── getdarker.py    # GetDarker RSS + Mixcloud route
+│       ├── mixcloud.py     # curated Mixcloud accounts (open page)
+│       ├── pirate.py       # Pirate Radio Archives data loader
 │       ├── radio.py        # radio-browser.info provider
 │       ├── latest.py       # "Latest", "Surprise me", by-year queries
 │       ├── favourites.py   # JSON favourites store
@@ -120,6 +134,10 @@ python3 test/run.py archive_list key=rave page=1
 python3 test/run.py archive_item id=dreamscape-19-toil-and-trouble-jungle-8-tape-pack-1995
 python3 test/run.py radio_tag key=oldskool
 python3 test/run.py legacy_menu
+python3 test/run.py moxser
+python3 test/run.py hardscore
+python3 test/run.py pirate_menu
+python3 test/run.py mixcloud_account key=getdarker
 ```
 
 `build.yml` runs the unit tests, validates `addon.xml`, builds the zip and
