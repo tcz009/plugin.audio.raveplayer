@@ -8,7 +8,7 @@
 
 A Kodi plugin that browses and streams oldskool rave tape packs, podcasts and live pirate radio from public sources (Internet Archive, radio-browser.info, RSS feeds, DNBRADIO). No content is hosted or redistributed; everything is streamed from third parties.
 
-- Python 3, `xbmc.python` 3.0.1, targets Kodi 19–22.
+- Python 3, `xbmc.python` 3.0.1, targets Kodi 20 (Nexus) – 22 (Piers); Kodi 22 ships Python 3.14.
 - Roughly 2,000 lines of runtime Python in `resources/lib/` plus `default.py`.
 - Tests: `test/`, run with `python3 -m unittest discover -s test` (207 tests, all offline; stubs in `test/stubs/`).
 
@@ -23,7 +23,7 @@ A Kodi plugin that browses and streams oldskool rave tape packs, podcasts and li
 | `resources/lib/archive.py` | archive.org search, item metadata, audio file resolution |
 | `resources/lib/radio.py` | live stations via radio-browser.info + curated stations |
 | `resources/lib/feeds.py` | RSS/Atom podcasts |
-| `resources/lib/dnbradio.py`, `legacy.py`, `mixcloud.py`, `soundcloud.py` | additional sources |
+| `resources/lib/dnbradio.py`, `legacy.py`, `nowplaying.py` | additional sources / metadata |
 | `resources/lib/latest.py` | merged “Latest” view |
 | `resources/lib/favourites.py`, `nowplaying.py`, `kodi.py`, `ui.py` | Kodi integration |
 | `resources/*.json` | data: feeds, filters, rave catalogue |
