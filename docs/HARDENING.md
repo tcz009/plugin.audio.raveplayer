@@ -1,8 +1,9 @@
-# HARDENING — Rave Player Kodi add-on 3.9.14
+# HARDENING — Rave Player Kodi add-on 3.9.15
 
 **Branches:** `hardening/3.9.11` (tag `v3.9.10-review`), `hardening/3.9.12` (from 3.9.11 `main`), and
-`hardening/3.9.13` (from 3.9.12 `main` at `7ff12e6`) and `hardening/3.9.14` (from 3.9.13 `main` at `4f5cbe2`; this pass).
-**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.14 · **Result:** 3.9.14, **328 offline tests OK** (was 207; 295 at 3.9.13)
+`hardening/3.9.13` (from 3.9.12 `main` at `7ff12e6`) and `hardening/3.9.14` (from 3.9.13 `main` at `4f5cbe2`) and
+`hardening/3.9.15` (from 3.9.14 `main` at `dc4cd9c`; this pass).
+**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.15 · **Result:** 3.9.15, **334 offline tests OK** (was 207; 328 at 3.9.14)
 **Date:** 2026-11-01 · **Not pushed / not released.**
 
 Scope: 3.9.11–3.9.13 were internal hardening passes — real, provable defects
@@ -21,7 +22,7 @@ Nothing was deferred silently.
 
 | | |
 |---|---|
-| Suite | **328 tests OK** (was 207; 295 at 3.9.13): +121 offline tests, no network/Kodi needed |
+| Suite | **334 tests OK** (was 207; 328 at 3.9.14): +127 offline tests, no network/Kodi needed |
 | P0/P1 findings | **0 open** (K1, K2, K3 fixed) |
 | Review findings | Adversarial K1–K11 all addressed (3.9.11/3.9.12); independent-review A1–A5, A7–A9, A11, A12 fixed in 3.9.13 (§9); A8 was already fixed and re-tested; A10/A13 remain known/accepted residuals. |
 | Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,getdarker,hardscore,http,kodi,latest,legacy,mixcloud,moxser,pirate,radio,routes,ui}.py`, `resources/pirate-radio.json` |
@@ -227,7 +228,7 @@ python3 -m unittest test.test_routes test.test_http test.test_cache \
     test.test_archive test.test_parsers test.test_favourites test.test_compat -v
 ```
 
-Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → **328 at 3.9.14** (+121). The suite remains
+Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → **334 at 3.9.15** (+127). The suite remains
 fully offline (stubs in `test/stubs`), needs no Kodi and no network, and runs
 in ≈1–2 s.
 
@@ -294,11 +295,11 @@ test/…                      121 new tests + stub support (+ slow-drip/redirect
 docs/HARDENING.md           this file
 docs/CODE-REVIEW.md         K11 accuracy (module list, Kodi/Python note)
 AGENTS.md                   K11 accuracy (local-only; git-excluded, not in the commit diff)
-addon.xml / changelog.txt   3.9.14 (3.9.11–3.9.13 earlier passes)
+addon.xml / changelog.txt   3.9.15 (3.9.11–3.9.14 earlier passes)
 ```
 
 Per the Lead's instruction the branch is committed locally but **not pushed**;
-`dist/` and `repo/` were not touched (so the 3.9.14 repo zip/catalogue remain a
+`dist/` and `repo/` were not touched (so the 3.9.15 repo zip/catalogue remain a
 publish-time step).
 
 > Branch note: `hardening/3.9.12` also contains an unrelated docs/CI commit
@@ -673,3 +674,63 @@ Legacy Sites
 `GetDarker` lists the RSS set pages (and a first row to the getdarker
 Mixcloud account); every page/detail route ends a directory (`files` for mixed
 folder/playable lists) so Kodi never spins.
+
+---
+
+## 11. Menu IA rebuild (3.9.15)
+
+Approved IA in workspace `docs/MENU-IA-REVIEW.md`; owner decisions: keep
+GetDarker, Latest merges "on air now", About becomes real credits/sources.
+
+### 11.1 Root — 26 rows → 9 journey rows
+
+Exact ordered labels now pinned by `test_sources.NewSourceRouteTests`:
+`Latest`, `Surprise Me`, `Tape Packs`, `Mixes & Shows`, `Live Radio`,
+`Curated Gems`, `Favourites`, `Search the Archive`, `About & Sources`.
+
+### 11.2 Three hubs — every old destination reachable, same mode/key
+
+- **Tape Packs** (`?mode=packs_menu`, 10 destinations + Back): Rave Tape Packs
+  (`archive_list key=rave`), Jungle / Drum & Bass (`jungle`), Hardcore
+  (`hardcore`), House (`house`), UK Garage (`garage`), **Pirate Stations**
+  (`pirate` — renamed from "Pirate Radio"), All Tape Packs (`tapepacks`), **By
+  Year** (`years`), **Classic Pack Series** (`filters_menu`), **By Rave &
+  Venue** (`rave_nights`).
+- **Mixes & Shows** (`?mode=shows_menu`, 5 + Back): Podcasts & Mixes
+  (`media_menu`), DNB Radio (`dnb_list`), Moxser Mixes (`moxser`),
+  **Hardscore.com** (`hardscore`), **GetDarker (dubstep/grime)** (`getdarker`).
+- **Curated Gems** (`?mode=curated_menu`, 3 + Back): Pirate Radio Archives
+  (`pirate_menu`), Rave Archive UK (`mixcloud_account key=rave-archive-uk`),
+  **Legacy Archives (2014)** (`legacy_menu`).
+
+No route was deleted; `HANDLERS` still has every old mode, so saved favourites
+(including `filter_list key=kool/rinse`), deep links and the existing dist
+build keep working. The only new routes are the three hub handlers.
+
+### 11.3 Live Radio and Latest
+
+- `radio_menu` now promotes Kool FM and Rinse FM above the seven genre rows:
+  Kool FM · Rinse FM · Oldskool & Rave · Jungle · Drum & Bass · Hardcore ·
+  House · UK Garage · Breakbeat (+ Back). The Kool/Rinse rows keep the
+  existing `filter_list` mode/key (live stream + archive sets).
+- `latest_view` prepends `● On air now · Kool FM` and `● On air now · Rinse FM`
+  as direct `mode=play` track rows (from `radio.curated`, omitted when a
+  stream is unavailable), so row 1 is genuinely play-something. The rows are
+  safe under the existing public-host/redirect guard; the directory still ends
+  as `files` with the visible End of list marker.
+
+### 11.4 About & Sources
+
+`?mode=about` is now a credits/sources screen (version + GPL-3.0 + GitHub,
+archive.org, Mixcloud, SoundCloud, radio-browser.info, Moxser, Hardscore,
+GetDarker, Kool/Rinse). Source rows are `mode=open_url` links, validated by the
+public-URL guard; no content is hosted by the add-on.
+
+### 11.5 Tests / docs
+
+`test_sources.NewSourceRouteTests` now pins the exact root labels and covers
+Tape Packs (all 10 labels/keys), Mixes & Shows (5), Curated Gems (3), Live
+Radio order and About sources; `test_routes.LatestCascadeTests` adds
+`test_latest_prepends_live_on_air_rows` and keeps the no-item/no-live case.
+328 → **334 tests**. README menu section, CODE-REVIEW 3.9.15, changelog and
+addon version updated.

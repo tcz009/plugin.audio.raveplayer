@@ -26,19 +26,82 @@ class NewSourceRouteTests(unittest.TestCase):
     def _urls(self):
         return [item["url"] for item in xbmcplugin.ITEMS]
 
-    def test_root_exposes_the_new_sources(self):
+    def test_root_is_the_nine_row_journey(self):
         routes.root(1, {})
-        labels = self._labels()
-        for label in ("Moxser Mixes", "Hardscore Archive", "Rave Archive UK",
-                      "GetDarker", "Pirate Radio Archives"):
-            self.assertIn(label, labels)
+        self.assertEqual(self._labels(), [
+            "Latest", "Surprise Me", "Tape Packs", "Mixes & Shows",
+            "Live Radio", "Curated Gems", "Favourites",
+            "Search the Archive", "About & Sources",
+        ])
         urls = dict(zip(self._labels(), self._urls()))
+        self.assertIn("mode=packs_menu", urls["Tape Packs"])
+        self.assertIn("mode=shows_menu", urls["Mixes & Shows"])
+        self.assertIn("mode=radio_menu", urls["Live Radio"])
+        self.assertIn("mode=curated_menu", urls["Curated Gems"])
+
+    def test_shows_hub_contains_the_new_sources(self):
+        routes.shows_menu(1, {})
+        labels = self._labels()
+        self.assertEqual(labels, [
+            "Podcasts & Mixes", "DNB Radio", "Moxser Mixes",
+            "Hardscore.com", "GetDarker (dubstep/grime)", "Back",
+        ])
+        urls = dict(zip(labels, self._urls()))
         self.assertIn("mode=moxser", urls["Moxser Mixes"])
-        self.assertIn("mode=hardscore", urls["Hardscore Archive"])
+        self.assertIn("mode=hardscore", urls["Hardscore.com"])
+        self.assertIn("mode=getdarker", urls["GetDarker (dubstep/grime)"])
+
+    def test_tape_packs_hub_has_all_ten_existing_destinations(self):
+        routes.packs_menu(1, {})
+        labels = self._labels()
+        self.assertEqual(labels, [
+            "Rave Tape Packs", "Jungle / Drum & Bass", "Hardcore", "House",
+            "UK Garage", "Pirate Stations", "All Tape Packs", "By Year",
+            "Classic Pack Series", "By Rave & Venue", "Back",
+        ])
+        urls = dict(zip(labels, self._urls()))
+        self.assertIn("mode=archive_list", urls["Rave Tape Packs"])
+        self.assertIn("key=rave", urls["Rave Tape Packs"])
+        self.assertIn("key=garage", urls["UK Garage"])
+        self.assertIn("key=pirate", urls["Pirate Stations"])
+        self.assertIn("mode=years", urls["By Year"])
+        self.assertIn("mode=filters_menu", urls["Classic Pack Series"])
+        self.assertIn("mode=rave_nights", urls["By Rave & Venue"])
+
+    def test_curated_hub_has_three_doors(self):
+        routes.curated_menu(1, {})
+        self.assertEqual(self._labels(), [
+            "Pirate Radio Archives", "Rave Archive UK",
+            "Legacy Archives (2014)", "Back",
+        ])
+        urls = dict(zip(self._labels(), self._urls()))
+        self.assertIn("mode=pirate_menu", urls["Pirate Radio Archives"])
         self.assertIn("mode=mixcloud_account", urls["Rave Archive UK"])
         self.assertIn("key=rave-archive-uk", urls["Rave Archive UK"])
-        self.assertIn("mode=getdarker", urls["GetDarker"])
-        self.assertIn("mode=pirate_menu", urls["Pirate Radio Archives"])
+        self.assertIn("mode=legacy_menu", urls["Legacy Archives (2014)"])
+
+    def test_live_radio_hub_promotes_kool_and_rinse(self):
+        routes.radio_menu(1, {})
+        labels = self._labels()
+        self.assertEqual(labels, [
+            "Kool FM", "Rinse FM", "Oldskool & Rave", "Jungle",
+            "Drum & Bass", "Hardcore", "House", "UK Garage", "Breakbeat", "Back",
+        ])
+        urls = dict(zip(labels, self._urls()))
+        self.assertIn("mode=filter_list", urls["Kool FM"])
+        self.assertIn("key=kool", urls["Kool FM"])
+        self.assertIn("key=rinse", urls["Rinse FM"])
+
+    def test_about_and_sources_lists_credits_and_every_source(self):
+        routes.about(1, {})
+        labels = self._labels()
+        for expected in ("GPL-3.0", "archive.org", "Mixcloud", "SoundCloud",
+                         "radio-browser.info", "Moxser.com", "Hardscore.com",
+                         "GetDarker.com", "Kool FM", "Rinse FM"):
+            self.assertTrue(any(expected in label for label in labels), expected)
+        first = xbmcplugin.ITEMS[0]
+        self.assertIn("mode=open_url", first["url"])
+        self.assertIn("github.com", first["url"].replace("%2F", "/").replace("%3A", ":"))
 
     def test_pirate_menu_and_weekend_rush_playlist(self):
         routes.pirate_menu(1, {})

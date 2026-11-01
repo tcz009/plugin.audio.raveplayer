@@ -98,8 +98,8 @@ RADIO_SECTIONS = [
     {"key": "dnb", "label": "Drum & Bass", "tag": "drum and bass", "art": "jungle.png"},
     {"key": "hardcore", "label": "Hardcore", "tag": "hardcore", "art": "hardcore.png"},
     {"key": "house", "label": "House", "tag": "house", "art": "house.png"},
-    {"key": "breakbeat", "label": "Breakbeat", "tag": "breakbeat", "art": "rave.png"},
     {"key": "ukg", "label": "UK Garage", "tag": "uk garage", "art": "garage.png"},
+    {"key": "breakbeat", "label": "Breakbeat", "tag": "breakbeat", "art": "rave.png"},
 ]
 
 
@@ -409,119 +409,115 @@ def dispatch(argv):
 
 
 def root(handle, params):
+    """Top-level menu: nine journey steps, not a source inventory."""
     menu_item = ui.menu_item
 
     menu_item(handle, url_for(mode="latest"), "Latest",
               icon=art("rave.png"),
-              plot="Newest of everything: podcasts, tape packs and DNB Radio shows.")
-    menu_item(handle, url_for(mode="surprise"), "Surprise me",
+              plot="Newest packs, shows and radio rips — start here.")
+    menu_item(handle, url_for(mode="surprise"), "Surprise Me",
               icon=art("tapepacks.png"),
-              plot="Drop into a random rave tape pack.")
-
-    menu_item(handle, url_for(mode="filter_list", key="kool"), "Kool FM",
-              icon=art("radio.png"),
-              plot="Kool FM: the station live now, plus every Kool FM set in the archive.")
-    menu_item(handle, url_for(mode="filter_list", key="rinse"), "Rinse FM",
-              icon=art("radio.png"),
-              plot="Rinse FM: the station live now, plus Rinse FM sets in the archive.")
-    menu_item(handle, url_for(mode="filters_menu"), "Quick Filters",
+              plot="Plays a random tape pack.")
+    menu_item(handle, url_for(mode="packs_menu"), "Tape Packs",
               icon=art("tapepacks.png"),
-              plot="Jump straight to the classic pack series.")
-
-    menu_item(handle, url_for(mode="rave_nights"), "Rave Nights",
-              icon=art("rave.png"),
-              plot="Classic promotions, venues and pirate stations from the research catalogue.")
-
+              plot="The ravetapes archive: by genre, by year, by series, by rave.")
+    menu_item(handle, url_for(mode="shows_menu"), "Mixes & Shows",
+              icon=art("jungle.png"),
+              plot="Podcasts, DNB Radio, Moxser, Hardscore and GetDarker.")
+    menu_item(handle, url_for(mode="radio_menu"), "Live Radio",
+              icon=art("radio.png"),
+              plot="Stations streaming now: Kool, Rinse and every genre tag.")
+    menu_item(handle, url_for(mode="curated_menu"), "Curated Gems",
+              icon=art("pirate.png"),
+              plot="Pirate recordings, Rave Archive UK, the 2014 survivors.")
     menu_item(handle, url_for(mode="fav_list"), "Favourites",
               icon=art("about.png"),
               plot="The packs and shows you saved.")
-
-    menu_item(handle, url_for(mode="radio_menu"), "Live Radio", icon=art("radio.png"),
-              plot="Streaming pirate, oldskool and rave radio right now.")
-
-    for section in ARCHIVE_SECTIONS:
-        menu_item(
-            handle,
-            url_for(mode="archive_list", key=section["key"], page=1),
-            section["label"],
-            icon=art(section["art"]),
-            plot=section["plot"],
-        )
-
-    menu_item(
-        handle,
-        url_for(mode="media_menu"),
-        "Podcasts & Mixes",
-        icon=art("jungle.png"),
-        plot="Current jungle, drum & bass, hardcore and rave shows — RSS feeds.",
-    )
-    menu_item(
-        handle,
-        url_for(mode="dnb_list"),
-        "DNB Radio Archive",
-        icon=art("hardcore.png"),
-        plot="Recent jungle and drum & bass shows from DNBRADIO.com.",
-    )
-
-    menu_item(
-        handle,
-        url_for(mode="moxser"),
-        "Moxser Mixes",
-        icon=art("rave.png"),
-        plot="Moxser's curated dance-music mix archive — direct MP3s where available.",
-    )
-    menu_item(
-        handle,
-        url_for(mode="hardscore"),
-        "Hardscore Archive",
-        icon=art("hardcore.png"),
-        plot="Hardscore.com — oldskool hardcore/jungle sets, tracklists and direct MP3s.",
-    )
-    menu_item(
-        handle,
-        url_for(mode="mixcloud_account", key="rave-archive-uk"),
-        "Rave Archive UK",
-        icon=art("rave.png"),
-        plot="Rave Archive UK on Mixcloud — oldskool, hardcore, jungle and drum & bass.",
-    )
-    menu_item(
-        handle,
-        url_for(mode="getdarker"),
-        "GetDarker",
-        icon=art("jungle.png"),
-        plot="GetDarker sets (RSS) plus the curated GetDarker Mixcloud archive.",
-    )
-    menu_item(
-        handle,
-        url_for(mode="pirate_menu"),
-        "Pirate Radio Archives",
-        icon=art("pirate_source.png"),
-        plot="Curated 1990s pirate-radio recordings: Risk FM, Weekend Rush and Flava FM.",
-    )
-
-    menu_item(
-        handle,
-        url_for(mode="legacy_menu"),
-        "Legacy Sites",
-        icon=art("pirate_source.png"),
-        plot="The fan sites from 2014 that are still standing.",
-    )
-
-    menu_item(
-        handle,
-        url_for(mode="years"),
-        "Tape Packs by Year",
-        icon=art("house.png"),
-        plot="Browse the ravetapes collection one year at a time.",
-    )
-
-    menu_item(handle, url_for(mode="search"), "Search the Archive", icon=art("search.png"), plot="Search every tape pack on archive.org.")
-    menu_item(handle, url_for(mode="about"), "About Rave Player", icon=art("rave.png"), plot="Credits, sources and version.")
+    menu_item(handle, url_for(mode="search"), "Search the Archive",
+              icon=art("search.png"),
+              plot="Search every tape pack on archive.org.")
+    menu_item(handle, url_for(mode="about"), "About & Sources",
+              icon=art("about.png"),
+              plot="Version, credits and every source used.")
 
     kodi.end_directory(handle, "files")
 
 
+def packs_menu(handle, params):
+    """Tape Packs hub: one door for the six tape-pack entry points."""
+    rows = [
+        ("Rave Tape Packs", url_for(mode="archive_list", key="rave", page=1), "rave.png",
+         "The Rave Tapes — a curated 1990s cassette collection."),
+        ("Jungle / Drum & Bass", url_for(mode="archive_list", key="jungle", page=1), "jungle.png",
+         "Jungle and drum & bass sets from the rave tapes collection."),
+        ("Hardcore", url_for(mode="archive_list", key="hardcore", page=1), "hardcore.png",
+         "Hardcore and happy hardcore sets."),
+        ("House", url_for(mode="archive_list", key="house", page=1), "house.png",
+         "House sets from the archive."),
+        ("UK Garage", url_for(mode="archive_list", key="garage", page=1), "garage.png",
+         "UK garage, 90s to now."),
+        ("Pirate Stations", url_for(mode="archive_list", key="pirate", page=1), "pirate.png",
+         "Kool FM, Centreforce and Don FM sets from the archive."),
+        ("All Tape Packs", url_for(mode="archive_list", key="tapepacks", page=1), "tapepacks.png",
+         "Everything the Archive tags as a tape pack."),
+        ("By Year", url_for(mode="years"), "tapepacks.png",
+         "Browse the ravetapes collection one year at a time."),
+        ("Classic Pack Series", url_for(mode="filters_menu"), "tapepacks.png",
+         "Dreamscape, Fantazia, Telepathy and the other classic pack series."),
+        ("By Rave & Venue", url_for(mode="rave_nights"), "rave.png",
+         "Promotions, venues and pirate stations from the research catalogue."),
+    ]
+    for label, url, icon, plot in rows:
+        ui.menu_item(handle, url, label, icon=art(icon), plot=plot)
+    ui.menu_item(handle, url_for(mode="root"), "Back")
+    kodi.end_directory(handle, "files")
+
+
+def shows_menu(handle, params):
+    """Mixes & Shows hub: all streaming sources live behind one door."""
+    rows = [
+        ("Podcasts & Mixes", url_for(mode="media_menu"), "radio.png",
+         "Current jungle, drum & bass, hardcore and rave shows — RSS feeds."),
+        ("DNB Radio", url_for(mode="dnb_list"), "hardcore.png",
+         "Recent jungle and drum & bass shows from DNBRADIO.com."),
+        ("Moxser Mixes", url_for(mode="moxser"), "rave.png",
+         "Moxser's curated dance-music mix archive — direct MP3s where available."),
+        ("Hardscore.com", url_for(mode="hardscore"), "hardcore.png",
+         "Oldskool hardcore/jungle sets, tracklists and direct MP3s."),
+        ("GetDarker (dubstep/grime)", url_for(mode="getdarker"), "jungle.png",
+         "GetDarker sets (RSS) plus the curated GetDarker Mixcloud archive."),
+    ]
+    for label, url, icon, plot in rows:
+        ui.menu_item(handle, url, label, icon=art(icon), plot=plot)
+    ui.menu_item(handle, url_for(mode="root"), "Back")
+    kodi.end_directory(handle, "files")
+
+
+def curated_menu(handle, params):
+    """Curated Gems hub: hand-picked recordings and surviving sites."""
+    rows = [
+        ("Pirate Radio Archives", url_for(mode="pirate_menu"), "pirate.png",
+         "Curated 1990s pirate-radio recordings: Risk FM, Weekend Rush and Flava FM."),
+        ("Rave Archive UK", url_for(mode="mixcloud_account", key="rave-archive-uk"), "rave.png",
+         "Rave Archive UK on Mixcloud — oldskool, hardcore, jungle and drum & bass."),
+        ("Legacy Archives (2014)", url_for(mode="legacy_menu"), "pirate.png",
+         "The 2014 fan sites that are still standing."),
+    ]
+    for label, url, icon, plot in rows:
+        ui.menu_item(handle, url, label, icon=art(icon), plot=plot)
+    ui.menu_item(handle, url_for(mode="root"), "Back")
+    kodi.end_directory(handle, "files")
+
+
 def radio_menu(handle, params):
+    # Kool/Rinse first: each row offers its live stream plus the archive sets;
+    # both were previously root rows competing with Live Radio.
+    ui.menu_item(handle, url_for(mode="filter_list", key="kool"), "Kool FM",
+                 icon=art("radio.png"),
+                 plot="Kool FM — live now, plus every Kool FM set in the archive.")
+    ui.menu_item(handle, url_for(mode="filter_list", key="rinse"), "Rinse FM",
+                 icon=art("radio.png"),
+                 plot="Rinse FM — live now, plus every Rinse FM set in the archive.")
     for section in RADIO_SECTIONS:
         ui.menu_item(
             handle,
@@ -798,9 +794,40 @@ def _fail_playback(handle, message):
     xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
 
 
+def _latest_live_rows(handle):
+    """Prepend the curated "on air now" rows to Latest (Kool/Rinse).
+
+    Latest used to open with a mixed pack/show list, so row 1 was not reliably
+    play-something.  These rows are direct streams, validated by the normal
+    play route, and are omitted when a stream is unavailable.
+    """
+    count = 0
+    for token, name in (("kool", "Kool FM"), ("rinse", "Rinse FM")):
+        stations = radio.curated(token)
+        if not stations:
+            continue
+        stream = radio.stream_url(stations[0])
+        if not stream:
+            continue
+        label = "● On air now · %s" % name
+        ui.track_item(
+            handle,
+            url_for(mode="play", url=stream, label=label),
+            label,
+            thumb=art("radio.png"),
+            plot="Live radio · %s" % name,
+            album="Live radio",
+            title=label,
+            context=[_favourite("stream", stream, label, "Live radio · %s" % name)],
+        )
+        count += 1
+    return count
+
+
 def latest_view(handle, params):
     items = latest.merge()
-    if not items:
+    live_count = _latest_live_rows(handle)
+    if not items and not live_count:
         kodi.notify("Nothing came back from the sources — try again later.")
         kodi.end_directory(handle, "files")
         return
@@ -1392,12 +1419,31 @@ def search(handle, params):
 
 
 def about(handle, params):
-    ui.menu_item(
-        handle,
-        url_for(mode="root"),
-        "Rave Player %s — back for 2026" % kodi.ADDON_VERSION,
-        plot="Rebuilt from the 2014 original. Sources: archive.org and radio-browser.info. No content is hosted by this add-on.",
-    )
+    """Credits and every source used; not just a version string."""
+    rows = [
+        ("Rave Player %s — GPL-3.0" % kodi.ADDON_VERSION,
+         "https://github.com/tcz009/plugin.audio.raveplayer",
+         "about.png", "Version %s · GNU General Public License v3.0 · GitHub." % kodi.ADDON_VERSION),
+        ("Source: Internet Archive (archive.org)", "https://archive.org/",
+         "rave.png", "Tape packs, rave tapes and audio collections."),
+        ("Source: Mixcloud", "https://www.mixcloud.com/",
+         "radio.png", "Rave Archive UK and GetDarker cloudcasts (opened in the browser)."),
+        ("Source: SoundCloud", "https://soundcloud.com/",
+         "radio.png", "Curated/legacy SoundCloud links (opened in the browser)."),
+        ("Source: radio-browser.info", "https://www.radio-browser.info/",
+         "radio.png", "Live radio station directory."),
+        ("Source: Moxser.com", "https://moxser.com/",
+         "rave.png", "Curated dance-music mix archive and direct MP3s."),
+        ("Source: Hardscore.com", "https://www.hardscore.com/",
+         "hardcore.png", "Oldskool hardcore/jungle archive and direct MP3s."),
+        ("Source: GetDarker.com", "https://getdarker.com/",
+         "jungle.png", "Dubstep/garage/underground sets."),
+        ("Live radio: Kool FM & Rinse FM", "https://www.rinse.fm/",
+         "radio.png", "Kool London and Rinse FM live streams (via admin.stream.rinse.fm)."),
+    ]
+    for label, url, icon, plot in rows:
+        _open_source_item(handle, label, url, icon=art(icon), plot=plot)
+    ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
 
@@ -1454,6 +1500,9 @@ def play(handle, params):
 
 HANDLERS = {
     "root": root,
+    "packs_menu": packs_menu,
+    "shows_menu": shows_menu,
+    "curated_menu": curated_menu,
     "radio_menu": radio_menu,
     "radio_tag": radio_tag,
     "archive_list": archive_list,

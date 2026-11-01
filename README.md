@@ -50,6 +50,29 @@ rebuilt in 2026 from the 2014 original.
     catalogued via the site sitemap.
   - *Toronto Rave Mixtape Archive* — 1990s Toronto rave mixtapes.
 
+## Menu (3.9.15 IA)
+
+The root is nine journey rows, not a source inventory:
+
+```
+Latest · Surprise Me · Tape Packs · Mixes & Shows · Live Radio ·
+Curated Gems · Favourites · Search the Archive · About & Sources
+```
+
+- **Tape Packs** — Rave Tape Packs · Jungle / Drum & Bass · Hardcore · House ·
+  UK Garage · Pirate Stations · All Tape Packs · By Year · Classic Pack
+  Series · By Rave & Venue.
+- **Mixes & Shows** — Podcasts & Mixes · DNB Radio · Moxser Mixes ·
+  Hardscore.com · GetDarker (dubstep/grime).
+- **Live Radio** — Kool FM · Rinse FM · Oldskool & Rave · Jungle · Drum & Bass ·
+  Hardcore · House · UK Garage · Breakbeat.
+- **Curated Gems** — Pirate Radio Archives · Rave Archive UK · Legacy Archives
+  (2014).
+
+Every old destination is still reachable behind a hub with the same `mode=`/
+`key=` values, so favourites and deep links keep working. Latest starts with
+the curated "on air now" Kool/Rinse streams when available.
+
 ## Why it was rebuilt rather than patched
 
 The 2014 add-on was Python 2, ran on `xbmc.python` 2.1.0 (Kodi 13), and

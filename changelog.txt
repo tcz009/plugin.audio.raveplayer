@@ -1,3 +1,21 @@
+Rave Player 3.9.15
+- Menu rebuilt around the approved IA: the Kodi root is now nine journey rows
+  (Latest, Surprise Me, Tape Packs, Mixes & Shows, Live Radio, Curated Gems,
+  Favourites, Search the Archive, About & Sources) instead of 26 source rows.
+- New hubs keep every existing destination and every mode=/key= deep link:
+  Tape Packs (10 existing destinations), Mixes & Shows (5 sources), Curated
+  Gems (3). Live Radio promotes Kool FM and Rinse FM above the seven genre
+  stations. Renames: Quick Filters -> Classic Pack Series, Rave Nights -> By
+  Rave & Venue, Pirate Radio (archive query) -> Pirate Stations, Tape Packs by
+  Year -> By Year, DNB Radio Archive -> DNB Radio, Hardscore Archive ->
+  Hardscore.com, Legacy Sites -> Legacy Archives (2014).
+- Latest now prepends the curated "on air now" Kool FM/Rinse FM streams, so
+  row 1 is genuinely play-something; they are omitted when unavailable.
+- About & Sources is a real credits screen: version/GPL-3.0, GitHub, archive.org,
+  Mixcloud, SoundCloud, radio-browser.info, Moxser, Hardscore, GetDarker and
+  Kool/Rinse sources.
+- Tests: 328 -> 334 (offline; root labels pinned).
+
 Rave Player 3.9.14
 - New sources: Moxser Mixes (sitemap index -> mixes sitemaps -> mix pages,
   6 h cache, <=1 request/second, browser UA, direct MP3s), Hardscore Archive

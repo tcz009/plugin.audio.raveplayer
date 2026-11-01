@@ -386,11 +386,35 @@ class LatestCascadeTests(unittest.TestCase):
 
     def test_latest_with_no_items_still_ends_as_files(self):
         with mock.patch.object(routes.latest, "merge", return_value=[]), \
+                mock.patch.object(routes.radio, "curated", return_value=[]), \
                 mock.patch.object(routes.kodi, "notify") as notify:
             routes.latest_view(1, {})
         self.assertTrue(notify.called)
         self.assertEqual(xbmcplugin.CONTENT[-1], "files")
         self.assertEqual(xbmcplugin.ITEMS, [])
+
+    def test_latest_prepends_live_on_air_rows(self):
+        stations = {"kool": [{"name": "Kool FM",
+                              "url_resolved": "https://admin.stream.rinse.fm/proxy/kool/stream"}],
+                    "rinse": [{"name": "Rinse FM",
+                               "url_resolved": "https://admin.stream.rinse.fm/proxy/rinse_uk/stream"}]}
+
+        def curated(token):
+            return stations.get(token, [])
+
+        with mock.patch.object(routes.latest, "merge", return_value=[]), \
+                mock.patch.object(routes.radio, "curated", side_effect=curated), \
+                mock.patch.object(routes.kodi, "notify") as notify:
+            routes.latest_view(1, {})
+        self.assertFalse(notify.called)
+        labels = [item["label"] for item in xbmcplugin.ITEMS]
+        self.assertEqual(labels[:2], ["● On air now · Kool FM",
+                                      "● On air now · Rinse FM"])
+        params = self._params(xbmcplugin.ITEMS[0])
+        self.assertEqual(params["mode"], "play")
+        self.assertIn("admin.stream.rinse.fm/proxy/kool/stream", params["url"])
+        self.assertEqual(xbmcplugin.CONTENT[-1], "files")
+        self.assertEqual(xbmcplugin.ITEMS[-1]["label"], "End of list")
 
 
 class PlaybackFailureTests(unittest.TestCase):
