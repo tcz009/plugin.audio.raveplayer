@@ -5,6 +5,14 @@ rebuilt in 2026 from the 2014 original.
 
 ![Rave Player](icon.png)
 
+## Watch the advert
+
+[![Rave Player — 2026 advert](assets/advert-poster.png)](https://github.com/tcz009/plugin.audio.raveplayer/releases/tag/advert-2026)
+
+[▶ Watch the 38-second advert](https://github.com/tcz009/plugin.audio.raveplayer/releases/tag/advert-2026) — 9:16 for Reels/Stories, 4:5 for the feed, 16:9 for YouTube.
+
+![Advert preview](assets/advert-preview.gif)
+
 ## What it does
 
 - **Rave tape packs, jungle, hardcore, house & garage** — pulled from the
