@@ -1,3 +1,16 @@
+Rave Player 3.9.20
+- Performance/cleanup pass (no URL, label, route or test-count changes).
+- Latest: the three sources (feeds, Archive packs, DNB) now load concurrently
+  in a bounded 3-worker pool; DNB listen-page resolutions are cached for 6 h.
+  Live measurements: cold 10.6/20.1s -> **6.0/6.1s**; warm 1.57/1.74s -> **0.04s**.
+- Root/hubs: provider imports are lazy proxies and http/cache/stdlib imports are
+  deferred, cutting warm root import+dispatch **0.777s -> 0.080s** and the full
+  CLI wall **~0.64s -> ~0.18s**. Route itself is ~0.0001s. Hubs stay ~0.0001s.
+- Pack open cached 0.005s -> ~0.003s. Downloads view unchanged (~0.000s).
+- Cleanup: dead `http.probe_size` and `moxser.stream_urls` removed; spinner
+  frame paths cached; no test or behaviour changes (403 tests OK).
+- Benchmarks/methodology: docs/PERF-3.9.20.md; reproducible scripts/benchmark.py.
+
 Rave Player 3.9.19
 - Prototype spinning-head download window (Kodi, opt-in): a small custom
   WindowXML overlay with 10 pre-rendered rotated head frames (128/256px,

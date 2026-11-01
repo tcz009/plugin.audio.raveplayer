@@ -135,6 +135,14 @@ ordinary `DialogProgress` if the window cannot be created. See
 [`docs/SPINNER-3.9.19.md`](docs/SPINNER-3.9.19.md) for the spec, preview/GIF,
 cost/risks and the opt-in recommendation. Default is **off**.
 
+## Performance (3.9.20)
+
+Warm root import+dispatch is ~0.08 s (was 0.78 s), the root route itself is
+~0.0001 s, Latest cold is ~6 s / warm ~0.04 s, and cached pack open ~0.003 s.
+Full methodology, before/after table and residual risks:
+[`docs/PERF-3.9.20.md`](docs/PERF-3.9.20.md); reproduce with
+`python3 scripts/benchmark.py`. No URL/label/route changes; 403 tests unchanged.
+
 ## Why it was rebuilt rather than patched
 
 The 2014 add-on was Python 2, ran on `xbmc.python` 2.1.0 (Kodi 13), and

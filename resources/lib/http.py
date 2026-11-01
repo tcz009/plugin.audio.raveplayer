@@ -14,21 +14,24 @@ Hardening in 3.9.11:
 
 import codecs
 import contextlib
-import gzip
-import http.client
 import io
-import ipaddress
 import json
 import re
-import socket
 import threading
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
-import zlib
 
-from . import cache, kodi
+from . import kodi
+
+
+class _LazyCache(object):
+    def __getattr__(self, name):
+        from . import cache
+
+        return getattr(cache, name)
+
+
+cache = _LazyCache()
 
 USER_AGENT = "RavePlayer/3.0 (Kodi; +https://github.com/tcz009/plugin.audio.raveplayer)"
 DEFAULT_TIMEOUT = 20
@@ -40,15 +43,58 @@ MAX_REDIRECTS = 3
 _REDIRECT_CODES = frozenset((301, 302, 303, 307, 308))
 
 
-class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
-    """Refuse automatic redirects; ``_request`` follows them manually
-    so every hop can be validated and charged to the route budget."""
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
+_NoRedirectHandler = None
 
 
-_OPENER = urllib.request.build_opener(_NoRedirectHandler)
+class _LazyOpener(object):
+    """Build the urllib opener on first use (keeps root import light)."""
+
+    def __init__(self):
+        self._real = None
+
+    def _load(self):
+        global _NoRedirectHandler
+        if self._real is None:
+            import urllib.request
+
+            class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+                """Refuse automatic redirects; ``_request`` follows them
+                manually so every hop can be validated and budgeted."""
+
+                def redirect_request(self, req, fp, code, msg, headers, newurl):
+                    return None
+
+            self._real = urllib.request.build_opener(_NoRedirectHandler)
+        return self._real
+
+    def __getattr__(self, name):
+        if name == "_real":
+            raise AttributeError(name)
+        return getattr(self._load(), name)
+
+
+_OPENER = _LazyOpener()
+
+
+class _LazyStdlib(object):
+    """Lazy module attribute (tests patch http.socket.getaddrinfo)."""
+
+    def __init__(self, name):
+        self._name = name
+        self._module = None
+
+    def __getattr__(self, name):
+        if name == "_module":
+            raise AttributeError(name)
+        if self._module is None:
+            import importlib
+
+            self._module = importlib.import_module(self._name)
+        return getattr(self._module, name)
+
+
+socket = _LazyStdlib("socket")
+
 
 _XML_ENCODING_RE = re.compile(br"""<\?xml[^>]*encoding=["']([A-Za-z0-9._-]+)""", re.IGNORECASE)
 
@@ -64,6 +110,8 @@ _HOST_CACHE_MAX = 256
 
 def blocked_address(address):
     """True for loopback/link-local/private/metadata-style IP addresses."""
+    import ipaddress
+
     text = str(address or "").split("%", 1)[0].strip()
     try:
         ip = ipaddress.ip_address(text)
@@ -88,6 +136,8 @@ def host_is_blocked(hostname, port):
     public (a mixed answer covers DNS-rebinding style hosts), and an
     unresolvable host is refused because Kodi could not play it anyway.
     """
+    import ipaddress
+
     text = str(hostname or "").strip().strip("[]")
     if not text:
         return True
@@ -313,6 +363,9 @@ def _read_limited(response, timeout):
 
 def _decompress(headers, raw):
     """Undo Content-Encoding, capping the decompressed size (zip-bomb guard)."""
+    import gzip
+    import zlib
+
     encoding = (headers.get("Content-Encoding") or "").strip().lower()
     if not encoding:
         return raw
@@ -369,6 +422,12 @@ def _request(url, timeout, headers):
     public http(s) URL, gets its own budget-clamped timeout, and never runs
     urllib's unvalidated automatic redirect chain (A2).
     """
+    import http.client
+    import socket
+    import urllib.error
+    import urllib.request
+    import zlib
+
     current = str(url or "")
     if not current.lower().startswith(("http://", "https://")):
         kodi.log("refusing non-http(s) request: %r" % current, level=30)
@@ -508,6 +567,8 @@ def open_media(url, timeout=DEFAULT_TIMEOUT):
     effective = _effective_timeout(timeout)
     if effective <= 0:
         raise ValueError("network budget exhausted")
+    import urllib.request
+
     request = urllib.request.Request(base, headers=headers)
     response = _OPENER.open(request, timeout=effective)
     try:
@@ -525,6 +586,11 @@ def probe_media(url, timeout=DEFAULT_TIMEOUT):
     text = safe_stream_url(url)
     if not text:
         return {}
+    import http.client
+    import socket
+    import urllib.error
+    import urllib.request
+
     base = text.split("|", 1)[0]
     effective = _effective_timeout(timeout)
     if effective <= 0:
@@ -550,11 +616,6 @@ def probe_media(url, timeout=DEFAULT_TIMEOUT):
     except (ValueError, TypeError, urllib.error.URLError, http.client.HTTPException,
             socket.timeout, OSError):
         return {}
-
-
-def probe_size(url, timeout=DEFAULT_TIMEOUT):
-    """Best-effort Content-Length for a direct media URL; 0 when unknown."""
-    return int(probe_media(url, timeout=timeout).get("size") or 0)
 
 
 def quote(value):

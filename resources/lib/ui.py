@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """List item construction, kept tidy so routes read like a menu definition."""
 
-import re
-
 import xbmcgui
 import xbmcplugin
 
@@ -13,19 +11,33 @@ DEFAULT_FANART = kodi.FANART
 # Kodi display markup, e.g. [COLOR gray]...[/COLOR] or [I]...[/I].  Label text
 # may carry it; the media metadata title must not, or the OSD shows the tags.
 MAX_MARKUP_CHARS = 1024
-_MARKUP_RE = re.compile(
-    r"\[/?(?:COLOR|B|I|U|LIGHT|CAPITALIZE|LOWERCASE|UPPERCASE|CR)(?:[^\]]{0,100})?\]",
-    re.IGNORECASE,
-)
+_MARKUP_RE = None
+
+
+def _markup_re():
+    global _MARKUP_RE
+    if _MARKUP_RE is None:
+        import re
+
+        _MARKUP_RE = re.compile(
+            r"\[/?(?:COLOR|B|I|U|LIGHT|CAPITALIZE|LOWERCASE|UPPERCASE|CR)"
+            r"(?:[^\]]{0,100})?\]",
+            re.IGNORECASE,
+        )
+    return _MARKUP_RE
 
 
 def plain(text):
     """Return display text without Kodi markup tags.
 
     Input is capped and the tag-attribute repetition is bounded so hostile
-    "[COLOR" x N text cannot scan quadratically (A4).
+    "[COLOR" x N text cannot scan quadratically (A4).  The regex is compiled
+    lazily so the warm root menu does not pay the regex import.
     """
-    return _MARKUP_RE.sub("", str(text or "")[:MAX_MARKUP_CHARS])
+    text = str(text or "")[:MAX_MARKUP_CHARS]
+    if "[" not in text:
+        return text
+    return _markup_re().sub("", text)
 
 
 def add_item(handle, url, label, is_folder=True, art=None, info=None, playable=False, context=None):

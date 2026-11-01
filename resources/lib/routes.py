@@ -5,25 +5,75 @@ Everything the add-on shows is described by the SECTIONS tables below, so
 adding a source is a one-line change rather than another 40-line scraper.
 """
 
-import datetime
-import html
 import os
-import random
-import re
 import sys
 import time
-import traceback
 import urllib.parse
 
 import xbmc
 import xbmcgui
 import xbmcplugin
 
-from . import (archive, downloads, dnbradio, favourites, feeds,
-               getdarker as getdarker_source, hardscore as hardscore_source,
-               handoff, http, kodi, latest, legacy, mixcloud as mixcloud_source,
-               moxser as moxser_source, nowplaying, pirate as pirate_source,
-               radio, spinner, ui)
+from . import handoff, http, kodi, ui
+
+
+class _LazyModule(object):
+    """Lazy module attribute used to keep the warm root import path small."""
+
+    def __init__(self, name):
+        self._name = name
+        self._module = None
+
+    def _load(self):
+        if self._module is None:
+            import importlib
+
+            self._module = importlib.import_module("." + self._name, __package__)
+        return self._module
+
+    def __getattr__(self, name):
+        return getattr(self._load(), name)
+
+    def __repr__(self):
+        return "<lazy %s>" % self._name
+
+
+def _lazy(name):
+    return _LazyModule(name)
+
+
+class _LazyStdlib(object):
+    def __init__(self, name):
+        self._name = name
+        self._module = None
+
+    def __getattr__(self, name):
+        if name == "_module":
+            raise AttributeError(name)
+        if self._module is None:
+            import importlib
+
+            self._module = importlib.import_module(self._name)
+        return getattr(self._module, name)
+
+
+random = _LazyStdlib("random")
+
+archive = _lazy("archive")
+downloads = _lazy("downloads")
+dnbradio = _lazy("dnbradio")
+favourites = _lazy("favourites")
+feeds = _lazy("feeds")
+getdarker_source = _lazy("getdarker")
+hardscore_source = _lazy("hardscore")
+latest = _lazy("latest")
+legacy = _lazy("legacy")
+mixcloud_source = _lazy("mixcloud")
+moxser_source = _lazy("moxser")
+nowplaying = _lazy("nowplaying")
+pirate_source = _lazy("pirate")
+radio = _lazy("radio")
+spinner = _lazy("spinner")
 
 ROWS_PER_PAGE = 50
 MAX_ROWS_PER_PAGE = 200
@@ -301,13 +351,19 @@ def _page_plot(total, page, rows):
 # A4: bound the number of characters scanned after each "<" so hostile
 # input like "<a" * 131072 cannot make the regex engine rescan to end-of-string
 # (old pattern was O(n^2): 16.7 s for a 256 KiB description).
-_TAG_RE = re.compile(r"<[A-Za-z/!][^>]{0,512}>")
+_TAG_RE = None
 _DESCRIPTION_SCAN_LIMIT = 8192
 
 
 def _clean_description(value):
     if not value:
         return ""
+    import html
+    import re
+
+    global _TAG_RE
+    if _TAG_RE is None:
+        _TAG_RE = re.compile(r"<[A-Za-z/!][^>]{0,512}>")
     text = _as_text(value)[:_DESCRIPTION_SCAN_LIMIT]
     text = html.unescape(text)
     text = _TAG_RE.sub(" ", text)
@@ -401,6 +457,8 @@ def dispatch(argv):
     try:
         handler(handle, params)
     except Exception:
+        import traceback
+
         kodi.log("unhandled error in mode %r:\n%s" % (mode, traceback.format_exc()),
                  level=40)
         _failed_route(handle, mode)
@@ -916,6 +974,8 @@ def surprise(handle, params):
 
 
 def years(handle, params):
+    import datetime
+
     this_year = datetime.date.today().year
     for year in range(this_year, 1987, -1):
         ui.menu_item(handle, url_for(mode="year_list", year=year), str(year),

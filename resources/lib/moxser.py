@@ -220,8 +220,3 @@ def mix(page_url):
         "mp3_url": mp3,
     }
 
-
-def stream_urls(page_url):
-    """Return direct MP3s from a mix page (for future multi-part pages)."""
-    details = mix(page_url)
-    return [details["mp3_url"]] if details.get("mp3_url") else []

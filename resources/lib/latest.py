@@ -103,7 +103,25 @@ def recent_dnb(limit=12):
 
 
 def merge(limit=60):
-    items = recent_episodes() + recent_packs() + recent_dnb()
+    # The three sources are independent; fetch them concurrently so a slow
+    # Archive/DNB response does not add to the feed time.  Results are retrieved
+    # in source order to keep the pre-sort ordering deterministic.  The HTTP
+    # route budget and cache are shared by the workers (thread-safe since 3.9.12).
+    groups = []
+    try:
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            futures = [pool.submit(recent_episodes), pool.submit(recent_packs),
+                       pool.submit(recent_dnb)]
+            for future in futures:
+                try:
+                    groups.append(future.result())
+                except Exception:
+                    groups.append([])
+    except Exception:
+        groups = [recent_episodes(), recent_packs(), recent_dnb()]
+    items = groups[0] + groups[1] + groups[2]
     dated = [item for item in items if item.get("when")]
     undated = [item for item in items if not item.get("when")]
     dated.sort(key=lambda item: item["when"], reverse=True)

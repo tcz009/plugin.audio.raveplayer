@@ -12,6 +12,7 @@ the frame on the next update.  Everything is best-effort: failures never stop
 the download.
 """
 
+import functools
 import os
 import time
 
@@ -40,10 +41,11 @@ def frames_dir(addon_path=None):
     return os.path.join(root, FRAME_DIR)
 
 
+@functools.lru_cache(maxsize=8)
 def frame_paths(size=FRAME_SIZE, addon_path=None):
     root = frames_dir(addon_path)
-    return [os.path.join(root, "head-%d-%02d.png" % (size, index))
-            for index in range(FRAME_COUNT)]
+    return tuple(os.path.join(root, "head-%d-%02d.png" % (size, index))
+                 for index in range(FRAME_COUNT))
 
 
 def frame_index(elapsed):

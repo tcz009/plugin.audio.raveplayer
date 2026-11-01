@@ -1,4 +1,4 @@
-# HARDENING — Rave Player Kodi add-on 3.9.19
+# HARDENING — Rave Player Kodi add-on 3.9.20
 
 **Branches:** `hardening/3.9.11` (tag `v3.9.10-review`), `hardening/3.9.12` (from 3.9.11 `main`), and
 `hardening/3.9.13` (from 3.9.12 `main` at `7ff12e6`) and `hardening/3.9.14` (from 3.9.13 `main` at `4f5cbe2`) and
@@ -6,8 +6,9 @@
 `hardening/3.9.16` (from 3.9.15 `main` at `b0a515a`) and
 `hardening/3.9.17` (from 3.9.16 `main` at `614e6ad`) and
 `hardening/3.9.18` (from 3.9.17 `main` at `4007f52`) and
-`hardening/3.9.19` (from 3.9.18 `main` at `c413a3d`; this prototype pass).
-**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.19 · **Result:** 3.9.19, **403 offline tests OK** (was 207; 394 at 3.9.18)
+`hardening/3.9.19` (from 3.9.18 `main` at `c413a3d`) and
+`hardening/3.9.20` (from 3.9.19 `main` at `1141748`; this performance pass).
+**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.20 · **Result:** 3.9.20, **403 offline tests OK** (was 207; unchanged from 3.9.19)
 **Date:** 2026-11-01 · **Not pushed / not released.**
 
 Scope: 3.9.11–3.9.13 were internal hardening passes — real, provable defects
@@ -26,7 +27,7 @@ Nothing was deferred silently.
 
 | | |
 |---|---|
-| Suite | **403 tests OK** (was 207; 394 at 3.9.18): +196 offline tests, no network/Kodi needed |
+| Suite | **403 tests OK** (unchanged; no network/Kodi needed) |
 | P0/P1 findings | **0 open** (K1, K2, K3 fixed) |
 | Review findings | Adversarial K1–K11 all addressed (3.9.11/3.9.12); independent-review A1–A5, A7–A9, A11, A12 fixed in 3.9.13 (§9); A8 was already fixed and re-tested; A10/A13 remain known/accepted residuals. |
 | Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,getdarker,handoff,hardscore,http,kodi,latest,legacy,mixcloud,moxser,pirate,radio,routes,ui}.py`, `resources/pirate-radio.json` |
@@ -232,7 +233,7 @@ python3 -m unittest test.test_routes test.test_http test.test_cache \
     test.test_archive test.test_parsers test.test_favourites test.test_compat -v
 ```
 
-Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → 334 at 3.9.15 → 360 at 3.9.16 → 369 at 3.9.17 → 394 at 3.9.18 → **403 at 3.9.19** (+196). The suite remains
+Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → 334 at 3.9.15 → 360 at 3.9.16 → 369 at 3.9.17 → 394 at 3.9.18 → 403 at 3.9.19 → **403 at 3.9.20** (unchanged). The suite remains
 fully offline (stubs in `test/stubs`), needs no Kodi and no network, and runs
 in ≈1–2 s.
 
@@ -296,6 +297,7 @@ resources/lib/pirate.py     + Pirate Radio Archives data loader (3.9.14)
 resources/lib/handoff.py    + official Kodi add-on detection + plugin:// URLs (3.9.16)
 resources/lib/downloads.py  + explicit offline downloads, metadata, storage guard (3.9.18)
 resources/lib/spinner.py    + spinning-head overlay/frame math/fallback (3.9.19)
+scripts/benchmark.py        + reproducible route benchmark (3.9.20)
 resources/skins/Default/720p/raveplayer-spinner.xml
 resources/art/spinner/      + 20 pre-rendered head frames (3.9.19)
 resources/pirate-radio.json + curated Risk FM / Weekend Rush / Flava FM data (3.9.14)
@@ -304,11 +306,11 @@ test/…                      121 new tests + stub support (+ slow-drip/redirect
 docs/HARDENING.md           this file
 docs/CODE-REVIEW.md         K11 accuracy (module list, Kodi/Python note)
 AGENTS.md                   K11 accuracy (local-only; git-excluded, not in the commit diff)
-addon.xml / changelog.txt   3.9.19 (3.9.11–3.9.18 earlier passes)
+addon.xml / changelog.txt   3.9.20 (3.9.11–3.9.19 earlier passes)
 ```
 
 Per the Lead's instruction the branch is committed locally but **not pushed**;
-`dist/` and `repo/` were rebuilt for 3.9.19 after this prototype.
+`dist/` and `repo/` were rebuilt for 3.9.20 after this performance pass.
 
 > Branch note: `hardening/3.9.12` also contains an unrelated docs/CI commit
 > `d323075` that landed on the shared worktree while this branch was checked
@@ -958,3 +960,29 @@ plain `DialogProgress` remains the default. Full spec/preview:
 - **Recommendation:** keep opt-in for the Shield trial; promote to default only
   after device validation. Replacing the notification outright now would couple
   a cosmetic prototype to the download path.
+
+---
+
+## 17. Performance pass (3.9.20)
+
+Measured before/after in `docs/PERF-3.9.20.md`; reproducible
+`scripts/benchmark.py`. No URL, label, route, setting or test-count changes
+(**403 tests unchanged**).
+
+- **Latest:** `latest.merge()` fetches feeds, Archive packs and DNB directory in
+  a bounded 3-worker pool (results retrieved in source order; serial fallback).
+  `dnbradio.stream_url()` caches listen-page resolutions for 6 h. Warm Latest
+  no longer re-resolves every DNB row.
+- **Import-time:** provider modules are lazy proxies in `routes`; `http` builds
+  urllib/http.client/socket/gzip/zlib/opener/cache lazily; routes defer
+  datetime/re/html/traceback; `ui.plain()` compiles regex lazily and skips it
+  when no `[` is present. Warm root import+dispatch: **0.777 → 0.080 s**. Full
+  CLI process wall ~0.64 → ~0.18 s (Python/OS startup; caveat documented).
+- **Hot paths/cleanup:** spinner frame paths `lru_cache`d; dead `http.probe_size`
+  and `moxser.stream_urls` removed.
+- **Results:** root route ~0.0001 s; hubs ~0.0001 s; Latest cold **6.0/6.1 s**
+  (target ≤10), warm **0.04 s** (target ≤2); cached pack open **~0.003 s**
+  (target ≤3); Downloads view ~0.000 s.
+- **Risks:** lazy imports shift first-use cost to first network route (included
+  in measured cold Latest); DNB direct URLs may be up to 6 h stale by design;
+  lazy opener/socket proxies preserve the tested patch points.

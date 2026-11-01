@@ -14,6 +14,7 @@ from . import http, kodi
 BASE = "https://dnbradio.com"
 RECORDINGS = BASE + "/recordings"
 RECORDINGS_TTL = 10 * 60
+STREAM_TTL = 6 * 60 * 60
 
 # Directory builds resolve several mixes at once; keep the batch short so an
 # unreachable host cannot stall the "Latest" folder.
@@ -68,7 +69,8 @@ def parse_listen(page):
 
 def stream_url(mix_id, timeout=25):
     """Resolve a mix id to a playable MP3 URL, or '' if the page changed."""
-    return parse_listen(http.fetch(link(mix_id), timeout=timeout, headers={"Referer": RECORDINGS}))
+    return parse_listen(http.fetch(link(mix_id), timeout=timeout,
+                                  headers={"Referer": RECORDINGS}, ttl=STREAM_TTL))
 
 
 def stream_urls(mix_ids, timeout=RESOLVE_TIMEOUT, workers=RESOLVE_WORKERS):

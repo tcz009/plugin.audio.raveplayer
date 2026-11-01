@@ -1,7 +1,7 @@
 # Independent code review — brief
 
 **Project:** Rave Player — Kodi audio add-on (`plugin.audio.raveplayer`)
-**Version under review:** 3.9.19 (branch `hardening/3.9.19`; 3.9.18 is `main`)
+**Version under review:** 3.9.20 (branch `hardening/3.9.20`; 3.9.19 is `main`)
 **Reviewer target:** the runtime code and tests in this repo; please ignore `dist/`, `repo/`, `stage/`, `__pycache__/` and generated artwork.
 
 ## What it is
