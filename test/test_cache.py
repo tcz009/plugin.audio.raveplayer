@@ -7,6 +7,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "stubs"))
@@ -125,6 +126,77 @@ class CacheTests(unittest.TestCase):
         with open(path, "w", encoding="utf-8") as handle:
             json.dump({"v": cache.VERSION, "ts": cache.time.time()}, handle)
         self.assertEqual(cache.remember("sentinel", 60, lambda: "fresh"), "fresh")
+
+
+class CacheMaintenanceTests(unittest.TestCase):
+    """The cache directory is bounded and oversized entries cannot be loaded."""
+
+    def setUp(self):
+        self.directory = tempfile.mkdtemp(prefix="raveplayer-cache-maint-")
+        self.old = os.environ.get(cache.CACHE_DIR_ENV)
+        os.environ[cache.CACHE_DIR_ENV] = self.directory
+
+    def tearDown(self):
+        if self.old is None:
+            os.environ.pop(cache.CACHE_DIR_ENV, None)
+        else:
+            os.environ[cache.CACHE_DIR_ENV] = self.old
+        shutil.rmtree(self.directory, ignore_errors=True)
+
+    def test_maintain_removes_expired_entries(self):
+        cache.put("old", "value")
+        cache.put("fresh", "value")
+        old_path = cache.path_for("old")
+        now = cache.time.time()
+        os.utime(old_path, (now - 10 ** 6, now - 10 ** 6))
+        removed = cache.maintain(now=now, max_age=1000)
+        self.assertEqual(removed, 1)
+        self.assertIs(cache.get("old", 60), cache.MISSING)
+        self.assertEqual(cache.get("fresh", 60), "value")
+
+    def test_maintain_caps_the_number_of_entries(self):
+        now = cache.time.time()
+        for index in range(5):
+            cache.put("entry-%d" % index, index)
+            path = cache.path_for("entry-%d" % index)
+            os.utime(path, (now - 1000 + index, now - 1000 + index))
+        removed = cache.maintain(now=now, max_entries=2, max_age=10 ** 9)
+        self.assertEqual(removed, 3)
+        remaining = [name for name in os.listdir(self.directory) if name.endswith(".json")]
+        self.assertEqual(len(remaining), 2)
+        self.assertEqual(cache.get("entry-4", 60), 4)
+
+    def test_maintain_removes_stale_temp_files_only(self):
+        now = cache.time.time()
+        dead = os.path.join(self.directory, ".tmp-dead.json")
+        live = os.path.join(self.directory, ".tmp-live.json")
+        for path, age in ((dead, 7200), (live, 0)):
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("{}")
+            os.utime(path, (now - age, now - age))
+        removed = cache.maintain(now=now, stale_temp=3600)
+        self.assertEqual(removed, 1)
+        self.assertFalse(os.path.exists(dead))
+        self.assertTrue(os.path.exists(live))
+
+    def test_oversized_entry_is_not_loaded(self):
+        path = cache.path_for("oversized")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write('{"v": 1, "ts": 1, "value": "x"}')
+        with mock.patch.object(cache, "MAX_ENTRY_BYTES", 10):
+            self.assertIs(cache.get("oversized", None), cache.MISSING)
+        self.assertFalse(os.path.exists(path))
+
+    def test_failed_replace_leaves_no_temp_file_behind(self):
+        with mock.patch.object(cache.os, "replace", side_effect=OSError("disk full")):
+            self.assertFalse(cache.put("replace-fail", "value"))
+        leftovers = [name for name in os.listdir(self.directory) if name.startswith(".tmp-")]
+        self.assertEqual(leftovers, [])
+
+    def test_hostile_key_cannot_escape_the_cache_directory(self):
+        path = cache.path_for("../../etc/passwd")
+        self.assertEqual(os.path.dirname(path), self.directory)
 
 
 if __name__ == "__main__":

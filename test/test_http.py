@@ -6,6 +6,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 import urllib.error
 from email.message import Message
@@ -22,9 +23,16 @@ class FakeResponse(object):
     def __init__(self, body, headers=None):
         self.body = body
         self.headers = headers or Message()
+        self._offset = 0
 
-    def read(self):
-        return self.body
+    def read(self, size=-1):
+        if size is None or size < 0:
+            chunk = self.body[self._offset:]
+            self._offset = len(self.body)
+            return chunk
+        chunk = self.body[self._offset:self._offset + size]
+        self._offset += len(chunk)
+        return chunk
 
     def __enter__(self):
         return self
@@ -98,6 +106,17 @@ class FetchCacheTests(unittest.TestCase):
             self.assertEqual(http.fetch("https://example.test/empty", ttl=60), "body")
         self.assertEqual(request.call_count, 2)
 
+    def test_cached_body_is_served_even_after_the_budget_is_gone(self):
+        with mock.patch.object(http, "_request", return_value="body"):
+            self.assertEqual(http.fetch("https://example.test/cached", ttl=60), "body")
+        http.begin_route(0)
+        try:
+            with mock.patch.object(http, "_request") as request:
+                self.assertEqual(http.fetch("https://example.test/cached", ttl=60), "body")
+            self.assertFalse(request.called)
+        finally:
+            http.end_route()
+
     def test_headers_are_part_of_the_cache_key(self):
         with mock.patch.object(http, "_request", return_value="body") as request:
             http.fetch("https://example.test/headers", headers={"Referer": "a"}, ttl=60)
@@ -123,6 +142,97 @@ class FetchCacheTests(unittest.TestCase):
         os.environ[cache.CACHE_DIR_ENV] = blocker
         with mock.patch.object(http, "_request", return_value="body"):
             self.assertEqual(http.fetch("https://example.test/disk", ttl=60), "body")
+
+
+class ResponseHardeningTests(unittest.TestCase):
+    """Bounded bodies/decompression and the per-invocation network budget."""
+
+    def tearDown(self):
+        http.end_route()
+
+    def test_oversized_body_is_rejected(self):
+        response = FakeResponse(b"x" * 100, Message())
+        with mock.patch.object(http, "MAX_BODY_BYTES", 10):
+            self.assertIsNone(http._decode(response, 5))
+
+    def test_gzip_bomb_is_rejected_after_decompression(self):
+        headers = Message()
+        headers["Content-Encoding"] = "gzip"
+        response = FakeResponse(gzip.compress(b"x" * 100), headers)
+        with mock.patch.object(http, "MAX_BODY_BYTES", 10):
+            self.assertIsNone(http._decode(response, 5))
+
+    def test_body_read_has_a_wall_clock_deadline(self):
+        response = FakeResponse(b"x" * (http.READ_CHUNK_BYTES * 3), Message())
+        # monotonic(): deadline calc, first loop check, then the deadline has passed
+        with mock.patch.object(http.time, "monotonic", side_effect=[0.0, 0.0, 99.0]):
+            self.assertIsNone(http._read_limited(response, 1))
+
+    def test_zero_budget_skips_the_request(self):
+        http.begin_route(0)
+        with mock.patch.object(http, "_request") as request:
+            self.assertIsNone(http.fetch("https://example.test/x"))
+        self.assertFalse(request.called)
+        self.assertTrue(http.route_budget_exhausted())
+
+    def test_budget_clamps_the_request_timeout(self):
+        http.begin_route(5)
+        captured = {}
+
+        def fake_request(url, timeout, headers):
+            captured["timeout"] = timeout
+            return "body"
+
+        with mock.patch.object(http, "_request", side_effect=fake_request):
+            self.assertEqual(http.fetch("https://example.test/x", timeout=20), "body")
+        self.assertGreater(captured["timeout"], 0.0)
+        self.assertLessEqual(captured["timeout"], 5.0)
+
+    def test_unbudgeted_fetch_keeps_the_requested_timeout(self):
+        captured = {}
+
+        def fake_request(url, timeout, headers):
+            captured["timeout"] = timeout
+            return "body"
+
+        http.end_route()
+        with mock.patch.object(http, "_request", side_effect=fake_request):
+            http.fetch("https://example.test/x", timeout=17)
+        self.assertEqual(captured["timeout"], 17)
+
+    def test_end_route_clears_the_budget(self):
+        http.begin_route(5)
+        self.assertIsNotNone(http.remaining())
+        http.end_route()
+        self.assertIsNone(http.remaining())
+        self.assertFalse(http.route_budget_exhausted())
+
+    def test_route_budget_stops_a_sequence_of_fetches(self):
+        http.begin_route(0.05)
+        calls = []
+
+        def slow_request(url, timeout, headers):
+            calls.append(timeout)
+            time.sleep(0.01)
+            return "body"
+
+        with mock.patch.object(http, "_request", side_effect=slow_request):
+            for _ in range(20):
+                http.fetch("https://example.test/x", timeout=5)
+        self.assertTrue(http.route_budget_exhausted())
+        self.assertLess(len(calls), 20)
+
+    def test_non_string_header_values_do_not_raise(self):
+        response = FakeResponse(b"ok", Message())
+        with mock.patch("urllib.request.urlopen", return_value=response):
+            self.assertEqual(http._request("https://example.test/x", 5, {"X-N": 1}), "ok")
+
+    def test_declared_content_length_over_the_cap_is_rejected(self):
+        headers = Message()
+        headers["Content-Length"] = "999999999"
+        response = FakeResponse(b"x", headers)
+        with mock.patch.object(http, "MAX_BODY_BYTES", 10):
+            self.assertIsNone(http._read_limited(response, 5))
 
 
 if __name__ == "__main__":

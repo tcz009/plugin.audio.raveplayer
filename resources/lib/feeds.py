@@ -10,9 +10,10 @@ import html as html_module
 import json
 import os
 import re
+import urllib.parse
 import xml.etree.ElementTree as ET
 
-from . import http
+from . import http, kodi
 
 ITUNES = "{http://www.itunes.com/dtds/podcast-1.0.0}"
 MEDIA = "{http://search.yahoo.com/mrss/}"
@@ -75,20 +76,44 @@ def _links(item):
     return item.findall("link") + item.findall(ATOM + "link")
 
 
+def _media_url(value):
+    """Return a playable http(s) URL, or '' for any other scheme.
+
+    Feed enclosures are third-party data; never hand Kodi a ``file:``,
+    ``javascript:`` or relative URL supplied by a feed.
+    """
+    text = html_module.unescape(str(value or "")).strip()
+    if not text:
+        return ""
+    try:
+        split = urllib.parse.urlsplit(text)
+    except ValueError:
+        return ""
+    if split.scheme.lower() not in ("http", "https") or not split.netloc:
+        return ""
+    return text
+
+
 def _enclosure_url(item):
     enclosure = _elements(item, "enclosure")
     if enclosure is not None and enclosure.get("url"):
-        return enclosure.get("url")
+        url = _media_url(enclosure.get("url"))
+        if url:
+            return url
     content = item.find(MEDIA + "content")
     if content is not None and content.get("url"):
-        return content.get("url")
+        url = _media_url(content.get("url"))
+        if url:
+            return url
     for link in _links(item):
         if not link.get("href"):
             continue
         rel = (link.get("rel") or "").lower()
         kind = (link.get("type") or "").lower()
         if rel == "enclosure" or kind.startswith("audio"):
-            return link.get("href")
+            url = _media_url(link.get("href"))
+            if url:
+                return url
     return ""
 
 
@@ -99,7 +124,10 @@ def _duration(item):
     if ":" in raw:
         # Ignore a fractional-seconds tail: "1:02:03.500" is still 1h 2m 3s.
         clock = raw.split(".", 1)[0]
-        parts = [int(part) for part in re.findall(r"\d+", clock)][:3]
+        try:
+            parts = [int(part) for part in re.findall(r"\d+", clock)][:3]
+        except (ValueError, OverflowError):
+            return None
         if not parts:
             return None
         seconds = 0
@@ -108,7 +136,7 @@ def _duration(item):
         return seconds
     try:
         return int(float(raw))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
@@ -124,9 +152,18 @@ def _description(item):
 
 def parse(xml_text):
     """Parse an RSS/Atom document into episode dicts (no I/O)."""
+    if isinstance(xml_text, bytes):
+        marker_text = xml_text.decode("ascii", "replace")
+    else:
+        marker_text = str(xml_text or "")
+    # A feed never needs internal entity declarations, and Expat's entity
+    # expansion can be abused for a denial of service ("billion laughs").
+    if "<!ENTITY" in marker_text.upper():
+        kodi.log("feed ignored: entity declarations are not allowed", level=30)
+        return []
     try:
         root = ET.fromstring(xml_text)
-    except (ET.ParseError, ValueError, TypeError):
+    except (ET.ParseError, ValueError, TypeError, RecursionError):
         return []
     items = root.findall("./channel/item")
     if not items:

@@ -39,8 +39,18 @@ def _space_words(value):
 
 
 def _url_path(value):
-    """Return a correctly quoted URL path, without double-encoding."""
-    return urllib.parse.quote(html.unescape(urllib.parse.unquote(str(value or ""))), safe="/")
+    """Return a correctly quoted URL path, without double-encoding.
+
+    Scraped paths are third-party input: reject empty/"."/".." segments so a
+    malformed link cannot walk up the site path.
+    """
+    text = html.unescape(urllib.parse.unquote(str(value or "")))
+    parts = text.split("/")
+    if text.startswith("/"):
+        parts = parts[1:]
+    if not parts or any(part in ("", ".", "..") for part in parts):
+        return ""
+    return urllib.parse.quote(text, safe="/")
 
 
 def _pretty(text):
@@ -62,7 +72,10 @@ def packs():
     for pack, filename in MUSIC_RE.findall(page):
         pack = html.unescape(pack)
         filename = html.unescape(filename)
-        url = BASE + "music/" + _url_path(pack) + "/" + _url_path(filename)
+        pack_path, file_path = _url_path(pack), _url_path(filename)
+        if not pack_path or not file_path:
+            continue
+        url = BASE + "music/" + pack_path + "/" + file_path
         if url in seen:
             continue
         seen.add(url)
@@ -129,7 +142,10 @@ def _jt_label(slug):
 
 
 def jungle_tracks(slug):
-    page = http.fetch(JT_BASE + "/show/" + _url_path(slug), timeout=25, ttl=SHOW_TTL)
+    quoted = _url_path(slug)
+    if not quoted:
+        return []
+    page = http.fetch(JT_BASE + "/show/" + quoted, timeout=25, ttl=SHOW_TTL)
     if not page:
         return []
     tracks, seen = [], set()
@@ -143,6 +159,9 @@ def jungle_tracks(slug):
         split = urllib.parse.urlsplit(url)
         if split.scheme == "http" and split.hostname and split.hostname.endswith("jungletapes.com"):
             url = urllib.parse.urlunsplit(("https",) + tuple(split[1:]))
+        # Never pass a scraped file:/javascript:/data: URL to Kodi.
+        if split.scheme.lower() not in ("http", "https") or not split.netloc:
+            continue
         if url in seen:
             continue
         seen.add(url)
@@ -164,7 +183,10 @@ def toronto_tracks():
         return []
     tracks, seen = [], set()
     for path in TR_MP3_RE.findall(page):
-        url = TR_BASE + _url_path(path)
+        quoted = _url_path(path)
+        if not quoted:
+            continue
+        url = TR_BASE + quoted
         if url in seen:
             continue
         seen.add(url)

@@ -393,13 +393,13 @@ class PlaybackFailureTests(unittest.TestCase):
         del xbmcplugin.RESOLVED[:]
         del xbmcplugin.ITEMS[:]
 
-    def test_dnb_play_unresolved_notifies_and_stops_the_playlist(self):
+    def test_dnb_play_unresolved_notifies_without_wiping_the_queue(self):
         with mock.patch.object(routes.dnbradio, "stream_url", return_value=""), \
                 mock.patch.object(routes.kodi, "notify") as notify, \
                 mock.patch.object(routes.xbmc, "PlayList") as playlist:
             routes.dnb_play(1, {"id": "10", "label": "Show"})
         self.assertTrue(notify.called)
-        self.assertTrue(playlist.return_value.clear.called)
+        self.assertFalse(playlist.called)
         self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"])
 
     def test_dnb_play_scraper_error_fails_safely(self):
@@ -408,8 +408,22 @@ class PlaybackFailureTests(unittest.TestCase):
                 mock.patch.object(routes.xbmc, "PlayList") as playlist:
             routes.dnb_play(1, {"id": "10"})
         self.assertTrue(notify.called)
-        self.assertTrue(playlist.return_value.clear.called)
+        self.assertFalse(playlist.called)
         self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"])
+
+    def test_play_rejects_non_http_urls(self):
+        for url in ("file:///etc/passwd", "special://home/x",
+                    "plugin://plugin.video.x/", "javascript:alert(1)"):
+            with mock.patch.object(routes.kodi, "notify") as notify:
+                routes.play(1, {"url": url})
+            self.assertTrue(notify.called, url)
+            self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"], url)
+
+    def test_play_accepts_http_urls_with_a_header_suffix(self):
+        routes.play(1, {"url": "https://example.test/a.mp3|Referer=https://example.test/"})
+        resolved = xbmcplugin.RESOLVED[-1]
+        self.assertTrue(resolved["ok"])
+        self.assertEqual(resolved["path"], "https://example.test/a.mp3|Referer=https://example.test/")
 
     def test_dnb_play_resolves_and_plays(self):
         with mock.patch.object(routes.dnbradio, "stream_url",
@@ -424,7 +438,7 @@ class PlaybackFailureTests(unittest.TestCase):
                 mock.patch.object(routes.xbmc, "PlayList") as playlist:
             routes.play(1, {})
         self.assertTrue(notify.called)
-        self.assertTrue(playlist.return_value.clear.called)
+        self.assertFalse(playlist.called)
         self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"])
 
     def test_play_success_does_not_clear_the_playlist(self):
@@ -432,6 +446,166 @@ class PlaybackFailureTests(unittest.TestCase):
             routes.play(1, {"url": "https://x/1.mp3"})
         self.assertTrue(xbmcplugin.RESOLVED[-1]["ok"])
         self.assertFalse(playlist.called)
+
+
+class DispatchFailureTests(unittest.TestCase):
+    """A crashing handler must never traceback to Kodi or leave it spinning."""
+
+    def setUp(self):
+        del xbmcplugin.ITEMS[:]
+        del xbmcplugin.RESOLVED[:]
+        del xbmcplugin.CONTENT[:]
+        del xbmcplugin.CACHE_FLAGS[:]
+        del xbmcplugin.SUCCEEDED[:]
+
+    def test_folder_handler_crash_notifies_and_ends_with_failure(self):
+        handler = mock.Mock(side_effect=RuntimeError("boom"))
+        with mock.patch.dict(routes.HANDLERS, {"root": handler}), \
+                mock.patch.object(routes.kodi, "notify") as notify, \
+                mock.patch.object(routes.kodi, "log") as log:
+            routes.dispatch(["plugin://x/", "7", "?mode=root"])
+        self.assertTrue(notify.called)
+        self.assertTrue(log.called)
+        self.assertEqual(xbmcplugin.SUCCEEDED, [False])
+        self.assertIn("files", xbmcplugin.CONTENT)
+        self.assertTrue(routes.kodi.directory_ended(7))
+        self.assertIsNone(routes.http.remaining())
+
+    def test_playback_handler_crash_returns_a_failed_resolve(self):
+        handler = mock.Mock(side_effect=RuntimeError("boom"))
+        with mock.patch.dict(routes.HANDLERS, {"play": handler}), \
+                mock.patch.object(routes.kodi, "notify") as notify:
+            routes.dispatch(["plugin://x/", "8", "?mode=play"])
+        self.assertTrue(notify.called)
+        self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"])
+        self.assertEqual(xbmcplugin.CONTENT, [])
+
+    def test_runplugin_handler_crash_only_notifies(self):
+        handler = mock.Mock(side_effect=RuntimeError("boom"))
+        with mock.patch.dict(routes.HANDLERS, {"fav_add": handler}), \
+                mock.patch.object(routes.kodi, "notify") as notify:
+            routes.dispatch(["plugin://x/", "9", "?mode=fav_add&kind=pack&target=x&title=X"])
+        self.assertTrue(notify.called)
+        self.assertEqual(xbmcplugin.CONTENT, [])
+        self.assertEqual(xbmcplugin.RESOLVED, [])
+
+    def test_successful_handler_gets_a_budget_and_it_is_cleared(self):
+        probe = {}
+
+        def handler(handle, params):
+            probe["remaining"] = routes.http.remaining()
+            routes.kodi.end_directory(handle, "files")
+
+        with mock.patch.dict(routes.HANDLERS, {"root": handler}):
+            routes.dispatch(["plugin://x/", "10", "?mode=root"])
+        self.assertIsNotNone(probe["remaining"])
+        self.assertGreater(probe["remaining"], 0)
+        self.assertIsNone(routes.http.remaining())
+
+
+class SlowSourceNoticeTests(unittest.TestCase):
+    def setUp(self):
+        del xbmcplugin.ITEMS[:]
+        del xbmcplugin.CONTENT[:]
+        del xbmcplugin.CACHE_FLAGS[:]
+
+    def _dispatch_with_budget_flag(self, mode):
+        def handler(handle, params):
+            routes.kodi.end_directory(handle, "files")
+        with mock.patch.dict(routes.HANDLERS, {"root": handler, "play": handler}), \
+                mock.patch.object(routes.http, "route_budget_exhausted", return_value=True), \
+                mock.patch.object(routes.kodi, "notify") as notify:
+            routes.dispatch(["plugin://x/", "11", "?mode=" + mode])
+        return [str(call.args[0]) for call in notify.call_args_list]
+
+    def test_folder_route_notifies_when_the_network_budget_ran_out(self):
+        messages = self._dispatch_with_budget_flag("root")
+        self.assertTrue(any("slow" in message.lower() for message in messages), messages)
+
+    def test_playback_route_does_not_show_the_partial_results_notice(self):
+        messages = self._dispatch_with_budget_flag("play")
+        self.assertFalse(any("slow" in message.lower() for message in messages), messages)
+
+
+class RaveRouteTests(unittest.TestCase):
+    """Catalogue names with spaces must round-trip through the plugin URL."""
+
+    def setUp(self):
+        del xbmcplugin.ITEMS[:]
+
+    @staticmethod
+    def _entry():
+        return {"name": "World Dance", "query": "collection:ravetapes", "count": 3}
+
+    def test_rave_nights_key_round_trips_with_spaces(self):
+        with mock.patch.object(routes, "_rave_catalog", return_value=[self._entry()]), \
+                mock.patch.object(routes.kodi, "end_directory"):
+            routes.rave_nights(1, {})
+        urls = [item["url"] for item in xbmcplugin.ITEMS if "mode=rave_list" in item["url"]]
+        self.assertTrue(urls)
+        params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(urls[0]).query))
+        self.assertEqual(params["key"], "World Dance")
+
+    def test_rave_list_resolves_a_name_with_spaces(self):
+        docs = [{"identifier": "pack-1", "title": "Pack One"}]
+        with mock.patch.object(routes, "_rave_catalog", return_value=[self._entry()]), \
+                mock.patch.object(routes.archive, "search", return_value=(docs, 100)), \
+                mock.patch.object(routes, "_rows_per_page", return_value=10), \
+                mock.patch.object(routes.kodi, "end_directory"):
+            routes.rave_list(1, {"key": "World Dance"})
+        urls = [item["url"] for item in xbmcplugin.ITEMS
+                if "mode=rave_list" in item["url"]]
+        self.assertEqual(len(urls), 1)
+        params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(urls[0]).query))
+        self.assertEqual(params["key"], "World Dance")
+        self.assertEqual(params["page"], "2")
+
+    def test_rave_list_with_invalid_page_does_not_raise(self):
+        with mock.patch.object(routes, "_rave_catalog", return_value=[self._entry()]), \
+                mock.patch.object(routes.archive, "search", return_value=([], 0)), \
+                mock.patch.object(routes.kodi, "notify"), \
+                mock.patch.object(routes.kodi, "end_directory"):
+            routes.rave_list(1, {"key": "World Dance", "page": "nope"})
+
+
+class ThirdPartyLabelTests(unittest.TestCase):
+    """K9: third-party text must not inject Kodi label markup."""
+
+    def setUp(self):
+        del xbmcplugin.ITEMS[:]
+
+    def test_archive_title_markup_is_stripped_from_the_row(self):
+        docs = [{"identifier": "pack-1", "title": "[B]Bold[/B] [CR]Pack"}]
+        routes._archive_items(1, docs)
+        label = xbmcplugin.ITEMS[0]["label"]
+        self.assertNotIn("[B]", label)
+        self.assertNotIn("[CR]", label)
+        self.assertIn("Bold", label)
+
+    def test_latest_title_and_source_markup_is_stripped(self):
+        items = [{"kind": "pack", "identifier": "pack-1",
+                  "title": "Bad[/COLOR] [CR]Title", "source": "Feed [B]x[/B]",
+                  "when": None}]
+        with mock.patch.object(routes.latest, "merge", return_value=items), \
+                mock.patch.object(routes.latest, "resolve_dnb_streams", return_value={}), \
+                mock.patch.object(routes.kodi, "end_directory"):
+            routes.latest_view(1, {})
+        labels = [item["label"] for item in xbmcplugin.ITEMS]
+        self.assertFalse(any("[CR]" in label or "[B]" in label for label in labels), labels)
+        self.assertTrue(any("Bad" in label and "Title" in label for label in labels), labels)
+
+    def test_feed_episode_title_markup_is_stripped(self):
+        entry = {"id": "feed", "name": "Feed", "url": "https://x/feed", "plot": ""}
+        episodes = [{"title": "[B]Episode[/B]", "url": "https://x/a.mp3",
+                     "published": "[I]Mon[/I]", "description": "", "duration": None}]
+        with mock.patch.object(routes.feeds, "feed", return_value=entry), \
+                mock.patch.object(routes.feeds, "episodes", return_value=episodes), \
+                mock.patch.object(routes.kodi, "end_directory"):
+            routes.feed(1, {"key": "feed"})
+        label = xbmcplugin.ITEMS[0]["label"]
+        self.assertNotIn("[B]", label)
+        self.assertNotIn("[I]", label)
+        self.assertIn("Episode", label)
 
 
 if __name__ == "__main__":

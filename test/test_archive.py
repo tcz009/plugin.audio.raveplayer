@@ -96,5 +96,68 @@ class SearchBoundsTests(unittest.TestCase):
         self.assertIn("rows=50", seen["url"])
 
 
+class ArchiveUrlSafetyTests(unittest.TestCase):
+    """Archive metadata is third-party input: never let it escape the item path."""
+
+    def test_traversing_filenames_are_dropped(self):
+        files = [
+            {"name": "../../evil.mp3", "source": "original", "format": "VBR MP3"},
+            {"name": "/abs/evil.mp3", "source": "original", "format": "VBR MP3"},
+            {"name": "a/../b.mp3", "source": "original", "format": "VBR MP3"},
+            {"name": "a\\b.mp3", "source": "original", "format": "VBR MP3"},
+            {"name": "a//b.mp3", "source": "original", "format": "VBR MP3"},
+            {"name": "disc/../evil.mp3", "source": "original", "format": "VBR MP3"},
+            {"name": "disc/Track One.mp3", "source": "original", "format": "VBR MP3"},
+        ]
+        with mock.patch.object(archive, "item", return_value={"files": files}):
+            tracks = archive.audio_files("pack")
+        self.assertEqual([track["name"] for track in tracks], ["disc/Track One.mp3"])
+        self.assertEqual(tracks[0]["url"],
+                         "https://archive.org/download/pack/disc/Track%20One.mp3")
+
+    def test_control_characters_in_filenames_are_dropped(self):
+        files = [{"name": "bad\x01.mp3", "source": "original"}, {"name": "ok.mp3"}]
+        with mock.patch.object(archive, "item", return_value={"files": files}):
+            tracks = archive.audio_files("pack")
+        self.assertEqual([track["name"] for track in tracks], ["ok.mp3"])
+
+    def test_valid_direct_storage_base_is_used(self):
+        base = archive._direct_base({"dir": "/27/items/pack", "d1": "ia801234.us.archive.org"})
+        self.assertEqual(base, "https://ia801234.us.archive.org/27/items/pack/")
+        spaced = archive._direct_base({"dir": "/dir with space", "server": "ia1.us.archive.org"})
+        self.assertEqual(spaced, "https://ia1.us.archive.org/dir%20with%20space/")
+
+    def test_hostile_storage_nodes_and_dirs_are_rejected(self):
+        for payload in (
+            {"dir": "/27/items/../../evil", "d1": "ia1.us.archive.org"},
+            {"dir": "/27/items", "d1": "evil.example.com:8080"},
+            {"dir": "/27/items", "d1": "evil.example.com/x"},
+            {"dir": "/27/items?x=1", "d1": "ia1.us.archive.org"},
+            {"dir": "/27/items#frag", "d1": "ia1.us.archive.org"},
+            {"dir": "/27/it\x01ems", "d1": "ia1.us.archive.org"},
+            {"dir": "/27/items", "d1": "bad host"},
+            {"dir": "", "d1": "ia1.us.archive.org"},
+        ):
+            self.assertEqual(archive._direct_base(payload), "", payload)
+
+    def test_invalid_storage_node_falls_back_to_download_url(self):
+        payload = {
+            "metadata": {"title": "Pack"},
+            "dir": "/27/items/pack",
+            "d1": "evil.example.com:8080",
+            "files": [{"name": "Track One.mp3", "source": "original"}],
+        }
+        with mock.patch.object(archive, "item", return_value=payload):
+            tracks = archive.audio_files("pack")
+        self.assertTrue(tracks[0]["url"].startswith("https://archive.org/download/pack/"))
+
+    def test_infinite_durations_and_sizes_do_not_raise(self):
+        for value in (float("inf"), float("-inf"), "Infinity", "inf", "1e400", "1e999"):
+            self.assertIsNone(archive._duration(value), value)
+        self.assertEqual(archive._as_int(float("inf")), 0)
+        # Very long digit strings must not escape as a traceback either.
+        archive._duration("1:" + "9" * 6000)
+
+
 if __name__ == "__main__":
     unittest.main()

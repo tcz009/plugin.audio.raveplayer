@@ -9,6 +9,11 @@ read-only profile, a full disk or a corrupt file must never stop playback.
 
 ``ttl`` is in seconds.  Entries older than the TTL are ignored.  Only JSON
 values are stored; callers keep JSON text or parsed JSON in the cache.
+
+Hardening in 3.9.11: writes stay atomic (temp file + ``os.replace``), and a
+small periodic maintenance pass bounds the directory so it cannot grow for
+ever (old entries and stale temp files are removed, and the entry count is
+capped).  Reads also reject oversized entry files instead of loading them.
 """
 
 import hashlib
@@ -21,6 +26,14 @@ from . import kodi
 
 VERSION = 1
 CACHE_DIR_ENV = "RAVEPLAYER_CACHE_DIR"
+
+MAX_ENTRY_BYTES = 16 * 1024 * 1024  # larger files cannot be ours; drop them
+MAX_ENTRIES = 2000                  # cap on live cache entries
+MAX_AGE_SECONDS = 30 * 24 * 60 * 60  # 30 days
+STALE_TEMP_SECONDS = 60 * 60        # abandoned .tmp-* files after a crash
+CLEANUP_EVERY = 64                  # run maintenance after this many writes
+
+_writes_since_maintenance = 0
 
 
 class _Missing(object):
@@ -71,6 +84,13 @@ def _remove(path):
 def _read(key):
     path = path_for(key)
     try:
+        if os.path.getsize(path) > MAX_ENTRY_BYTES:
+            _log("dropping oversized cache entry %s" % key)
+            _remove(path)
+            return MISSING
+    except OSError:
+        return MISSING
+    try:
         with open(path, "r", encoding="utf-8") as handle:
             payload = json.load(handle)
     except FileNotFoundError:
@@ -112,8 +132,18 @@ def get(key, ttl, now=None):
     return value
 
 
+def _maybe_maintain():
+    if _writes_since_maintenance % CLEANUP_EVERY:
+        return
+    try:
+        maintain()
+    except Exception as exc:  # maintenance must never break a cache write
+        _log("maintenance failed (%s)" % exc)
+
+
 def put(key, value):
     """Store a JSON-serialisable value.  Returns True on success."""
+    global _writes_since_maintenance
     if value is None:
         return False
     path = path_for(key)
@@ -132,12 +162,55 @@ def put(key, value):
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, path)
+        _writes_since_maintenance += 1
+        _maybe_maintain()
         return True
     except (OSError, TypeError, ValueError) as exc:
         _log("could not write %s (%s)" % (key, exc))
         if temporary:
             _remove(temporary)
         return False
+
+
+def maintain(now=None, max_entries=MAX_ENTRIES, max_age=MAX_AGE_SECONDS,
+             stale_temp=STALE_TEMP_SECONDS):
+    """Remove stale/oversized cache files and cap the directory size.
+
+    Returns the number of files removed.  Best-effort: every filesystem error
+    is ignored so a read-only profile keeps working.
+    """
+    directory = _directory()
+    try:
+        names = os.listdir(directory)
+    except OSError:
+        return 0
+    now = time.time() if now is None else now
+    removed = 0
+    entries = []
+    for name in names:
+        path = os.path.join(directory, name)
+        try:
+            stat = os.stat(path)
+        except OSError:
+            continue
+        if name.startswith(".tmp-"):
+            if now - stat.st_mtime > stale_temp:
+                _remove(path)
+                removed += 1
+            continue
+        if not name.endswith(".json"):
+            continue
+        if now - stat.st_mtime > max_age:
+            _remove(path)
+            removed += 1
+            continue
+        entries.append((stat.st_mtime, path))
+    if len(entries) > max_entries:
+        entries.sort(key=lambda item: item[0])
+        for _mtime, path in entries[: len(entries) - max_entries]:
+            _remove(path)
+            removed += 1
+    return removed
 
 
 def remember(key, ttl, producer):

@@ -5,6 +5,7 @@ Best-effort like the cache — a read-only profile must never break the add-on,
 it just means favourites are not saved.
 """
 
+import contextlib
 import json
 import os
 import tempfile
@@ -102,19 +103,59 @@ def key(entry):
     return "%s:%s" % (entry.get("kind", ""), entry.get("target", ""))
 
 
+def _lock_handle(handle):
+    """Best-effort advisory lock; unavailable platforms simply run unlocked."""
+    try:
+        import fcntl
+
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        return
+    except (ImportError, OSError):
+        pass
+    try:
+        import msvcrt
+
+        msvcrt.locking(handle, msvcrt.LK_LOCK, 1)
+    except (ImportError, OSError, AttributeError):
+        pass
+
+
+@contextlib.contextmanager
+def _locked():
+    """Serialise load-modify-save updates across Kodi processes."""
+    lock_path = _path() + ".lock"
+    handle = None
+    try:
+        handle = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    except OSError:
+        handle = None
+    try:
+        if handle is not None:
+            _lock_handle(handle)
+        yield
+    finally:
+        if handle is not None:
+            try:
+                os.close(handle)  # closing releases flock/msvcrt locks
+            except OSError:
+                pass
+
+
 def add(entry):
     """Add or refresh an entry; returns True when the list was saved."""
     cleaned = _clean(entry)
     if cleaned is None:
         return False
-    entries = [item for item in load() if key(item) != key(cleaned)]
-    entries.insert(0, cleaned)
-    return save(entries)
+    with _locked():
+        entries = [item for item in load() if key(item) != key(cleaned)]
+        entries.insert(0, cleaned)
+        return save(entries)
 
 
 def remove(entry_key):
-    entries = [item for item in load() if key(item) != entry_key]
-    return save(entries)
+    with _locked():
+        entries = [item for item in load() if key(item) != entry_key]
+        return save(entries)
 
 
 def has(entry):

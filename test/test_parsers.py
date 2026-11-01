@@ -120,6 +120,22 @@ class LegacyTests(unittest.TestCase):
     def test_track_pretty_unescapes_html_entities(self):
         self.assertEqual(legacy._pretty("Wolf_%26amp%3B_Tranzit"), "Wolf & Tranzit")
 
+    def test_url_path_rejects_traversal(self):
+        self.assertEqual(legacy._url_path("a/../b.mp3"), "")
+        self.assertEqual(legacy._url_path("../x.mp3"), "")
+        self.assertEqual(legacy._url_path("/files/mixtape/x.mp3"), "/files/mixtape/x.mp3")
+
+    def test_jungle_tracks_drop_non_http_links(self):
+        page = (
+            '<a href="file:///tmp/x.mp3">x</a>'
+            '<a href="javascript:alert(1)//x.mp3">js</a>'
+            '<a href="https://jungletapes.com/good.mp3">good</a>'
+        )
+        with mock.patch.object(legacy.http, "fetch", return_value=page):
+            tracks = legacy.jungle_tracks("slug")
+        self.assertEqual([track["url"] for track in tracks],
+                         ["https://jungletapes.com/good.mp3"])
+
     def test_playable_appends_referer(self):
         url = legacy.playable("https://www.ravetapepacks.com/music/X/Y.mp3")
         self.assertTrue(url.endswith("|Referer=https://www.ravetapepacks.com/&User-Agent=Mozilla/5.0"))
@@ -216,6 +232,19 @@ class RadioTests(unittest.TestCase):
     def test_stream_url_rejects_non_dict(self):
         self.assertEqual(radio.stream_url("http://nope"), "")
 
+    def test_stream_url_rejects_unsafe_schemes(self):
+        for value in ("file:///etc/passwd", "javascript:alert(1)",
+                      "data:audio/mpeg;base64,AA", "//example.test/a", ""):
+            self.assertEqual(radio.stream_url({"url_resolved": value}), "", value)
+        self.assertEqual(radio.stream_url({"url": "http://ok.example/a"}), "http://ok.example/a")
+
+    def test_mirror_attempts_use_a_short_timeout(self):
+        with mock.patch.object(radio.http, "fetch_json", return_value=[]) as fetch:
+            radio.stations("jungle")
+        self.assertTrue(fetch.called)
+        self.assertLessEqual(fetch.call_args[1]["timeout"], radio.MIRROR_TIMEOUT)
+        self.assertEqual(fetch.call_args[1]["ttl"], radio.STATIONS_TTL)
+
     def test_display_builds_meta(self):
         name, meta = radio.display({
             "name": " Kool FM ", "countrycode": "GB", "codec": "MP3", "bitrate": 128,
@@ -231,6 +260,7 @@ class RadioTests(unittest.TestCase):
     def test_display_ignores_zero_or_invalid_bitrate(self):
         self.assertEqual(radio.display({"name": "A", "bitrate": "0"})[1], "")
         self.assertEqual(radio.display({"name": "A", "bitrate": "fast"})[1], "")
+        self.assertEqual(radio.display({"name": "A", "bitrate": float("inf")})[1], "")
 
     def test_stations_filters_bad_entries_and_tries_next_mirror(self):
         first = None
@@ -341,6 +371,30 @@ class FeedTests(unittest.TestCase):
         import xml.etree.ElementTree as ET
         node = ET.fromstring("<item><title>Hello <b>World</b></title></item>")
         self.assertEqual(feeds._text(node, "title"), "Hello World")
+
+    def test_enclosures_must_be_http_urls(self):
+        xml = (
+            "<rss><channel>"
+            '<item><title>File</title><enclosure url="file:///etc/passwd"/></item>'
+            '<item><title>Script</title><enclosure url="javascript:alert(1)"/></item>'
+            '<item><title>Relative</title><enclosure url="//example.test/a.mp3"/></item>'
+            '<item><title>Http</title><enclosure url="http://example.test/ok.mp3"/></item>'
+            "</channel></rss>"
+        )
+        self.assertEqual([episode["title"] for episode in feeds.parse(xml)], ["Http"])
+
+    def test_entity_declarations_are_rejected(self):
+        xml = (
+            '<?xml version="1.0"?>'
+            '<!DOCTYPE rss [<!ENTITY boom "b">]>'
+            '<rss><channel><item><title>&boom;</title>'
+            '<enclosure url="https://example.test/a.mp3"/></item></channel></rss>'
+        )
+        self.assertEqual(feeds.parse(xml), [])
+
+    def test_duration_overflow_is_safe(self):
+        for raw in ("Infinity", "inf", "-inf", "1e999", "1e400"):
+            self.assertIsNone(feeds._duration(_item_with_duration(raw)), raw)
 
     def test_registry_entries_are_well_formed(self):
         entries = feeds.registry()

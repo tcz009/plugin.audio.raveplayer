@@ -6,7 +6,10 @@ import os
 import shutil
 import sys
 import tempfile
+import threading
+import time
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "stubs"))
@@ -109,6 +112,41 @@ class FavouriteTests(unittest.TestCase):
             handle.write("x")
         os.environ[favourites.FAV_DIR_ENV] = blocker
         self.assertFalse(favourites.save([{"kind": "pack", "target": "x", "title": "X"}]))
+
+
+class FavouriteConcurrencyTests(unittest.TestCase):
+    """K7: overlapping read-modify-save updates must not lose entries."""
+
+    def setUp(self):
+        self.directory = tempfile.mkdtemp(prefix="rave-fav-lock-")
+        os.environ[favourites.FAV_DIR_ENV] = self.directory
+
+    def tearDown(self):
+        os.environ.pop(favourites.FAV_DIR_ENV, None)
+        shutil.rmtree(self.directory, ignore_errors=True)
+
+    def test_two_concurrent_adds_keep_both_entries(self):
+        real_load = favourites.load
+
+        def slow_load():
+            entries = real_load()
+            time.sleep(0.05)  # widen the read-modify-write window
+            return entries
+
+        with mock.patch.object(favourites, "load", side_effect=slow_load):
+            threads = [
+                threading.Thread(target=favourites.add,
+                                 args=({"kind": "pack", "target": target,
+                                        "title": target},))
+                for target in ("pack-a", "pack-b")
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(5)
+
+        self.assertEqual(sorted(entry["target"] for entry in favourites.load()),
+                         ["pack-a", "pack-b"])
 
 
 if __name__ == "__main__":

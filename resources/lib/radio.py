@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Live radio via radio-browser.info — a community directory that stays current."""
 
+import urllib.parse
+
 from . import http
 
 MIRRORS = [
@@ -8,6 +10,11 @@ MIRRORS = [
     "https://nl1.api.radio-browser.info",
     "https://at1.api.radio-browser.info",
 ]
+
+# Three mirrors are tried in sequence; keep each attempt short so a dead
+# directory cannot block the plugin for a minute.
+MIRROR_TIMEOUT = 8
+STATIONS_TTL = 10 * 60  # station lists change slowly
 
 
 def stations(tag, limit=100):
@@ -72,7 +79,7 @@ def _clamp(value, default, maximum):
 def _search(query):
     """Try each mirror in turn; a dead mirror is not an empty result."""
     for mirror in MIRRORS:
-        data = http.fetch_json(mirror + query, timeout=20)
+        data = http.fetch_json(mirror + query, timeout=MIRROR_TIMEOUT, ttl=STATIONS_TTL)
         if not isinstance(data, list):
             continue
         found = []
@@ -91,13 +98,24 @@ def stream_url(station):
     if not isinstance(station, dict):
         return ""
     url = station.get("url_resolved") or station.get("url") or ""
-    return url if isinstance(url, str) else ""
+    if not isinstance(url, str):
+        return ""
+    url = url.strip()
+    if not url:
+        return ""
+    try:
+        split = urllib.parse.urlsplit(url)
+    except ValueError:
+        return ""
+    if split.scheme.lower() not in ("http", "https") or not split.netloc:
+        return ""
+    return url
 
 
 def _as_int(value):
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 0
 
 

@@ -73,12 +73,29 @@ def dialog():
     return xbmcgui.Dialog()
 
 
-def end_directory(handle, content="files", cache=False):
+_ended_handles = set()
+
+
+def reset_directory(handle):
+    """Forget any previous end-of-directory state for this plugin handle."""
+    _ended_handles.discard(handle)
+
+
+def directory_ended(handle):
+    """True when ``end_directory`` already closed this handle."""
+    return handle in _ended_handles
+
+
+def end_directory(handle, content="files", cache=False, succeeded=True):
     """Finish a directory.
 
     ``cache=False`` by default: Kodi's on-disk directory cache otherwise keeps
     serving a favourites list (or a "Latest") folder after its contents have
     changed.  The add-on has its own HTTP cache, so re-running a route is cheap.
+
+    The handle is remembered so ``routes.dispatch`` can close a directory that
+    a crashing handler left open (and never call ``endOfDirectory`` twice).
     """
+    _ended_handles.add(handle)
     xbmcplugin.setContent(handle, content)
-    xbmcplugin.endOfDirectory(handle, cacheToDisc=cache)
+    xbmcplugin.endOfDirectory(handle, succeeded=succeeded, cacheToDisc=cache)

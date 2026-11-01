@@ -54,3 +54,6 @@ class Player(object):
 
     def isPlaying(self):
         return bool(PLAYED)
+
+    def stop(self):
+        PLAYED.clear()

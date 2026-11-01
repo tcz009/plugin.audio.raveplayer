@@ -24,9 +24,46 @@ ITEM_TTL = 3600
 
 MAX_ROWS = 500
 
+_CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
+_HOST_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$")
+
 
 def _quote(value):
     return urllib.parse.quote(str(value), safe="")
+
+
+def _relative_url_path(name):
+    """Return a safely quoted relative URL path for an Archive filename, or ''.
+
+    Archive metadata is third-party input.  Reject absolute paths, backslashes,
+    control characters and empty/"."/".." segments so a hostile or malformed
+    filename cannot escape the item's directory (or inject URL parts) when it
+    is handed to Kodi for playback.
+    """
+    text = str(name or "")
+    if not text or text.startswith("/") or "\\" in text or _CONTROL_RE.search(text):
+        return ""
+    quoted = []
+    for part in text.split("/"):
+        if part in ("", ".", ".."):
+            return ""
+        quoted.append(urllib.parse.quote(part, safe=""))
+    return "/".join(quoted)
+
+
+def _safe_directory(value):
+    """Validate/normalise Archive's item ``dir`` field for URL building."""
+    if not isinstance(value, str) or not value.startswith("/"):
+        return ""
+    if "\\" in value or "?" in value or "#" in value or _CONTROL_RE.search(value):
+        return ""
+    text = value.rstrip("/")
+    if not text:
+        return ""
+    parts = text.split("/")[1:]
+    if not parts or any(part in ("", ".", "..") for part in parts):
+        return ""
+    return "/" + "/".join(urllib.parse.quote(part, safe="") for part in parts)
 
 
 def thumb(identifier):
@@ -43,7 +80,7 @@ def as_text(value):
 def _as_int(value):
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 0
 
 
@@ -119,28 +156,31 @@ def audio_files(identifier):
             continue
         if lower.endswith(("_spectrogram.png", "_sample.mp3")):
             continue
+        relative = _relative_url_path(name)
+        if not relative:
+            continue
         key = _file_key(name)
         rank = _rank(entry)
         current = best.get(key)
         if current is None or rank < current[0]:
-            best[key] = (rank, name.lower(), entry)
-    ordered = [entry for _rank_value, _name, entry in sorted(best.values())]
+            best[key] = (rank, name.lower(), entry, relative)
+    ordered = sorted(best.values())
     metadata = data.get("metadata")
     if not isinstance(metadata, dict):
         metadata = {}
     item_title = as_text(metadata.get("title"))
     base = _direct_base(data)
-    return [
-        {
+    tracks = []
+    for _rank_value, _name, entry, relative in ordered:
+        tracks.append({
             "name": entry.get("name"),
             "title": _track_title(entry, item_title),
             "size": _as_int(entry.get("size")),
             "duration": _duration(entry.get("length")),
-            "url": (base + urllib.parse.quote(entry["name"], safe="/")) if base
-                   else DOWNLOAD_URL % (_quote(identifier), urllib.parse.quote(entry["name"], safe="/")),
-        }
-        for entry in ordered
-    ]
+            "url": (base + relative) if base
+                   else DOWNLOAD_URL % (_quote(identifier), relative),
+        })
+    return tracks
 
 
 def _direct_base(data):
@@ -153,13 +193,17 @@ def _direct_base(data):
     """
     if not isinstance(data, dict):
         return ""
-    directory = data.get("dir")
-    if not isinstance(directory, str) or not directory.startswith("/"):
+    directory = _safe_directory(data.get("dir"))
+    if not directory:
         return ""
     for key in ("d1", "server", "d2"):
         node = data.get(key)
-        if isinstance(node, str) and node and "/" not in node and " " not in node:
-            return "https://%s%s/" % (node, directory.rstrip("/"))
+        if not isinstance(node, str):
+            continue
+        node = node.strip()
+        if not node or len(node) > 253 or not _HOST_RE.match(node) or ".." in node:
+            continue
+        return "https://%s%s/" % (node, directory)
     return ""
 
 
@@ -177,12 +221,19 @@ def _file_key(name):
 def _duration(value):
     """Return seconds from the Archive's ``length`` field, or None."""
     if isinstance(value, (int, float)):
-        return int(value) if value > 0 else None
+        try:
+            number = int(value)
+        except (ValueError, OverflowError):
+            return None
+        return number if number > 0 else None
     text = as_text(value)
     if not text:
         return None
     if ":" in text:
-        parts = [int(part) for part in re.findall(r"\d+", text)[:3]]
+        try:
+            parts = [int(part) for part in re.findall(r"\d+", text)[:3]]
+        except (ValueError, OverflowError):
+            return None
         if not parts:
             return None
         seconds = 0
@@ -191,7 +242,7 @@ def _duration(value):
         return seconds or None
     try:
         seconds = int(float(text))
-    except ValueError:
+    except (TypeError, ValueError, OverflowError):
         return None
     return seconds if seconds > 0 else None
 
