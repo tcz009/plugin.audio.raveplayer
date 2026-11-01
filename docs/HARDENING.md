@@ -22,7 +22,7 @@ direction was followed. Nothing was deferred silently.
 | Adversarial findings | 11/11 addressed: 10 fixed in code/tests, K3's concurrent-feed refactor deferred (see §3) with the per-route wall-clock cap + notification implemented instead |
 | Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,http,kodi,legacy,radio,routes}.py` |
 | Tests changed | `test/test_{archive,cache,compat,favourites,http,parsers,routes}.py`, `test/stubs/{xbmc,xbmcplugin}.py` |
-| Docs | `docs/HARDENING.md` (this file), `docs/CODE-REVIEW.md`, `AGENTS.md`, `changelog.txt`, `addon.xml` |
+| Docs | `docs/HARDENING.md` (this file), `docs/CODE-REVIEW.md`, `changelog.txt`, `addon.xml`; `AGENTS.md` fixed locally (git-excluded by design, never published) |
 | Compatibility | Python 3.9 grammar floor enforced; no module/API removed in 3.9–3.14 is used; Kodi 22 (Python 3.14) not runnable in this environment (see §6) |
 
 ---
@@ -166,7 +166,9 @@ regression — the 3.9.8 cascade tests still pass).
 now says version **3.9.10** at tag `v3.9.10-review`, hardening on
 `hardening/3.9.11`, suite **259 tests** (207 at the tag) and records 3.9.8–3.9.11
 in the recent-history line; its stale "expect 193 OK" rule was corrected too.
-`addon.xml`/`changelog.txt` are at 3.9.11.
+`addon.xml`/`changelog.txt` are at 3.9.11. (`AGENTS.md` is listed in
+`.git/info/exclude` as never-published workspace instructions, so its correction
+is local-only and not part of the branch diff.)
 **Tests:** `test_compat` guards the runtime against the documented 3.9 floor and
 removed stdlib modules; docs are not executable, so this is a documentation
 correction verified by inspection. **Status: fixed.**
@@ -280,7 +282,7 @@ default.py                  + last-resort main() guard
 test/…                      52 new tests + stub support
 docs/HARDENING.md           this file
 docs/CODE-REVIEW.md         K11 accuracy (module list, Kodi/Python note)
-AGENTS.md                   K11 accuracy (version, tag, test counts, history)
+AGENTS.md                   K11 accuracy (local-only; git-excluded, not in the commit diff)
 addon.xml / changelog.txt   3.9.11
 ```
 
