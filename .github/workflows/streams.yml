@@ -1,0 +1,17 @@
+name: live-streams
+
+on:
+  schedule:
+    - cron: "15 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Kool/Rinse/Archive endpoints
+        run: sh scripts/check-streams.sh
