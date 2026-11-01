@@ -317,10 +317,11 @@ class QuickFilterDataTests(unittest.TestCase):
     def test_filters_are_unique_and_cover_the_web_parity_ids(self):
         entries = routes._filters()
         ids = [entry["id"] for entry in entries]
-        self.assertEqual(len(ids), 15)
+        self.assertEqual(len(ids), 16)
         self.assertEqual(len(ids), len(set(ids)))
         self.assertIn("dj-ez", ids)
         self.assertIn("garage-nation", ids)
+        self.assertIn("rinse", ids)
         for entry in entries:
             self.assertTrue(entry.get("name"), entry)
             self.assertTrue(entry.get("query"), entry)
