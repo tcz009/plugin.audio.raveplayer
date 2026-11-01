@@ -68,7 +68,8 @@ def menu_item(handle, url, label, icon=None, fanart=None, plot=None, context=Non
         "fanart": fanart or DEFAULT_FANART,
         "poster": icon or kodi.ICON,
     }
-    info = {"title": plain(title or label), "plot": plot or plain(label), "mediatype": "music"}
+    info = kodi.music_info(plain(title or label), plot or plain(label),
+                           mediatype="music")
     return add_item(handle, url, label, is_folder=True, art=art, info=info, context=context)
 
 
@@ -80,7 +81,8 @@ def info_item(handle, label, plot=None, icon=None):
         "thumb": icon or kodi.ICON,
         "fanart": DEFAULT_FANART,
     })
-    item.setInfo("music", {"title": plain(label), "plot": plot or plain(label)})
+    item.setInfo("music", kodi.music_info(plain(label), plot or plain(label),
+                                         mediatype="music"))
     item.setProperty("IsPlayable", "false")
     xbmcplugin.addDirectoryItem(handle=handle, url="", listitem=item, isFolder=False)
     return item
@@ -98,7 +100,8 @@ def end_marker(handle, label="End of list", plot=None):
         "thumb": kodi.ICON,
         "fanart": DEFAULT_FANART,
     })
-    item.setInfo("music", {"title": plain(label), "plot": plot or plain(label)})
+    item.setInfo("music", kodi.music_info(plain(label), plot or plain(label),
+                                         mediatype="music"))
     item.setProperty("IsPlayable", "false")
     xbmcplugin.addDirectoryItem(handle=handle, url="", listitem=item, isFolder=False)
     return item
@@ -111,10 +114,10 @@ def track_item(handle, url, label, thumb=None, fanart=None, plot=None, artist=No
         "thumb": thumb or kodi.ICON,
         "fanart": fanart or DEFAULT_FANART,
     }
-    # Kodi's music InfoTag has no plot; "comment" is the field the music
-    # info dialog displays, so set both (plot kept for other consumers/tests).
-    info = {"title": plain(title or label), "plot": plot or "", "comment": plot or "",
-            "mediatype": "music"}
+    # Kodi 22 rejects the music "plot" key; kodi.music_info keeps "comment"
+    # (the music-dialog display field) and only adds plot on Kodi < 22.
+    info = kodi.music_info(plain(title or label), plot or "",
+                           mediatype="music")
     if artist:
         info["artist"] = plain(artist)
     if album:

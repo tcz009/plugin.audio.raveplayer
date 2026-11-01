@@ -15,6 +15,49 @@ ICON = ADDON.getAddonInfo("icon")
 FANART = ADDON.getAddonInfo("fanart")
 
 
+def _kodi_major():
+    """Best-effort Kodi major version; 0 outside Kodi/test stubs."""
+    try:
+        raw = str(xbmc.getInfoLabel("System.BuildVersion") or "")
+    except Exception:
+        return 0
+    digits = ""
+    for char in raw:
+        if char.isdigit():
+            digits += char
+        elif digits:
+            break
+    try:
+        return int(digits)
+    except ValueError:
+        return 0
+
+
+KODI_MAJOR = _kodi_major()
+
+
+def music_info(title, plot="", **extra):
+    """Build a music InfoTag without Kodi 22's unsupported ``plot`` key.
+
+    Kodi 18-21 tolerate ``plot`` in a music InfoTag (the old add-on used it);
+    Kodi 22 logs an ``Unknown Music Info Key "plot"`` error for every item.
+    ``comment`` is the field shown by the music info dialog on all supported
+    versions, so use it as the portable display field.
+    """
+    info = {"title": plain_text(title)}
+    if plot:
+        info["comment"] = plot
+        if KODI_MAJOR and KODI_MAJOR < 22:
+            info["plot"] = plot
+    info.update(extra)
+    return info
+
+
+def plain_text(value):
+    """No-op placeholder kept for callers that pass already-plain titles."""
+    return str(value or "")
+
+
 def log(message, level=xbmc.LOGDEBUG):
     xbmc.log("[%s] %s" % (ADDON_ID, message), level)
 

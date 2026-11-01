@@ -68,6 +68,7 @@ getdarker_source = _lazy("getdarker")
 hardscore_source = _lazy("hardscore")
 latest = _lazy("latest")
 legacy = _lazy("legacy")
+live = _lazy("live")
 mixcloud_source = _lazy("mixcloud")
 moxser_source = _lazy("moxser")
 nowplaying = _lazy("nowplaying")
@@ -333,13 +334,15 @@ def _station_items(handle, stations, plot):
         label = "%s  [I]%s[/I]" % (name, meta) if meta else name
         ui.track_item(
             handle,
-            url_for(mode="play", url=stream, label=name, thumb=favicon or ""),
+            url_for(mode="play", url=stream, label=name, thumb=favicon or "",
+                    live=1, station=name),
             label,
             thumb=favicon,
             plot=plot,
-            artist=meta or None,
+            artist=name,
+            album="Live radio",
             title=name,
-            context=[_favourite("stream", stream, name, "Live radio")],
+            context=[_favourite("stream", stream, name, "Live radio · %s" % name)],
         )
 
 
@@ -408,13 +411,8 @@ def _play_tracks(tracks, identifier, start=0, shuffle=False):
         plotted = nowplaying.plot("From archive.org item %s" % identifier, details)
         item = xbmcgui.ListItem(path=url)
         item.setArt({"thumb": thumb, "icon": thumb, "fanart": thumb})
-        info = {
-            "title": ui.plain(track["title"]),
-            "album": album,
-            "plot": plotted,       # kept for compatibility
-            "comment": plotted,    # the field Kodi's music info actually shows
-            "mediatype": "music",
-        }
+        info = kodi.music_info(ui.plain(track["title"]), plotted,
+                               mediatype="music", album=album)
         if track.get("duration"):
             info["duration"] = track["duration"]
         item.setInfo("music", info)
@@ -737,7 +735,13 @@ def fav_list(handle, params):
                              plot="Saved %s link — opens in the Kodi add-on." % kind,
                              context=context)
                 continue
-            ui.track_item(handle, url_for(mode="play", url=entry["target"], label=title),
+            play_params = {"url": entry["target"], "label": title}
+            if "live radio" in source.lower() or live.is_live_stream(entry["target"]):
+                play_params["live"] = 1
+                station = source.split("·")[-1].strip() if "·" in source else ""
+                if station:
+                    play_params["station"] = station
+            ui.track_item(handle, url_for(mode="play", **play_params),
                           title, thumb=art("radio.png"),
                           plot="Saved stream · %s" % source if source else "Saved stream",
                           context=context)
@@ -893,12 +897,14 @@ def _latest_live_rows(handle):
         label = "● On air now · %s" % name
         ui.track_item(
             handle,
-            url_for(mode="play", url=stream, label=label),
+            url_for(mode="play", url=stream, label=label,
+                    live=1, station=name),
             label,
             thumb=art("radio.png"),
             plot="Live radio · %s" % name,
+            artist=name,
             album="Live radio",
-            title=label,
+            title=name,
             context=[_favourite("stream", stream, label, "Live radio · %s" % name)],
         )
         count += 1
@@ -1753,17 +1759,33 @@ def play(handle, params):
                        "That stream address is not playable "
                        "(private, loopback or unresolved host).")
         return
+    is_live = _flag(params, "live") or live.is_live_stream(stream)
+    station = live.station_name(stream, params.get("station") or label) if is_live else ""
+    display_label = station or label
     item = xbmcgui.ListItem(path=stream)
     art = {"thumb": thumb, "icon": thumb}
     if fanart:
         art["fanart"] = fanart
     item.setArt(art)
-    info = {"title": ui.plain(label)}
-    if plotted:
-        info["plot"] = plotted      # kept for compatibility
-        info["comment"] = plotted   # displayed by Kodi's music info
+    info = kodi.music_info(ui.plain(display_label), plotted, mediatype="music")
+    if is_live:
+        info["artist"] = station
+        info["album"] = "Live radio"
     item.setInfo("music", info)
     item.setProperty("IsPlayable", "true")
+    if is_live:
+        path = live.write_playlist(stream, station)
+        if path:
+            # Finite repeated entries reconnect a dropped stream; Kodi stops
+            # when the list ends and a user Stop does not auto-advance.
+            item = xbmcgui.ListItem(path=path)
+            item.setArt(art)
+            item.setInfo("music", info)
+            item.setProperty("IsPlayable", "true")
+            item.setProperty("IsLiveStream", "true")
+            xbmcplugin.setResolvedUrl(handle, True, item)
+            return
+        kodi.log("live reconnect playlist unavailable; using direct stream")
     xbmcplugin.setResolvedUrl(handle, True, item)
 
 

@@ -24,6 +24,14 @@ def getCondVisibility(condition):
     return False
 
 
+def getInfoLabel(label):
+    return "21.0"
+
+
+def getInfoLabelValue(label):
+    return ""
+
+
 def sleep(milliseconds):
     pass
 

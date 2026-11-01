@@ -1,3 +1,16 @@
+Rave Player 3.9.23
+- Live radio reconnect: Kool FM and Rinse FM resolve through a bounded local
+  M3U playlist (6 copies of the curated stream). If a proxy connection drops,
+  Kodi advances to the next entry and reconnects; the finite list stops after
+  the cap and a user Stop stops immediately. No infinite reconnect loop.
+- Fixed curated live metadata: station label/artist/album/art and M3U EXTINF
+  use "Kool FM"/"Rinse FM" instead of the stream's placeholder ICY text.
+- Kodi 22 music InfoTag: stop sending the unsupported "plot" key (the source
+  of the "Unknown Music Info Key plot" errors); use the supported "comment"
+  field. Kodi <22 still receives plot for compatibility.
+- Tests: 409 -> 417 (finite M3U/labels, live play route/fallback, Kodi 22
+  plot gating).
+
 Rave Player 3.9.22
 - Playback audit after a Shield incident: no route self-starts playback.
   Playback is limited to the explicit play/dnb-play routes and the explicit
