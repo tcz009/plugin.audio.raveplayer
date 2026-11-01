@@ -862,24 +862,16 @@ def filter_list(handle, params):
 
 
 def _fail_playback(handle, message):
-    """Fail a resolution safely: tell the user, then stop dead.
+    """Fail a resolve without touching the user's current playback.
 
     A playable item inside a mixed folder can make Kodi build a music playlist
     from the whole folder.  The "Latest" cascade is stopped at the source: its
-    directory is typed ``files`` and unresolvable rows are dropped.  A failure
-    here therefore only stops the current playback attempt — it must not clear
-    the user's music queue, which is not ours to discard.
+    directory is typed ``files`` and unresolvable rows are dropped.  A failed
+    resolve only reports failure for this plugin handle; it must not stop or
+    clear a track the user is already playing (especially if a programmatic
+    invocation hits an invalid play URL).
     """
-    # Do not clear the music playlist: that is the user's queue, not ours.
-    # The folder-content fix (``files``) is what stops a built-up folder from
-    # cascading; a failed resolve only needs to stop the current attempt.
     kodi.notify(message)
-    try:
-        player = xbmc.Player()
-        if player.isPlaying():
-            player.stop()
-    except Exception:  # stopping is best-effort; never mask the failure
-        kodi.log("could not stop playback after a failed resolve")
     xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
 
 
@@ -1691,16 +1683,30 @@ def about(handle, params):
         ("Source: Mixcloud", "radio.png",
          "Rave Archive UK and GetDarker cloudcasts — via the Kodi Mixcloud add-on."),
         ("Source: SoundCloud", "radio.png",
-         "Web version only — SoundCloud is not part of the Kodi build."),
+         "Web version only — SoundCloud is not part of the Kodi build; "
+         "there is no Kodi source row or hand-off."),
         ("Source: radio-browser.info", "radio.png", "Live radio station directory."),
         ("Source: Moxser.com", "rave.png",
          "Curated dance-music mix archive and direct MP3s."),
         ("Source: Hardscore.com", "hardcore.png",
          "Oldskool hardcore/jungle archive and direct MP3s."),
+        ("Source: DNB Radio", "hardcore.png",
+         "Jungle and drum & bass shows and direct MP3s from dnbradio.com."),
         ("Source: GetDarker.com", "jungle.png",
          "Dubstep/garage/underground sets (Kodi Mixcloud add-on)."),
+        ("Source: Podcast & mix RSS feeds", "radio.png",
+         "Jungle Lab, Viper, Toro and the other podcast feeds."),
+        ("Source: Pirate Radio Archives", "pirate-archive.png",
+         "Curated Risk FM, Weekend Rush and Flava FM recordings; "
+         "credits are shown on each recording."),
         ("Live radio: Kool FM & Rinse FM", "radio.png",
          "Kool London and Rinse FM live streams (via admin.stream.rinse.fm)."),
+        ("Source: RaveTapePacks.com", "tapepacks.png",
+         "Full tape packs; playback URLs carry the required Referer header."),
+        ("Source: JungleTapes.com", "jungle.png",
+         "Toronto jungle/drum & bass radio shows from the site sitemap."),
+        ("Source: Toronto Rave Mixtape Archive", "rave.png",
+         "1990s Toronto rave mixtapes."),
     ]
     for label, icon, plot in rows:
         ui.info_item(handle, label, plot=plot, icon=art(icon))
