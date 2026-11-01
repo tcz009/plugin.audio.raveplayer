@@ -430,6 +430,39 @@ class FeedCacheTests(unittest.TestCase):
         self.assertEqual(fetch.call_count, 1)
 
 
+class FeedBatchTests(unittest.TestCase):
+    ENTRIES = [{"id": "a", "name": "A", "url": "https://x/a", "plot": ""},
+               {"id": "b", "name": "B", "url": "https://x/b", "plot": ""}]
+
+    def test_empty_entries_does_not_fetch(self):
+        with mock.patch.object(feeds, "episodes") as episodes:
+            self.assertEqual(feeds.episodes_many([]), [])
+        self.assertFalse(episodes.called)
+
+    def test_one_failing_feed_does_not_drop_the_batch(self):
+        def fake_episodes(feed_id, limit):
+            if feed_id == "b":
+                raise RuntimeError("offline")
+            return [{"title": "A", "url": "https://x/a.mp3"}]
+
+        with mock.patch.object(feeds, "episodes", side_effect=fake_episodes), \
+                mock.patch.object(feeds.kodi, "log"):
+            results = feeds.episodes_many(self.ENTRIES, limit=2, workers=2)
+        self.assertEqual([entry["id"] for entry, _ in results], ["a", "b"])
+        self.assertEqual(results[0][1][0]["title"], "A")
+        self.assertEqual(results[1][1], [])
+
+    def test_executor_failure_falls_back_to_serial(self):
+        with mock.patch.object(feeds, "episodes",
+                               return_value=[{"title": "x", "url": "https://x/x.mp3"}]) as episodes, \
+                mock.patch("concurrent.futures.ThreadPoolExecutor",
+                           side_effect=RuntimeError("no threads")), \
+                mock.patch.object(feeds.kodi, "log"):
+            results = feeds.episodes_many(self.ENTRIES, limit=2)
+        self.assertEqual(len(results), 2)
+        self.assertEqual(episodes.call_count, 2)
+
+
 class DnbRadioTests(unittest.TestCase):
     RECORDINGS = '''
       <a href="/listen?mix=58125" title="2026-10-29 : DJ 4G4T - Energy Boost on DNBRADIO">

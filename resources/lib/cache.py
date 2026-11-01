@@ -20,6 +20,7 @@ import hashlib
 import json
 import os
 import tempfile
+import threading
 import time
 
 from . import kodi
@@ -34,6 +35,7 @@ STALE_TEMP_SECONDS = 60 * 60        # abandoned .tmp-* files after a crash
 CLEANUP_EVERY = 64                  # run maintenance after this many writes
 
 _writes_since_maintenance = 0
+_write_lock = threading.Lock()
 
 
 class _Missing(object):
@@ -162,8 +164,11 @@ def put(key, value):
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, path)
-        _writes_since_maintenance += 1
-        _maybe_maintain()
+        with _write_lock:
+            _writes_since_maintenance += 1
+            due = _writes_since_maintenance % CLEANUP_EVERY == 0
+        if due:
+            _maybe_maintain()
         return True
     except (OSError, TypeError, ValueError) as exc:
         _log("could not write %s (%s)" % (key, exc))

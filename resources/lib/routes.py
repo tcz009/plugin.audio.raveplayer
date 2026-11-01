@@ -7,9 +7,11 @@ adding a source is a one-line change rather than another 40-line scraper.
 
 import datetime
 import html
+import ipaddress
 import os
 import random
 import re
+import socket
 import sys
 import traceback
 import urllib.parse
@@ -821,8 +823,7 @@ def media_menu(handle, params):
     limit = _episode_limit()
     hide_empty = kodi.setting_bool("hide_empty_feeds", False)
     shown = 0
-    for entry in entries:
-        episodes = feeds.episodes(entry["id"], limit=limit)
+    for entry, episodes in feeds.episodes_many(entries, limit=limit):
         if hide_empty and not episodes:
             continue
         shown += 1
@@ -1050,12 +1051,58 @@ def about(handle, params):
     kodi.end_directory(handle, "files")
 
 
+def _blocked_address(address):
+    """True for loopback/link-local/private/metadata-style IP addresses."""
+    text = str(address or "").split("%", 1)[0].strip()
+    try:
+        ip = ipaddress.ip_address(text)
+    except ValueError:
+        return True  # not an address we can verify: refuse it
+    if ip.version == 6 and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    return bool(
+        ip.is_loopback
+        or ip.is_link_local
+        or ip.is_private
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    )
+
+
+def _host_blocked(hostname, port):
+    """Resolve a stream host and block non-public answers.
+
+    Every A/AAAA answer must be public: refusing a mixed answer also covers a
+    DNS-rebinding style host that returns one public and one private address.
+    Unresolvable hosts are refused (Kodi could not play them anyway).
+    """
+    text = str(hostname or "").strip().strip("[]")
+    if not text:
+        return True
+    try:
+        literal = ipaddress.ip_address(text)
+    except ValueError:
+        literal = None
+    if literal is not None:
+        return _blocked_address(literal)
+    try:
+        infos = socket.getaddrinfo(text, port or 0, 0, socket.SOCK_STREAM)
+    except (socket.gaierror, OSError, UnicodeError, ValueError):
+        return True
+    if not infos:
+        return True
+    return any(_blocked_address(info[4][0]) for info in infos)
+
+
 def _playable_url(value):
-    """Return the URL only when it is a playable http(s) stream.
+    """Return the URL only when it is a playable, public http(s) stream.
 
     Kodi streams may carry a ``|Header=…`` suffix, so validate the part before
     the pipe.  Never resolve file:/special:/plugin:/smb: URLs handed in by a
-    skin, another add-on or a .strm file.
+    skin, another add-on or a .strm file, and refuse hosts that resolve to
+    loopback/link-local/private/metadata addresses (K6 follow-up).  The LAN
+    trade-off is documented in docs/HARDENING.md.
     """
     text = str(value or "").strip()
     if not text:
@@ -1067,6 +1114,16 @@ def _playable_url(value):
         return ""
     if split.scheme.lower() not in ("http", "https") or not split.netloc:
         return ""
+    try:
+        port = split.port
+    except ValueError:
+        return ""
+    try:
+        hostname = split.hostname
+    except ValueError:
+        return ""
+    if _host_blocked(hostname, port):
+        return ""
     return text
 
 
@@ -1077,7 +1134,9 @@ def play(handle, params):
     fanart = params.get("fanart") or ""
     plotted = params.get("plot") or ""
     if not stream:
-        _fail_playback(handle, "That stream address is not playable.")
+        _fail_playback(handle,
+                       "That stream address is not playable "
+                       "(private, loopback or unresolved host).")
         return
     item = xbmcgui.ListItem(path=stream)
     art = {"thumb": thumb, "icon": thumb}

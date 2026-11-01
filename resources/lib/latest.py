@@ -20,6 +20,11 @@ RANDOM_PAGE_CAP = 200
 DNB_RESOLVE_TIMEOUT = dnbradio.RESOLVE_TIMEOUT
 DNB_RESOLVE_WORKERS = dnbradio.RESOLVE_WORKERS
 
+# Feed fetches run in a bounded thread pool (K3 follow-up).  The HTTP
+# route budget is still shared by every worker, so the whole Latest build
+# remains bounded by that budget.
+FEED_FETCH_WORKERS = feeds.FEED_WORKERS
+
 
 def parse_date(value):
     """Best-effort date parsing across the sources; returns None if unknown."""
@@ -49,10 +54,11 @@ def _title(doc, fallback):
     return archive.as_text(doc.get("title")) or str(fallback)
 
 
-def recent_episodes(per_feed=6):
+def recent_episodes(per_feed=6, workers=FEED_FETCH_WORKERS):
     items = []
-    for entry in feeds.registry():
-        for episode in feeds.episodes(entry["id"], limit=per_feed):
+    for entry, episodes in feeds.episodes_many(feeds.registry(), limit=per_feed,
+                                              workers=workers):
+        for episode in episodes:
             when = parse_date(episode.get("published"))
             items.append({
                 "kind": "episode",

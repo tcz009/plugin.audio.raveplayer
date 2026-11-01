@@ -19,6 +19,7 @@ import io
 import json
 import re
 import socket
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -37,6 +38,7 @@ _XML_ENCODING_RE = re.compile(br"""<\?xml[^>]*encoding=["']([A-Za-z0-9._-]+)""",
 
 _deadline = None
 _budget_exhausted = False
+_state_lock = threading.Lock()
 
 
 # --------------------------------------------------------------------- budget
@@ -54,27 +56,32 @@ def begin_route(seconds=ROUTE_BUDGET_SECONDS):
         budget = float(seconds)
     except (TypeError, ValueError):
         budget = ROUTE_BUDGET_SECONDS
-    _deadline = time.monotonic() + max(0.0, budget)
-    _budget_exhausted = False
+    with _state_lock:
+        _deadline = time.monotonic() + max(0.0, budget)
+        _budget_exhausted = False
 
 
 def end_route():
     """Clear the per-invocation network budget."""
     global _deadline, _budget_exhausted
-    _deadline = None
-    _budget_exhausted = False
+    with _state_lock:
+        _deadline = None
+        _budget_exhausted = False
 
 
 def remaining():
     """Seconds left in the current route budget, or None when unbudgeted."""
-    if _deadline is None:
+    with _state_lock:
+        deadline = _deadline
+    if deadline is None:
         return None
-    return max(0.0, _deadline - time.monotonic())
+    return max(0.0, deadline - time.monotonic())
 
 
 def route_budget_exhausted():
     """True when a fetch was skipped because the route budget ran out."""
-    return _budget_exhausted
+    with _state_lock:
+        return _budget_exhausted
 
 
 def _effective_timeout(timeout):
@@ -86,7 +93,9 @@ def _effective_timeout(timeout):
         except (TypeError, ValueError):
             return float(DEFAULT_TIMEOUT)
     if left <= 0:
-        _budget_exhausted = True
+        global _budget_exhausted
+        with _state_lock:
+            _budget_exhausted = True
         return 0.0
     try:
         wanted = float(timeout)

@@ -2,6 +2,7 @@
 """Offline tests for route helpers (no plugin directory, no network)."""
 
 import os
+import socket
 import sys
 import unittest
 import urllib.parse
@@ -14,6 +15,8 @@ sys.path.insert(0, os.path.dirname(HERE))
 import xbmcplugin  # noqa: E402
 
 from resources.lib import routes  # noqa: E402
+
+PUBLIC_INFOS = [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 443))]
 
 
 class RouteHelperTests(unittest.TestCase):
@@ -179,13 +182,14 @@ class RouteRenderTests(unittest.TestCase):
         self.assertIn("plot=", item["url"])
 
     def test_play_resolver_sets_fanart_and_plot_on_the_resolved_item(self):
-        routes.play(1, {
+        with mock.patch.object(routes.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
+            routes.play(1, {
             "url": "https://archive.org/download/p/1.mp3",
             "label": "[I]Tape 1[/I]",
             "thumb": "http://thumb",
             "fanart": "http://fanart",
-            "plot": "Carl Cox · Dreamscape · 1995 — From archive.org item p",
-        })
+                "plot": "Carl Cox · Dreamscape · 1995 — From archive.org item p",
+            })
         resolved = xbmcplugin.RESOLVED[-1]
         self.assertTrue(resolved["ok"])
         self.assertEqual(resolved["path"], "https://archive.org/download/p/1.mp3")
@@ -197,7 +201,8 @@ class RouteRenderTests(unittest.TestCase):
                          resolved["info"]["music"]["plot"])
 
     def test_play_resolver_without_fanart_keeps_the_old_art(self):
-        routes.play(1, {"url": "https://x/1.mp3", "thumb": "http://thumb"})
+        with mock.patch.object(routes.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
+            routes.play(1, {"url": "https://example.test/1.mp3", "thumb": "http://thumb"})
         resolved = xbmcplugin.RESOLVED[-1]
         self.assertEqual(resolved["art"], {"thumb": "http://thumb", "icon": "http://thumb"})
         self.assertNotIn("plot", resolved["info"]["music"])
@@ -256,12 +261,13 @@ class RouteRenderTests(unittest.TestCase):
         ]
         episodes = [{"title": "One", "url": "http://x/1.mp3"}, {"title": "Two", "url": "http://x/2.mp3"}]
         with mock.patch.object(routes.feeds, "registry", return_value=registry), \
-                mock.patch.object(routes.feeds, "episodes", side_effect=[episodes, []]) as fetch, \
+                mock.patch.object(routes.feeds, "episodes_many",
+                                  return_value=[(registry[0], episodes), (registry[1], [])]) as fetch, \
                 mock.patch.object(routes, "_episode_limit", return_value=2), \
                 mock.patch.object(routes.kodi, "setting_bool", return_value=True), \
                 mock.patch.object(routes.kodi, "end_directory"):
             routes.media_menu(1, {})
-        self.assertEqual(fetch.call_args_list[0][1].get("limit"), 2)
+        self.assertEqual(fetch.call_args[1].get("limit"), 2)
         labels = [label for label, _url in self._menu_calls()]
         self.assertEqual(labels, ["Feed A  [COLOR gray](2 episodes)[/COLOR]", "Back"])
 
@@ -420,14 +426,16 @@ class PlaybackFailureTests(unittest.TestCase):
             self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"], url)
 
     def test_play_accepts_http_urls_with_a_header_suffix(self):
-        routes.play(1, {"url": "https://example.test/a.mp3|Referer=https://example.test/"})
+        with mock.patch.object(routes.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
+            routes.play(1, {"url": "https://example.test/a.mp3|Referer=https://example.test/"})
         resolved = xbmcplugin.RESOLVED[-1]
         self.assertTrue(resolved["ok"])
         self.assertEqual(resolved["path"], "https://example.test/a.mp3|Referer=https://example.test/")
 
     def test_dnb_play_resolves_and_plays(self):
         with mock.patch.object(routes.dnbradio, "stream_url",
-                               return_value="https://proxy.dnbradio.com/10.mp3"):
+                               return_value="https://proxy.dnbradio.com/10.mp3"), \
+                mock.patch.object(routes.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
             routes.dnb_play(1, {"id": "10", "label": "Show"})
         resolved = xbmcplugin.RESOLVED[-1]
         self.assertTrue(resolved["ok"])
@@ -442,8 +450,9 @@ class PlaybackFailureTests(unittest.TestCase):
         self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"])
 
     def test_play_success_does_not_clear_the_playlist(self):
-        with mock.patch.object(routes.xbmc, "PlayList") as playlist:
-            routes.play(1, {"url": "https://x/1.mp3"})
+        with mock.patch.object(routes.xbmc, "PlayList") as playlist, \
+                mock.patch.object(routes.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
+            routes.play(1, {"url": "https://example.test/1.mp3"})
         self.assertTrue(xbmcplugin.RESOLVED[-1]["ok"])
         self.assertFalse(playlist.called)
 
@@ -606,6 +615,81 @@ class ThirdPartyLabelTests(unittest.TestCase):
         self.assertNotIn("[B]", label)
         self.assertNotIn("[I]", label)
         self.assertIn("Episode", label)
+
+
+class PlaybackHostGuardTests(unittest.TestCase):
+    """K6 follow-up: private/loopback/metadata playback hosts are refused."""
+
+    def setUp(self):
+        del xbmcplugin.RESOLVED[:]
+        del xbmcplugin.ITEMS[:]
+
+    @staticmethod
+    def _infos(*addresses):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "",
+                 (address, 80)) for address in addresses]
+
+    def _play(self, url, resolver):
+        with mock.patch.object(routes.socket, "getaddrinfo", side_effect=resolver), \
+                mock.patch.object(routes.kodi, "notify") as notify:
+            routes.play(1, {"url": url})
+        return xbmcplugin.RESOLVED[-1], notify
+
+    def test_literal_private_and_metadata_addresses_are_rejected(self):
+        urls = [
+            "http://127.0.0.1/x.mp3",
+            "http://127.10.0.5/x.mp3",
+            "http://10.0.0.1/x.mp3",
+            "http://172.16.4.2/x.mp3",
+            "http://172.31.255.254/x.mp3",
+            "http://192.168.1.10:8097/stream",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://[::1]/x.mp3",
+            "http://[fc00::1]/x.mp3",
+            "http://0.0.0.0/x.mp3",
+            "http://[::ffff:127.0.0.1]/x.mp3",
+        ]
+        for url in urls:
+            resolved, notify = self._play(url, lambda *args, **kwargs: self._infos("93.184.216.34"))
+            self.assertFalse(resolved["ok"], url)
+            self.assertTrue(notify.called, url)
+
+    def test_hostname_resolving_private_is_rejected(self):
+        resolved, notify = self._play(
+            "https://stream.example.test/a.mp3",
+            lambda *args, **kwargs: self._infos("192.168.1.20"))
+        self.assertFalse(resolved["ok"])
+        self.assertTrue(notify.called)
+
+    def test_mixed_public_and_private_answers_are_rejected(self):
+        resolved, notify = self._play(
+            "https://stream.example.test/a.mp3",
+            lambda *args, **kwargs: self._infos("93.184.216.34", "10.0.0.7"))
+        self.assertFalse(resolved["ok"])
+        self.assertTrue(notify.called)
+
+    def test_unresolvable_host_is_rejected(self):
+        def resolver(*args, **kwargs):
+            raise socket.gaierror("name not known")
+
+        resolved, notify = self._play("https://does-not-resolve.example/x.mp3", resolver)
+        self.assertFalse(resolved["ok"])
+        self.assertTrue(notify.called)
+
+    def test_public_host_is_allowed(self):
+        resolved, _notify = self._play(
+            "https://stream.example.test/a.mp3",
+            lambda *args, **kwargs: self._infos("93.184.216.34", "2606:2800:220:1::1"))
+        self.assertTrue(resolved["ok"])
+        self.assertEqual(resolved["path"], "https://stream.example.test/a.mp3")
+
+    def test_header_suffix_is_kept_for_public_hosts(self):
+        resolved, _notify = self._play(
+            "https://stream.example.test/a.mp3|Referer=https://example.test/&User-Agent=Mozilla/5.0",
+            lambda *args, **kwargs: self._infos("93.184.216.34"))
+        self.assertTrue(resolved["ok"])
+        self.assertTrue(resolved["path"].endswith(
+            "|Referer=https://example.test/&User-Agent=Mozilla/5.0"))
 
 
 if __name__ == "__main__":

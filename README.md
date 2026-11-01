@@ -63,7 +63,7 @@ A self-hosted **web version** (same sources, runs in Docker) lives at
 Add the repository once, then Rave Player installs and updates itself.
 
 1. Download **`repository.raveplayer-1.0.0.zip`** from the
-   [latest repository release](https://github.com/tcz009/plugin.audio.raveplayer/releases)
+   [repository 1.0.0 release](https://github.com/tcz009/plugin.audio.raveplayer/releases/tag/repo-1.0.0)
    and copy it somewhere Kodi can browse (NAS share, USB, `Downloads`).
 2. Kodi → Add-ons → **Install from zip file** → pick that zip. Enable
    "Unknown sources" first if Kodi asks.

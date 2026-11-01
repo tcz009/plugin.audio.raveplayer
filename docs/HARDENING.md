@@ -1,12 +1,15 @@
-# HARDENING — Rave Player Kodi add-on 3.9.11
+# HARDENING — Rave Player Kodi add-on 3.9.12
 
-**Branch:** `hardening/3.9.11` (created from tag `v3.9.10-review`, HEAD `b0f8c7f`)
-**Base:** `plugin.audio.raveplayer` 3.9.10 · **Result:** 3.9.11, **259 offline tests OK** (was 207)
+**Branches:** `hardening/3.9.11` (from tag `v3.9.10-review`, HEAD `b0f8c7f`) and
+`hardening/3.9.12` (branched from 3.9.11 `main` at `d61e036`; 3.9.12 code/tests/docs in `1f32d46`)
+**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.12 · **Result:** 3.9.12, **272 offline tests OK** (was 207; 259 at 3.9.11)
 **Date:** 2026-11-01 · **Not pushed / not released.**
 
 Scope: internal hardening only — real, provable defects in the runtime code and
 their test coverage. No new features, no re-layout, no UX change beyond two
-failure-path notifications and the removal of one destructive side effect.
+failure-path notifications and the removal of one destructive side effect;
+3.9.12 adds parallel feed fetching and a private-IP playback deny-list (the
+deliberate LAN self-host trade-off is documented in §8.2).
 Adversarial pre-review findings K1–K11 are folded in; every one is addressed
 below, with explicit deferral notes where the Lead's "smallest safe version"
 direction was followed. Nothing was deferred silently.
@@ -17,11 +20,11 @@ direction was followed. Nothing was deferred silently.
 
 | | |
 |---|---|
-| Suite | **259 tests OK** (was 207): +52 offline tests, no network/Kodi needed |
+| Suite | **272 tests OK** (was 207; 259 at 3.9.11): +65 offline tests, no network/Kodi needed |
 | P0/P1 findings | **0 open** (K1, K2, K3 fixed) |
-| Adversarial findings | 11/11 addressed: 10 fixed in code/tests, K3's concurrent-feed refactor deferred (see §3) with the per-route wall-clock cap + notification implemented instead |
-| Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,http,kodi,legacy,radio,routes}.py` |
-| Tests changed | `test/test_{archive,cache,compat,favourites,http,parsers,routes}.py`, `test/stubs/{xbmc,xbmcplugin}.py` |
+| Adversarial findings | 11/11 addressed; the two follow-ups deferred at 3.9.11 (K3 parallel feeds, K6 private-IP guard) are closed in 3.9.12 (§8). Only K9's plot-field widening remains out of scope. |
+| Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,http,kodi,latest,legacy,radio,routes}.py` |
+| Tests changed | `test/test_{archive,cache,compat,favourites,http,latest,parsers,routes}.py`, `test/stubs/{xbmc,xbmcplugin}.py` |
 | Docs | `docs/HARDENING.md` (this file), `docs/CODE-REVIEW.md`, `changelog.txt`, `addon.xml`; `AGENTS.md` fixed locally (git-excluded by design, never published) |
 | Compatibility | Python 3.9 grammar floor enforced; no module/API removed in 3.9–3.14 is used; Kodi 22 (Python 3.14) not runnable in this environment (see §6) |
 
@@ -166,7 +169,7 @@ regression — the 3.9.8 cascade tests still pass).
 now says version **3.9.10** at tag `v3.9.10-review`, hardening on
 `hardening/3.9.11`, suite **259 tests** (207 at the tag) and records 3.9.8–3.9.11
 in the recent-history line; its stale "expect 193 OK" rule was corrected too.
-`addon.xml`/`changelog.txt` are at 3.9.11. (`AGENTS.md` is listed in
+`addon.xml`/`changelog.txt` were at 3.9.11 for that pass (3.9.12 now; §8). (`AGENTS.md` is listed in
 `.git/info/exclude` as never-published workspace instructions, so its correction
 is local-only and not part of the branch diff.)
 **Tests:** `test_compat` guards the runtime against the documented 3.9 floor and
@@ -177,18 +180,12 @@ correction verified by inspection. **Status: fixed.**
 
 ## 3. Deferred items (explicit)
 
-1. **K3 — concurrent fetching of the five podcast feeds (deferred).** The Lead
-   directed the "smallest safe version: per-route wall-clock cap + clear
-   notification, not a refactor". That is implemented: a cold Podcasts/Latest
-   screen is now capped at the 20 s invocation budget with a notification and a
-   partial directory, instead of up to 125–175 s. Parallelising the feed loop
-   would change the provider and route flow more than this pass warrants; it is
-   a possible follow-up if the 20 s worst case proves too long on the Shield.
-2. **K6 — private/link-local host blocking for `play` (deferred).** Only
-   `http(s)` is allowed now; adding the web app's private-IP deny-list would need
-   DNS-resolution handling in a synchronous Kodi route. The residual impact is
-   device-local (a Kodi user can already play local files); the scheme allow-list
-   is the proportionate fix for this repo.
+1. **K3 parallel feeds — CLOSED in 3.9.12 (§8).** The 3.9.11 "smallest safe
+   version" (20 s wall-clock cap + notification) is still in place; 3.9.12 adds
+   the bounded ThreadPoolExecutor on top at the Lead's request.
+2. **K6 private-IP guard — CLOSED in 3.9.12 (§8).** Scheme allow-list kept;
+   DNS resolution + private/loopback/link-local/metadata deny-list added. LAN
+   self-hosting trade-off is documented in §8.2.
 3. **K9 — Kodi markup in `plot`/InfoTag text beyond `title` (not widened).**
    Reviewer's finding was about labels; labels are fixed. Plots are built from
    the same titles and ``ui`` already strips InfoTag titles; plot markup was not
@@ -229,8 +226,9 @@ python3 -m unittest test.test_routes test.test_http test.test_cache \
     test.test_archive test.test_parsers test.test_favourites test.test_compat -v
 ```
 
-Test count: 207 → 259 (+52). The suite remains fully offline (stubs in
-`test/stubs`), needs no Kodi and no network, and runs in ≈1–2 s.
+Test count: 207 → 259 at 3.9.11 → **272 at 3.9.12** (+65). The suite remains
+fully offline (stubs in `test/stubs`), needs no Kodi and no network, and runs
+in ≈1–2 s.
 
 Notable reproductions that are now covered instead of escaping:
 - handler crash → notification + log + `endOfDirectory(succeeded=False)`
@@ -247,7 +245,10 @@ Notable reproductions that are now covered instead of escaping:
 - concurrent favourites adds → both kept (previously one lost);
 - cache with 5 old entries/1 stale temp → pruned (previously never evicted);
 - `[B]`/`[CR]` in a title → stripped from the label (previously rendered);
-- non-http `play` URL → failed resolve (previously resolved blindly).
+- non-http `play` URL → failed resolve (previously resolved blindly);
+- private/loopback/metadata `play` host → failed resolve (3.9.12, §8.2);
+- three feeds fetch concurrently and a slow feed is clamped by the shared
+  route budget (3.9.12, §8.1).
 
 ---
 
@@ -271,21 +272,108 @@ Notable reproductions that are now covered instead of escaping:
 resources/lib/http.py       + bounded reads/decompression, wall-clock route budget
 resources/lib/cache.py      + maintenance/eviction, oversized-entry guard
 resources/lib/archive.py    + filename/dir validation, host validation, overflow-safe numerics
-resources/lib/feeds.py      + entity guard, http(s)-only enclosures, overflow-safe durations
+resources/lib/feeds.py      + entity guard, http(s)-only enclosures, overflow-safe durations,
+                              episodes_many bounded thread pool (3.9.12)
 resources/lib/radio.py      + scheme allow-list, 8 s mirror timeout, 10 min station cache
 resources/lib/legacy.py     + URL-path traversal guard, http(s)-only JungleTapes media
 resources/lib/favourites.py + advisory lock around load-modify-save
 resources/lib/kodi.py       + idempotent end_directory tracking
-resources/lib/routes.py     + top-level guard, route budget, play scheme gate, K9 escaping,
-                              non-destructive failure path, rave_nights encoding fix
+resources/lib/routes.py     + top-level guard, route budget, play scheme + private-IP gate,
+                              K9 escaping, non-destructive failure path, rave encoding fix
+resources/lib/latest.py     + parallel feed fetch (3.9.12)
 default.py                  + last-resort main() guard
-test/…                      52 new tests + stub support
+test/…                      65 new tests + stub support
 docs/HARDENING.md           this file
 docs/CODE-REVIEW.md         K11 accuracy (module list, Kodi/Python note)
 AGENTS.md                   K11 accuracy (local-only; git-excluded, not in the commit diff)
-addon.xml / changelog.txt   3.9.11
+addon.xml / changelog.txt   3.9.12 (3.9.11 was the first hardening pass)
 ```
 
 Per the Lead's instruction the branch is committed locally but **not pushed**;
-`dist/` and `repo/` were not touched (so the 3.9.11 repo zip/catalogue remain a
+`dist/` and `repo/` were not touched (so the 3.9.12 repo zip/catalogue remain a
 publish-time step).
+
+> Branch note: `hardening/3.9.12` also contains an unrelated docs/CI commit
+> `d323075` that landed on the shared worktree while this branch was checked
+> out (README/workflow/stream-check files, plus an in-progress copy of the
+> http/cache thread-safety edits). It is flagged to the Lead rather than
+> rewritten; the 3.9.12 parallel-feed and private-IP changes are commit
+> `1f32d46`.
+
+---
+
+## 8. 3.9.12 follow-ups (closing the two deferred items)
+
+### 8.1 K3 follow-up — parallel feed fetch
+
+**Finding:** `latest.recent_episodes()` fetched feeds serially; even after the
+3.9.11 wall-clock cap, a single slow feed could consume the whole 20 s budget
+before the remaining feeds were even attempted, shortening Latest/Podcasts.
+
+**Fix:**
+- New `feeds.episodes_many(entries, limit, workers=5)` — bounded
+  `ThreadPoolExecutor`, results returned in registry order (deterministic
+  rendering), per-feed failure isolation (`[]` for that entry), and a serial
+  fallback if the executor cannot be created.
+- `latest.recent_episodes()` and `routes.media_menu()` use it; all feeds start
+  together, so a slow one is clamped by its own per-fetch timeout rather than
+  starving the rest.
+- The **20 s per-route wall clock is unchanged**: every worker calls the same
+  `http.fetch`, which clamps to `http.remaining()`. The route-budget globals are
+  now guarded by a `threading.Lock` (begin/end/remaining/exhausted), and the
+  cache maintenance counter is locked too, so concurrent workers cannot corrupt
+  the budget or the cache bookkeeping. Cache reads/writes remain atomic and
+  cached bodies are still served after the budget is gone.
+- Live check (dev network, cold): Latest **9.9 s** vs 15.5 s with serial feeds
+  and ~175 s before any hardening.
+
+**Tests:**
+`test_latest.ParallelFeedTests` — a `threading.Barrier(3)` inside the mocked
+feed fetcher proves concurrent execution (a serial implementation cannot pass);
+one raising feed is isolated; a deliberately slow feed with a 0.3 s route budget
+finishes with all three feeds represented and elapsed < 0.8 s while every
+observed request timeout is ≤ 0.35 s; empty registry does not fetch.
+`test_parsers.FeedBatchTests` — empty entries, per-feed failure isolation and
+serial fallback when the executor is unavailable. `test_routes` updated for the
+parallel media menu (`feeds.episodes_many`).
+
+**Status: fixed.**
+
+### 8.2 K6 follow-up — private-IP playback guard
+
+**Finding:** `play` limited the URL scheme only; a query string or favourite
+could point at `http://127.0.0.1/…`, `http://192.168.1.10/…`,
+`http://169.254.169.254/…` etc. and make the device fetch itself/the LAN.
+
+**Fix:** `routes._playable_url()` now:
+- validates `http(s)` + host as before;
+- resolves the host with `socket.getaddrinfo` (literal IPs are checked without a
+  lookup) and rejects if **any** answer is loopback, link-local, private,
+  multicast, reserved or unspecified — covering 127/8, ::1, 169.254/16, 10/8,
+  172.16/12, 192.168/16, fc00::/7 and IPv4-mapped loopback;
+- also rejects unresolvable hosts (Kodi could not play them anyway) and mixed
+  public/private DNS answers (rebinding guard);
+- returns the original string, so the Kodi `|Header=…` suffix is intact.
+  Failures show a clear notification and report a failed resolve.
+
+**LAN self-host trade-off (documented):** a stream served from the user's own
+private network (e.g. a self-hosted Rave Player web server at
+`http://192.168.x.x:84xx/…`, or `localhost`) can no longer be played through the
+add-on's `play` route. That is deliberate: the add-on only needs public sources,
+and private URLs arriving from metadata/favourites would otherwise trigger
+requests into the user's local network. Users with a LAN-only source can use
+Kodi's own library/local files or the web app directly; a future
+"allow private/LAN hosts" setting would be the way to restore it.
+
+**Residual:** `getaddrinfo` is a synchronous OS call inside the play route and is
+not itself bounded by the HTTP budget. In normal use it is milliseconds, but a
+broken resolver can delay a single play attempt. A resolved-host cache/async
+lookup is a possible follow-up (not needed for the deliverable sources, which are
+public names).
+
+**Tests:** `test_routes.PlaybackHostGuardTests` — literal ranges incl.
+`169.254.169.254`, hostname resolving private, mixed public/private answers,
+unresolvable host all rejected with notify + failed resolve; public host allowed;
+`|Header=` suffix preserved. DNS is monkeypatched (`getaddrinfo`) in every test.
+
+**Status: fixed.**

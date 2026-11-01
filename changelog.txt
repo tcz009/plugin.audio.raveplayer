@@ -1,3 +1,19 @@
+Rave Player 3.9.12
+- "Latest" and "Podcasts & Mixes" now fetch their RSS feeds concurrently in a
+  bounded pool (max 5 workers), so one slow or dead feed no longer serialises
+  the screen. The 20 s per-route wall clock, per-fetch timeout clamping, cache
+  behaviour and per-feed failure isolation are unchanged; the route-budget
+  state and the cache write counter are now locked for concurrent workers.
+  (Cold "Latest" measured 9.9 s vs 15.5 s serial on the dev network.)
+- Playback URL validation now also resolves the host and refuses loopback,
+  link-local, private and metadata addresses (127/8, ::1, 169.254/16, 10/8,
+  172.16/12, 192.168/16, fc00::/7, IPv4-mapped loopback, mixed public/private
+  DNS answers) with a notification and a failed resolve. Kodi `|Header=`
+  suffixes are preserved. Note: streams on the user's own LAN/private network
+  can no longer be played through the add-on's play route — use Kodi's own
+  library/files or the web app for those; documented in docs/HARDENING.md.
+- Tests: 259 -> 272 (offline).
+
 Rave Player 3.9.11
 - Internal hardening pass (docs/HARDENING.md). No new features; no UX change
   beyond two failure-path notifications.

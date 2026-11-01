@@ -4,6 +4,8 @@
 import datetime
 import os
 import sys
+import threading
+import time
 import unittest
 from unittest import mock
 
@@ -179,6 +181,84 @@ class ResolveDnbStreamsTests(unittest.TestCase):
         items = [{"kind": "dnb", "id": "10"}]
         with mock.patch.object(latest.dnbradio, "stream_urls", side_effect=RuntimeError("boom")):
             self.assertEqual(latest.resolve_dnb_streams(items), {})
+
+
+class ParallelFeedTests(unittest.TestCase):
+    """K3 follow-up: feeds fetch concurrently under the shared route budget."""
+
+    ENTRIES = [
+        {"id": "feed-a", "name": "Feed A", "plot": ""},
+        {"id": "feed-b", "name": "Feed B", "plot": ""},
+        {"id": "feed-c", "name": "Feed C", "plot": ""},
+    ]
+
+    def _episode(self, feed_id):
+        return {"title": feed_id, "url": "https://example.test/%s.mp3" % feed_id,
+                "published": "", "duration": None}
+
+    def test_feeds_are_fetched_concurrently(self):
+        barrier = threading.Barrier(len(self.ENTRIES))
+
+        def fake_episodes(feed_id, limit):
+            barrier.wait(timeout=2)  # only all-parallel callers get past this
+            return [self._episode(feed_id)]
+
+        with mock.patch.object(latest.feeds, "registry", return_value=self.ENTRIES), \
+                mock.patch.object(latest.feeds, "episodes", side_effect=fake_episodes):
+            items = latest.recent_episodes(per_feed=3, workers=3)
+        self.assertEqual([item["title"] for item in items],
+                         ["feed-a", "feed-b", "feed-c"])
+
+    def test_one_failing_feed_does_not_drop_the_others(self):
+        def fake_episodes(feed_id, limit):
+            if feed_id == "feed-b":
+                raise RuntimeError("feed down")
+            return [self._episode(feed_id)]
+
+        with mock.patch.object(latest.feeds, "registry", return_value=self.ENTRIES), \
+                mock.patch.object(latest.feeds, "episodes", side_effect=fake_episodes), \
+                mock.patch.object(latest.kodi, "log"):
+            items = latest.recent_episodes(per_feed=3, workers=3)
+        self.assertEqual([item["title"] for item in items], ["feed-a", "feed-c"])
+
+    def test_one_slow_feed_is_bounded_by_the_route_budget(self):
+        observed_timeouts = []
+
+        def slow_request(url, timeout, headers):
+            observed_timeouts.append(timeout)
+            if "slow" in url:
+                time.sleep(timeout)  # spends its clamped slice of the budget
+            return "ok"
+
+        def fake_episodes(feed_id, limit):
+            body = latest.feeds.http.fetch("https://feeds.test/" + feed_id, timeout=10)
+            if body is None:
+                return []
+            return [self._episode(feed_id)]
+
+        entries = [{"id": "slow", "name": "Slow", "plot": ""}] + self.ENTRIES[:2]
+        http_route = latest.feeds.http
+        http_route.begin_route(0.3)
+        started = time.monotonic()
+        try:
+            with mock.patch.object(latest.feeds, "registry", return_value=entries), \
+                    mock.patch.object(latest.feeds, "episodes", side_effect=fake_episodes), \
+                    mock.patch.object(http_route, "_request", side_effect=slow_request):
+                items = latest.recent_episodes(per_feed=3, workers=3)
+        finally:
+            http_route.end_route()
+        elapsed = time.monotonic() - started
+        self.assertEqual(sorted(item["title"] for item in items),
+                         sorted(["slow", "feed-a", "feed-b"]))
+        self.assertLess(elapsed, 0.8)
+        self.assertTrue(observed_timeouts)
+        self.assertLessEqual(max(observed_timeouts), 0.35)
+
+    def test_empty_registry_returns_no_items(self):
+        with mock.patch.object(latest.feeds, "registry", return_value=[]), \
+                mock.patch.object(latest.feeds, "episodes") as episodes:
+            self.assertEqual(latest.recent_episodes(), [])
+        self.assertFalse(episodes.called)
 
 
 if __name__ == "__main__":

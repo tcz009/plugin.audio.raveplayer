@@ -21,6 +21,7 @@ ATOM = "{http://www.w3.org/2005/Atom}"
 
 FEED_TTL = 900
 DESCRIPTION_LIMIT = 400
+FEED_WORKERS = 5  # bounded parallelism for multi-feed routes
 
 
 def registry():
@@ -191,3 +192,43 @@ def episodes(feed_id, limit=60):
     if not body:
         return []
     return parse(body)[:limit]
+
+
+def episodes_many(entries, limit=60, workers=FEED_WORKERS):
+    """Fetch several feeds concurrently and return ``[(entry, episodes)]``.
+
+    The pool is bounded and results keep the caller's order, so callers can
+    keep their deterministic rendering.  One failing feed yields ``[]`` for
+    that entry only.  Every request still goes through the HTTP layer, so the
+    per-route wall-clock budget and its per-fetch clamping apply (a slow feed
+    cannot hold the batch past the caller's budget).
+    """
+    entries = list(entries or [])
+    if not entries:
+        return []
+    try:
+        count = max(1, min(int(workers or 1), len(entries)))
+    except (TypeError, ValueError):
+        count = len(entries)
+    try:
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=count) as pool:
+            futures = [pool.submit(episodes, entry["id"], limit) for entry in entries]
+            results = []
+            for entry, future in zip(entries, futures):
+                try:
+                    results.append((entry, future.result()))
+                except Exception as exc:  # one bad feed must not drop the batch
+                    kodi.log("feed %s failed (%s)" % (entry.get("id"), exc), level=30)
+                    results.append((entry, []))
+            return results
+    except Exception as exc:  # executor creation failed: fall back to serial
+        kodi.log("feed batch failed (%s); falling back to serial fetch" % exc, level=30)
+        results = []
+        for entry in entries:
+            try:
+                results.append((entry, episodes(entry["id"], limit)))
+            except Exception:  # never let one feed break the whole menu
+                results.append((entry, []))
+        return results
