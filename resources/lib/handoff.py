@@ -2,9 +2,12 @@
 """Hand-off to official Kodi add-ons instead of leaving Kodi.
 
 The add-on never opens a browser or an external URL.  Sources that cannot be
-streamed directly (Mixcloud, SoundCloud, YouTube) are handed to their official
-Kodi add-ons via ``plugin://`` directory URLs built here.  If the relevant
-add-on is not installed the caller hides the row entirely (see routes).
+streamed directly (Mixcloud, YouTube) are handed to their official Kodi add-ons
+via ``plugin://`` directory URLs built here.  If the relevant add-on is not
+installed the caller hides the row entirely (see routes).
+
+SoundCloud is deliberately not part of the Kodi build: it is a web-version-only
+source and there is no SoundCloud content or hand-off row here.
 """
 
 import urllib.parse
@@ -13,17 +16,14 @@ import xbmc
 import xbmcaddon
 
 MIXCLOUD_ID = "plugin.audio.mixcloud"
-SOUNDCLOUD_ID = "plugin.audio.soundcloud"
 YOUTUBE_ID = "plugin.video.youtube"
 
 ADDONS = {
     "mixcloud": MIXCLOUD_ID,
-    "soundcloud": SOUNDCLOUD_ID,
     "youtube": YOUTUBE_ID,
 }
 
 MIXCLOUD = "plugin://plugin.audio.mixcloud/"
-SOUNDCLOUD = "plugin://plugin.audio.soundcloud/"
 YOUTUBE = "plugin://plugin.video.youtube/"
 
 
@@ -76,18 +76,6 @@ def mixcloud_cloudcast(page_url):
     return MIXCLOUD + "?mode=40&key=" + _quote(path)
 
 
-def soundcloud_play(page_url):
-    split = _split(page_url)
-    if split is None or (split.hostname or "").lower() not in (
-            "soundcloud.com", "www.soundcloud.com", "m.soundcloud.com"):
-        return ""
-    return SOUNDCLOUD + "play/?url=" + _quote(page_url)
-
-
-def soundcloud_search(query):
-    return SOUNDCLOUD + "search/?query=" + _quote(query)
-
-
 def youtube_search(query):
     return YOUTUBE + "search/?q=" + _quote(query)
 
@@ -118,11 +106,6 @@ def youtube_target(page_url, title=""):
     if direct:
         return direct
     return youtube_search(title or page_url)
-
-
-def soundcloud_target(page_url, title=""):
-    direct = soundcloud_play(page_url)
-    return direct or soundcloud_search(title or page_url)
 
 
 def mixcloud_target(page_url, title=""):

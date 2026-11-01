@@ -34,13 +34,13 @@ class AvailabilityTests(unittest.TestCase):
     def test_missing_addons_are_unavailable(self):
         with mock.patch.object(handoff.xbmcaddon, "Addon", side_effect=_detect(set())), \
                 mock.patch.object(handoff.xbmc, "getCondVisibility", return_value=False):
-            for kind in ("mixcloud", "soundcloud", "youtube"):
+            for kind in ("mixcloud", "youtube", "soundcloud"):
                 self.assertFalse(handoff.available(kind), kind)
 
     def test_installed_addons_are_available(self):
-        installed = {handoff.MIXCLOUD_ID, handoff.SOUNDCLOUD_ID, handoff.YOUTUBE_ID}
+        installed = {handoff.MIXCLOUD_ID, handoff.YOUTUBE_ID}
         with mock.patch.object(handoff.xbmcaddon, "Addon", side_effect=_detect(installed)):
-            for kind in ("mixcloud", "soundcloud", "youtube"):
+            for kind in ("mixcloud", "youtube"):
                 self.assertTrue(handoff.available(kind), kind)
 
     def test_condvisibility_fallback(self):
@@ -50,6 +50,11 @@ class AvailabilityTests(unittest.TestCase):
 
     def test_unknown_kind_is_unavailable(self):
         self.assertFalse(handoff.available("archive"))
+
+    def test_soundcloud_is_not_part_of_the_kodi_handoff(self):
+        self.assertFalse(handoff.available("soundcloud"))
+        self.assertFalse(hasattr(handoff, "soundcloud_play"))
+        self.assertFalse(hasattr(handoff, "soundcloud_search"))
 
     def test_runtime_has_no_browser_opening_calls(self):
         root = os.path.dirname(HERE)
@@ -76,17 +81,6 @@ class UrlBuilderTests(unittest.TestCase):
         )
         self.assertEqual(handoff.mixcloud_cloudcast("https://evil.example/x/y"), "")
 
-    def test_soundcloud_play_and_search(self):
-        page = "https://soundcloud.com/artist/track"
-        self.assertEqual(
-            handoff.soundcloud_play(page),
-            "plugin://plugin.audio.soundcloud/play/?url=https%3A%2F%2Fsoundcloud.com%2Fartist%2Ftrack",
-        )
-        self.assertEqual(
-            handoff.soundcloud_search("artist track"),
-            "plugin://plugin.audio.soundcloud/search/?query=artist%20track",
-        )
-
     def test_youtube_play_and_search(self):
         self.assertEqual(
             handoff.youtube_play("https://www.youtube.com/watch?v=abc123"),
@@ -102,9 +96,6 @@ class UrlBuilderTests(unittest.TestCase):
         )
 
     def test_targets_prefer_direct_pages(self):
-        self.assertTrue(handoff.soundcloud_target(
-            "https://soundcloud.com/artist/track").startswith(
-                "plugin://plugin.audio.soundcloud/play/"))
         self.assertTrue(handoff.mixcloud_target(
             "https://www.mixcloud.com/getdarker/x/").startswith(
                 "plugin://plugin.audio.mixcloud/?mode=40"))

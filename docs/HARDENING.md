@@ -4,7 +4,7 @@
 `hardening/3.9.13` (from 3.9.12 `main` at `7ff12e6`) and `hardening/3.9.14` (from 3.9.13 `main` at `4f5cbe2`) and
 `hardening/3.9.15` (from 3.9.14 `main` at `dc4cd9c`) and
 `hardening/3.9.16` (from 3.9.15 `main` at `b0a515a`; this pass).
-**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.16 · **Result:** 3.9.16, **350 offline tests OK** (was 207; 334 at 3.9.15)
+**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.16 · **Result:** 3.9.16, **360 offline tests OK** (was 207; 334 at 3.9.15)
 **Date:** 2026-11-01 · **Not pushed / not released.**
 
 Scope: 3.9.11–3.9.13 were internal hardening passes — real, provable defects
@@ -23,7 +23,7 @@ Nothing was deferred silently.
 
 | | |
 |---|---|
-| Suite | **350 tests OK** (was 207; 334 at 3.9.15): +143 offline tests, no network/Kodi needed |
+| Suite | **360 tests OK** (was 207; 334 at 3.9.15): +153 offline tests, no network/Kodi needed |
 | P0/P1 findings | **0 open** (K1, K2, K3 fixed) |
 | Review findings | Adversarial K1–K11 all addressed (3.9.11/3.9.12); independent-review A1–A5, A7–A9, A11, A12 fixed in 3.9.13 (§9); A8 was already fixed and re-tested; A10/A13 remain known/accepted residuals. |
 | Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,getdarker,handoff,hardscore,http,kodi,latest,legacy,mixcloud,moxser,pirate,radio,routes,ui}.py`, `resources/pirate-radio.json` |
@@ -229,7 +229,7 @@ python3 -m unittest test.test_routes test.test_http test.test_cache \
     test.test_archive test.test_parsers test.test_favourites test.test_compat -v
 ```
 
-Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → 334 at 3.9.15 → **350 at 3.9.16** (+143). The suite remains
+Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → 334 at 3.9.15 → **360 at 3.9.16** (+153). The suite remains
 fully offline (stubs in `test/stubs`), needs no Kodi and no network, and runs
 in ≈1–2 s.
 
@@ -751,10 +751,22 @@ Owner decision: **no Kodi row may open a browser or leave Kodi.** Any source
 without a direct in-add-on stream must hand off to an official Kodi add-on and
 be hidden if that add-on is absent.
 
+Final owner decisions for this integrated 3.9.16:
+- **`Curated Gems` keeps that exact label**; the Pirate & Rave Archives rename
+  is rejected.
+- **SoundCloud is removed from the Kodi build entirely** — no content row, no
+  hand-off row, no SoundCloud hand-off from Hardscore/GetDarker links (those
+  links do not render). It survives only as a plain About text credit marked
+  “web version only”.
+- **Mixcloud and YouTube are optional hand-offs** exactly as below: rows only
+  when the official add-on is installed, hidden otherwise.
+- The nine-row root is unchanged; theme/3.9.16 art/icons/fanarts are retained.
+
 ### 12.1 Detection
 
 New `resources/lib/handoff.py`:
-- `plugin.audio.mixcloud`, `plugin.audio.soundcloud`, `plugin.video.youtube`.
+- `plugin.audio.mixcloud`, `plugin.video.youtube`. SoundCloud is deliberately
+  not detected or handed off; it is web-version-only.
 - `available(kind)` checks `xbmcaddon.Addon(id).getAddonInfo("id")` and falls
   back to `xbmc.getCondVisibility("System.HasAddon(<id>)")` (AddonManager).
   A missing/foreign add-on is treated as unavailable (no row).
@@ -765,8 +777,6 @@ New `resources/lib/handoff.py`:
 |---|---|
 | Mixcloud cloudcast | `plugin://plugin.audio.mixcloud/?mode=40&key=<urlencoded /user/slug>` |
 | Mixcloud search | `plugin://plugin.audio.mixcloud/?mode=30&key=cloudcast&offset=0&query=<q>` |
-| SoundCloud page | `plugin://plugin.audio.soundcloud/play/?url=<urlencoded page>` |
-| SoundCloud search | `plugin://plugin.audio.soundcloud/search/?query=<q>` |
 | YouTube video | `plugin://plugin.video.youtube/play/?video_id=<id>` |
 | YouTube search | `plugin://plugin.video.youtube/search/?q=<q>` |
 
@@ -778,7 +788,6 @@ add-on's search/cloudcast directory inside Kodi; no `open_url`/OS intent/dialog.
 | Missing add-on | Hidden |
 |---|---|
 | `plugin.audio.mixcloud` | GetDarker row in Mixes & Shows; Rave Archive UK row in Curated Gems; Mixcloud links on Hardscore/GetDarker pages; direct `mode=getdarker`/`mode=mixcloud_account` produce no rows (notify only). |
-| `plugin.audio.soundcloud` | SoundCloud links on Hardscore/GetDarker pages. |
 | `plugin.video.youtube` | YouTube links on Hardscore/GetDarker pages. |
 
 Also hidden rather than offered as dead rows: Moxser mix pages without a direct
@@ -798,11 +807,33 @@ credits list (no URLs). `HANDLERS` has no `open_url`; there are no
 ### 12.5 Tests
 
 - `test_handoff.py`: availability via xbmcaddon/condvisibility; exact Mixcloud
-  cloudcast/search, SoundCloud play/search and YouTube play/search URLs;
+  cloudcast/search and YouTube play/search URLs; SoundCloud is rejected;
   foreign hosts rejected.
 - `test_sources.py`: missing mixcloud → GetDarker/Rave Archive rows absent and
   direct routes produce no rows; present mixcloud → cloudcast rows are
   `plugin://plugin.audio.mixcloud`; Hardscore/GetDarker links become
-  Mixcloud/SoundCloud/YouTube plugin rows when present and disappear when
+  Mixcloud/YouTube plugin rows when present and disappear when
   absent; About rows have empty URLs; no `open_url` handler/browser helper.
-- 334 → **350 tests**; docs/changelog/addon version updated.
+- 334 → **360 tests**; docs/changelog/addon version updated.
+
+---
+
+## 13. Theme + hand-off integration (3.9.16 final)
+
+`theme/3.9.16` and `hardening/3.9.16` were merged into one 3.9.16 (the theme
+worktree/art is retained; the hand-off logic is applied on top):
+
+- Root labels and order stay exactly the nine IA rows (`Curated Gems` not
+  renamed). Every theme icon/fanart wiring is kept: root `root_rows` with
+  `fanart-*.jpg`, hub `fanart-hub-*.jpg`, per-source GetDarker/Hardscore/Moxser/
+  Pirate Archive art and the re-cut 256×256 stickers (`pirate-archive.png`
+  replaces the missing `pirate_source.png`).
+- Hand-off logic is preserved on top: Mixcloud/YouTube rows are still
+  conditional on their add-on; SoundCloud links are ignored and no SoundCloud
+  content/hand-off row exists.
+- `docs/THEME-2026.md` + `docs/theme-2026/` are kept; `test/test_theme_art.py`
+  runs with `handoff.available` mocked for the optional GetDarker/Rave Archive
+  rows.
+- `dist/` and `repo/` are rebuilt **after** the merge (not hand-edited) so the
+  published 3.9.16 zip contains the theme, hand-off policy and SoundCloud
+  removal; tests: **360**.

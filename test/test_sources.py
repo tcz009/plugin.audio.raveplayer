@@ -117,6 +117,9 @@ class NewSourceRouteTests(unittest.TestCase):
         for item in xbmcplugin.ITEMS[:-1]:
             self.assertEqual(item["url"], "")
             self.assertEqual(item["properties"].get("IsPlayable"), "false")
+        soundcloud = next(item for item in xbmcplugin.ITEMS
+                          if item["label"] == "Source: SoundCloud")
+        self.assertIn("Web version only", soundcloud["info"]["music"]["plot"])
 
     def test_pirate_menu_only_shows_direct_file_stations(self):
         routes.pirate_menu(1, {})
@@ -184,7 +187,7 @@ class NewSourceRouteTests(unittest.TestCase):
         self.assertTrue(any("mode=play" in url for url in urls))
         self.assertTrue(any("plugin.audio.mixcloud" in url for url in urls))
         self.assertTrue(any("plugin.video.youtube" in url for url in urls))
-        self.assertTrue(any("plugin.audio.soundcloud" in url for url in urls))
+        self.assertFalse(any("plugin.audio.soundcloud" in url for url in urls))
         self.assertFalse(any("mode=open_url" in url for url in urls))
 
     def test_hardscore_event_hides_links_without_addons(self):
@@ -216,7 +219,7 @@ class NewSourceRouteTests(unittest.TestCase):
         self.assertTrue(any("mode=getdarker_page" in url for url in urls))
         self.assertFalse(any("mode=open_url" in url for url in urls))
 
-    def test_getdarker_page_handoffs_youtube_and_soundcloud(self):
+    def test_getdarker_page_handoffs_youtube_only(self):
         details = {"title": "Set", "media_urls": [],
                    "links": ["https://www.youtube.com/watch?v=abc123",
                              "https://soundcloud.com/artist/track"]}
@@ -225,7 +228,7 @@ class NewSourceRouteTests(unittest.TestCase):
             routes.getdarker_page(1, {"page": "https://getdarker.com/audio/sets/x/"})
         urls = self._urls()
         self.assertTrue(any("plugin.video.youtube" in url for url in urls))
-        self.assertTrue(any("plugin.audio.soundcloud" in url for url in urls))
+        self.assertFalse(any("plugin.audio.soundcloud" in url for url in urls))
         self.assertFalse(any("mode=open_url" in url for url in urls))
 
     def test_getdarker_page_hides_links_without_addons(self):
