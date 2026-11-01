@@ -20,7 +20,7 @@ import xbmcplugin
 
 from . import (archive, dnbradio, favourites, feeds,
                getdarker as getdarker_source, hardscore as hardscore_source,
-               http, kodi, latest, legacy, mixcloud as mixcloud_source,
+               handoff, http, kodi, latest, legacy, mixcloud as mixcloud_source,
                moxser as moxser_source, nowplaying, pirate as pirate_source,
                radio, ui)
 
@@ -484,9 +484,10 @@ def shows_menu(handle, params):
          "Moxser's curated dance-music mix archive — direct MP3s where available."),
         ("Hardscore.com", url_for(mode="hardscore"), "hardcore.png",
          "Oldskool hardcore/jungle sets, tracklists and direct MP3s."),
-        ("GetDarker (dubstep/grime)", url_for(mode="getdarker"), "jungle.png",
-         "GetDarker sets (RSS) plus the curated GetDarker Mixcloud archive."),
     ]
+    if handoff.available("mixcloud"):
+        rows.append(("GetDarker (dubstep/grime)", url_for(mode="getdarker"), "jungle.png",
+                     "GetDarker sets (RSS) plus the curated GetDarker Mixcloud archive."))
     for label, url, icon, plot in rows:
         ui.menu_item(handle, url, label, icon=art(icon), plot=plot)
     ui.menu_item(handle, url_for(mode="root"), "Back")
@@ -498,11 +499,13 @@ def curated_menu(handle, params):
     rows = [
         ("Pirate Radio Archives", url_for(mode="pirate_menu"), "pirate.png",
          "Curated 1990s pirate-radio recordings: Risk FM, Weekend Rush and Flava FM."),
-        ("Rave Archive UK", url_for(mode="mixcloud_account", key="rave-archive-uk"), "rave.png",
-         "Rave Archive UK on Mixcloud — oldskool, hardcore, jungle and drum & bass."),
         ("Legacy Archives (2014)", url_for(mode="legacy_menu"), "pirate.png",
          "The 2014 fan sites that are still standing."),
     ]
+    if handoff.available("mixcloud"):
+        rows.insert(1, ("Rave Archive UK",
+                        url_for(mode="mixcloud_account", key="rave-archive-uk"), "rave.png",
+                        "Rave Archive UK on Mixcloud — via the Kodi Mixcloud add-on."))
     for label, url, icon, plot in rows:
         ui.menu_item(handle, url, label, icon=art(icon), plot=plot)
     ui.menu_item(handle, url_for(mode="root"), "Back")
@@ -1114,25 +1117,57 @@ def legacy_pack(handle, params):
 # --------------------------------------------------------------- new sources
 
 
-def _open_source_item(handle, label, url, icon=None, plot=None):
-    """A folder row that opens a source page outside the plugin."""
-    ui.menu_item(
-        handle,
-        url_for(mode="open_url", url=url),
-        label,
-        icon=icon or art("radio.png"),
-        plot=plot or "Opens the source page in the platform browser.",
-    )
+def _handoff_target(url, title):
+    """Return (addon kind, plugin:// URL) for a third-party link, or None.
 
-
-def open_url(handle, params):
-    """Open a validated public http(s) source page (Mixcloud/Hardscore/etc.)."""
-    url = params.get("url", "")
-    if not http.is_public_http_url(url):
-        kodi.notify("That source page is not available.")
+    Rules: only official Kodi add-ons are used; if the relevant add-on is not
+    installed the link is not offered at all (no dead rows, no browser).
+    """
+    text = str(url or "").strip()
+    lower = text.lower()
+    if "youtube.com/" in lower or "youtu.be/" in lower:
+        kind, builder = "youtube", handoff.youtube_target
+    elif "soundcloud.com/" in lower:
+        kind, builder = "soundcloud", handoff.soundcloud_target
+    elif "mixcloud.com/" in lower:
+        kind, builder = "mixcloud", handoff.mixcloud_target
     else:
-        kodi.open_external(url)
-    kodi.end_directory(handle, "files")
+        return None
+    if not handoff.available(kind):
+        return None
+    target = builder(text, title)
+    if not target:
+        return None
+    return kind, target
+
+
+_HANDOFF_LABELS = {
+    "youtube": "YouTube",
+    "soundcloud": "SoundCloud",
+    "mixcloud": "Mixcloud",
+}
+
+
+def _handoff_link_items(handle, links, title, icon, plot):
+    """Render supported third-party links as Kodi add-on hand-off rows.
+
+    Returns how many rows were shown.  Missing add-ons hide their links.
+    """
+    shown = 0
+    for url in links or []:
+        found = _handoff_target(url, title)
+        if not found:
+            continue
+        kind, target = found
+        ui.menu_item(
+            handle,
+            target,
+            "Open in %s" % _HANDOFF_LABELS[kind],
+            icon=icon,
+            plot=plot,
+        )
+        shown += 1
+    return shown
 
 
 def moxser(handle, params):
@@ -1183,8 +1218,7 @@ def moxser_mix(handle, params):
             context=[_favourite("stream", details["mp3_url"], title, "Moxser.com")],
         )
     else:
-        _open_source_item(handle, "Open on Moxser", page, icon=flyer,
-                          plot=plotted + " · no direct MP3 found")
+        kodi.notify("No direct MP3 on that Moxser page — nothing to play in Kodi.")
     kodi.end_directory(handle, "files")
 
 
@@ -1205,8 +1239,6 @@ def hardscore(handle, params):
                 plot=row.get("description") or "Hardscore.com",
                 title=title,
                 context=[
-                    ("Open original post", "RunPlugin(%s)" % url_for(
-                        mode="open_url", url=row["page_url"])),
                     _favourite("stream", row["media_urls"][0], title, "Hardscore.com"),
                 ],
             )
@@ -1238,23 +1270,26 @@ def hardscore_event(handle, params):
             title=title,
             context=[_favourite("stream", url, title, "Hardscore.com")],
         )
-    for url in details["links"]:
-        _open_source_item(handle, "Open linked page", url, icon=art("hardcore.png"),
-                          plot="Hardscore.com external link")
-    if not details["media_urls"] and not details["links"]:
-        _open_source_item(handle, "Open post on Hardscore", page,
-                          icon=art("hardcore.png"), plot="No direct media in this post.")
+    shown = _handoff_link_items(handle, details["links"], title,
+                                art("hardcore.png"),
+                                "Hardscore.com link — hand-off to a Kodi add-on.")
+    if not details["media_urls"] and not shown:
+        kodi.notify("No in-Kodi media on that Hardscore post.")
     kodi.end_directory(handle, "files")
 
 
 def getdarker(handle, params):
+    if not handoff.available("mixcloud"):
+        kodi.notify("GetDarker needs the Kodi Mixcloud add-on — row hidden.")
+        kodi.end_directory(handle, "files")
+        return
     rows = getdarker_source.items(limit=60)
     ui.menu_item(
         handle,
-        url_for(mode="mixcloud_account", key="getdarker"),
+        handoff.mixcloud_search("GetDarker"),
         "GetDarker on Mixcloud",
         icon=art("jungle.png"),
-        plot="Curated GetDarker Mixcloud archive (opens the source page).",
+        plot="Open the GetDarker cloudcasts in the Kodi Mixcloud add-on.",
     )
     if not rows:
         kodi.notify("GetDarker RSS did not answer — showing the Mixcloud archive only.")
@@ -1287,11 +1322,10 @@ def getdarker_page(handle, params):
                       thumb=art("jungle.png"), plot="GetDarker",
                       title=title,
                       context=[_favourite("stream", url, title, "GetDarker")])
-    for url in details["links"]:
-        _open_source_item(handle, "Open linked page", url, icon=art("jungle.png"),
-                          plot="GetDarker external link")
-    if not details["media_urls"] and not details["links"]:
-        _open_source_item(handle, "Open on GetDarker", page, icon=art("jungle.png"))
+    shown = _handoff_link_items(handle, details["links"], title, art("jungle.png"),
+                                "GetDarker link — hand-off to a Kodi add-on.")
+    if not details["media_urls"] and not shown:
+        kodi.notify("No in-Kodi media on that GetDarker page.")
     kodi.end_directory(handle, "files")
 
 
@@ -1301,20 +1335,27 @@ def mixcloud_account(handle, params):
         kodi.notify("That Mixcloud source is not configured.")
         kodi.end_directory(handle, "files")
         return
+    if not handoff.available("mixcloud"):
+        kodi.notify("%s needs the Kodi Mixcloud add-on — row hidden." % source["name"])
+        kodi.end_directory(handle, "files")
+        return
     rows = mixcloud_source.cloudcasts(source["account"], limit=60)
     if not rows:
         kodi.notify("%s did not return any cloudcasts." % source["name"])
     for row in rows:
         title = ui.plain(row["title"])
+        target = handoff.mixcloud_cloudcast(row["url"]) or handoff.mixcloud_search(title)
+        if not target:
+            continue
         created = row.get("created") or ""
         label = title + ("  [COLOR gray](%s)[/COLOR]" % ui.plain(created[:10])
                          if created else "")
         ui.menu_item(
             handle,
-            url_for(mode="open_url", url=row["url"]),
+            target,
             label,
             icon=_safe_art(row.get("thumb"), art("radio.png")),
-            plot="%s · Mixcloud page — opens in the platform browser." % source["name"],
+            plot="%s · opens in the Kodi Mixcloud add-on." % source["name"],
             title=title,
         )
     ui.menu_item(handle, url_for(mode="root"), "Back")
@@ -1325,16 +1366,26 @@ def pirate_menu(handle, params):
     groups = pirate_source.stations()
     if not groups:
         kodi.notify("The Pirate Radio Archives data is missing from the add-on.")
+    shown = 0
     for group in groups:
-        count = len(group["entries"])
+        # Policy: only direct in-add-on streams are rows; metadata-only
+        # recordings (no stream, no official add-on) stay in the data file but
+        # are not shown as dead rows.
+        playable = [entry for entry in group["entries"] if entry["stream_url"]]
+        if not playable:
+            continue
+        shown += 1
         ui.menu_item(
             handle,
             url_for(mode="pirate_station", station=group["station"]),
             "%s  [COLOR gray](%d recording%s)[/COLOR]"
-            % (ui.plain(group["station"]), count, "" if count == 1 else "s"),
+            % (ui.plain(group["station"]), len(playable),
+               "" if len(playable) == 1 else "s"),
             icon=art("pirate_source.png"),
             plot="Curated 1990s pirate-radio archive.",
         )
+    if not shown:
+        kodi.notify("No Pirate Radio Archives recordings have a direct in-Kodi stream.")
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -1345,7 +1396,12 @@ def pirate_station(handle, params):
         kodi.notify("That station is no longer in the archive.")
         kodi.end_directory(handle, "files")
         return
-    for entry in group["entries"]:
+    playable = [entry for entry in group["entries"] if entry["stream_url"]]
+    if not playable:
+        kodi.notify("That station has no direct in-Kodi recordings.")
+        kodi.end_directory(handle, "files")
+        return
+    for entry in playable:
         title = ui.plain(entry["title"])
         djs = ", ".join(entry["djs"])
         year = entry["year"] if entry["year"] is not None else "year unknown"
@@ -1354,44 +1410,18 @@ def pirate_station(handle, params):
             plot += " · Credit: %s" % entry["credit"]
         if entry["note"]:
             plot += " · %s" % entry["note"]
-        if entry["stream_url"]:
-            ui.track_item(
-                handle,
-                url_for(mode="play", url=entry["stream_url"], label=title),
-                title,
-                thumb=art("pirate_source.png"),
-                plot=plot,
-                album=group["station"],
-                title=title,
-                context=[_favourite("stream", entry["stream_url"], title,
-                                    group["station"])],
-            )
-        elif entry["source_url"]:
-            _open_source_item(
-                handle, title + "  [COLOR gray](source page)[/COLOR]",
-                entry["source_url"], icon=art("pirate_source.png"), plot=plot,
-            )
-        else:
-            ui.menu_item(
-                handle,
-                url_for(mode="pirate_note", station=group["station"], title=entry["title"]),
-                title + "  [COLOR gray](metadata only)[/COLOR]",
-                icon=art("pirate_source.png"),
-                plot=plot,
-                title=title,
-            )
+        ui.track_item(
+            handle,
+            url_for(mode="play", url=entry["stream_url"], label=title),
+            title,
+            thumb=art("pirate_source.png"),
+            plot=plot,
+            album=group["station"],
+            title=title,
+            context=[_favourite("stream", entry["stream_url"], title,
+                                group["station"])],
+        )
     ui.menu_item(handle, url_for(mode="pirate_menu"), "Back")
-    kodi.end_directory(handle, "files")
-
-
-def pirate_note(handle, params):
-    group = pirate_source.station(params.get("station", ""))
-    entry = None
-    if group:
-        entry = next((row for row in group["entries"]
-                      if row["title"] == params.get("title")), None)
-    note = (entry or {}).get("note") or "No confirmed source page or stream for this recording."
-    kodi.notify(note[:240])
     kodi.end_directory(handle, "files")
 
 
@@ -1419,30 +1449,29 @@ def search(handle, params):
 
 
 def about(handle, params):
-    """Credits and every source used; not just a version string."""
+    """Credits and every source used; read-only rows that stay in Kodi."""
     rows = [
         ("Rave Player %s — GPL-3.0" % kodi.ADDON_VERSION,
-         "https://github.com/tcz009/plugin.audio.raveplayer",
-         "about.png", "Version %s · GNU General Public License v3.0 · GitHub." % kodi.ADDON_VERSION),
-        ("Source: Internet Archive (archive.org)", "https://archive.org/",
+         "about.png", "Version %s · GNU General Public License v3.0 · "
+         "github.com/tcz009/plugin.audio.raveplayer." % kodi.ADDON_VERSION),
+        ("Source: Internet Archive (archive.org)",
          "rave.png", "Tape packs, rave tapes and audio collections."),
-        ("Source: Mixcloud", "https://www.mixcloud.com/",
-         "radio.png", "Rave Archive UK and GetDarker cloudcasts (opened in the browser)."),
-        ("Source: SoundCloud", "https://soundcloud.com/",
-         "radio.png", "Curated/legacy SoundCloud links (opened in the browser)."),
-        ("Source: radio-browser.info", "https://www.radio-browser.info/",
-         "radio.png", "Live radio station directory."),
-        ("Source: Moxser.com", "https://moxser.com/",
-         "rave.png", "Curated dance-music mix archive and direct MP3s."),
-        ("Source: Hardscore.com", "https://www.hardscore.com/",
-         "hardcore.png", "Oldskool hardcore/jungle archive and direct MP3s."),
-        ("Source: GetDarker.com", "https://getdarker.com/",
-         "jungle.png", "Dubstep/garage/underground sets."),
-        ("Live radio: Kool FM & Rinse FM", "https://www.rinse.fm/",
-         "radio.png", "Kool London and Rinse FM live streams (via admin.stream.rinse.fm)."),
+        ("Source: Mixcloud", "radio.png",
+         "Rave Archive UK and GetDarker cloudcasts — via the Kodi Mixcloud add-on."),
+        ("Source: SoundCloud", "radio.png",
+         "Curated/legacy SoundCloud links — via the Kodi SoundCloud add-on."),
+        ("Source: radio-browser.info", "radio.png", "Live radio station directory."),
+        ("Source: Moxser.com", "rave.png",
+         "Curated dance-music mix archive and direct MP3s."),
+        ("Source: Hardscore.com", "hardcore.png",
+         "Oldskool hardcore/jungle archive and direct MP3s."),
+        ("Source: GetDarker.com", "jungle.png",
+         "Dubstep/garage/underground sets (Kodi Mixcloud add-on)."),
+        ("Live radio: Kool FM & Rinse FM", "radio.png",
+         "Kool London and Rinse FM live streams (via admin.stream.rinse.fm)."),
     ]
-    for label, url, icon, plot in rows:
-        _open_source_item(handle, label, url, icon=art(icon), plot=plot)
+    for label, icon, plot in rows:
+        ui.info_item(handle, label, plot=plot, icon=art(icon))
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -1533,8 +1562,6 @@ HANDLERS = {
     "mixcloud_account": mixcloud_account,
     "pirate_menu": pirate_menu,
     "pirate_station": pirate_station,
-    "pirate_note": pirate_note,
-    "open_url": open_url,
     "legacy_menu": legacy_menu,
     "legacy_jt": legacy_jt,
     "legacy_jt_show": legacy_jt_show,

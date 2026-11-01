@@ -63,15 +63,30 @@ Curated Gems · Favourites · Search the Archive · About & Sources
   UK Garage · Pirate Stations · All Tape Packs · By Year · Classic Pack
   Series · By Rave & Venue.
 - **Mixes & Shows** — Podcasts & Mixes · DNB Radio · Moxser Mixes ·
-  Hardscore.com · GetDarker (dubstep/grime).
+  Hardscore.com · GetDarker (dubstep/grime, when the Mixcloud add-on is installed).
 - **Live Radio** — Kool FM · Rinse FM · Oldskool & Rave · Jungle · Drum & Bass ·
   Hardcore · House · UK Garage · Breakbeat.
-- **Curated Gems** — Pirate Radio Archives · Rave Archive UK · Legacy Archives
-  (2014).
+- **Curated Gems** — Pirate Radio Archives · Rave Archive UK (when the Mixcloud
+  add-on is installed) · Legacy Archives (2014).
 
 Every old destination is still reachable behind a hub with the same `mode=`/
 `key=` values, so favourites and deep links keep working. Latest starts with
 the curated "on air now" Kool/Rinse streams when available.
+
+## Kodi-only hand-off policy (3.9.16)
+
+No row opens a browser or leaves Kodi. Sources that cannot be streamed
+directly are handed to the official Kodi add-ons through `plugin://` paths:
+
+| Source | Official add-on | Hand-off |
+|---|---|---|
+| Mixcloud (Rave Archive UK, GetDarker, cloudcasts) | `plugin.audio.mixcloud` | `?mode=40&key=<cloudcast path>` or `?mode=30&key=cloudcast&query=…` |
+| SoundCloud links | `plugin.audio.soundcloud` | `play/?url=<page>` or `search/?query=…` |
+| YouTube links | `plugin.video.youtube` | `play/?video_id=<id>` or `search/?q=…` |
+
+If the add-on is missing the row is hidden entirely — no dead links. Direct
+sources (Moxser MP3s, Hardscore MP3s, archive.org, tape packs, Kool/Rinse live)
+are unchanged. About & Sources is a read-only credits screen.
 
 ## Why it was rebuilt rather than patched
 
@@ -133,6 +148,7 @@ raveplayer/
 │       ├── getdarker.py    # GetDarker RSS + Mixcloud route
 │       ├── mixcloud.py     # curated Mixcloud accounts (open page)
 │       ├── pirate.py       # Pirate Radio Archives data loader
+│       ├── handoff.py      # official Kodi add-on detection + plugin URLs
 │       ├── radio.py        # radio-browser.info provider
 │       ├── latest.py       # "Latest", "Surprise me", by-year queries
 │       ├── favourites.py   # JSON favourites store

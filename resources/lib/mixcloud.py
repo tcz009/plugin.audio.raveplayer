@@ -4,9 +4,9 @@
 Mixcloud's public API needs no key and exposes the cloudcast page/title/thumb.
 There is deliberately no audio extraction here: Mixcloud streams are HLS and
 the sanctioned player is their widget, which Kodi cannot embed.  The add-on
-therefore lists the cloudcasts and opens the page in the platform browser (or
-shows the URL on platforms without one) instead of pretending to resolve a
-stream.
+therefore lists only metadata; routes hand the cloudcast page/path to the
+official ``plugin.audio.mixcloud`` add-on and hide the row if it is not
+installed (see ``handoff.py``).
 """
 
 import urllib.parse

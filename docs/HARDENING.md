@@ -1,9 +1,10 @@
-# HARDENING — Rave Player Kodi add-on 3.9.15
+# HARDENING — Rave Player Kodi add-on 3.9.16
 
 **Branches:** `hardening/3.9.11` (tag `v3.9.10-review`), `hardening/3.9.12` (from 3.9.11 `main`), and
 `hardening/3.9.13` (from 3.9.12 `main` at `7ff12e6`) and `hardening/3.9.14` (from 3.9.13 `main` at `4f5cbe2`) and
-`hardening/3.9.15` (from 3.9.14 `main` at `dc4cd9c`; this pass).
-**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.15 · **Result:** 3.9.15, **334 offline tests OK** (was 207; 328 at 3.9.14)
+`hardening/3.9.15` (from 3.9.14 `main` at `dc4cd9c`) and
+`hardening/3.9.16` (from 3.9.15 `main` at `b0a515a`; this pass).
+**Base:** `plugin.audio.raveplayer` 3.9.10 → 3.9.16 · **Result:** 3.9.16, **350 offline tests OK** (was 207; 334 at 3.9.15)
 **Date:** 2026-11-01 · **Not pushed / not released.**
 
 Scope: 3.9.11–3.9.13 were internal hardening passes — real, provable defects
@@ -22,11 +23,11 @@ Nothing was deferred silently.
 
 | | |
 |---|---|
-| Suite | **334 tests OK** (was 207; 328 at 3.9.14): +127 offline tests, no network/Kodi needed |
+| Suite | **350 tests OK** (was 207; 334 at 3.9.15): +143 offline tests, no network/Kodi needed |
 | P0/P1 findings | **0 open** (K1, K2, K3 fixed) |
 | Review findings | Adversarial K1–K11 all addressed (3.9.11/3.9.12); independent-review A1–A5, A7–A9, A11, A12 fixed in 3.9.13 (§9); A8 was already fixed and re-tested; A10/A13 remain known/accepted residuals. |
-| Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,getdarker,hardscore,http,kodi,latest,legacy,mixcloud,moxser,pirate,radio,routes,ui}.py`, `resources/pirate-radio.json` |
-| Tests changed | `test/test_{archive,cache,compat,favourites,http,latest,parsers,routes,playlist,ui}.py` plus new `test_{moxser,hardscore,mixcloud,pirate,sources}.py`, `test/stubs/{xbmc,xbmcplugin}.py` |
+| Runtime code changed | `default.py`, `resources/lib/{archive,cache,feeds,favourites,getdarker,handoff,hardscore,http,kodi,latest,legacy,mixcloud,moxser,pirate,radio,routes,ui}.py`, `resources/pirate-radio.json` |
+| Tests changed | `test/test_{archive,cache,compat,favourites,http,latest,parsers,routes,playlist,ui}.py` plus new `test_{handoff,moxser,hardscore,mixcloud,pirate,sources}.py`, `test/stubs/{xbmc,xbmcplugin}.py` |
 | Docs | `docs/HARDENING.md` (this file), `docs/CODE-REVIEW.md`, `changelog.txt`, `addon.xml`; `AGENTS.md` fixed locally (git-excluded by design, never published) |
 | Compatibility | Python 3.9 grammar floor enforced; no module/API removed in 3.9–3.14 is used; Kodi 22 (Python 3.14) not runnable in this environment (see §6) |
 
@@ -228,7 +229,7 @@ python3 -m unittest test.test_routes test.test_http test.test_cache \
     test.test_archive test.test_parsers test.test_favourites test.test_compat -v
 ```
 
-Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → **334 at 3.9.15** (+127). The suite remains
+Test count: 207 → 259 at 3.9.11 → 272 at 3.9.12 → 295 at 3.9.13 → 328 at 3.9.14 → 334 at 3.9.15 → **350 at 3.9.16** (+143). The suite remains
 fully offline (stubs in `test/stubs`), needs no Kodi and no network, and runs
 in ≈1–2 s.
 
@@ -287,19 +288,20 @@ resources/lib/latest.py     + parallel feed fetch (3.9.12)
 resources/lib/moxser.py     + Moxser sitemap/page -> direct MP3 (3.9.14)
 resources/lib/hardscore.py  + Hardscore RSS + post-page media (3.9.14)
 resources/lib/getdarker.py  + GetDarker RSS pages (3.9.14)
-resources/lib/mixcloud.py   + curated Mixcloud accounts (page link-out, 3.9.14)
+resources/lib/mixcloud.py   + curated Mixcloud accounts (Kodi add-on hand-off, 3.9.16)
 resources/lib/pirate.py     + Pirate Radio Archives data loader (3.9.14)
+resources/lib/handoff.py    + official Kodi add-on detection + plugin:// URLs (3.9.16)
 resources/pirate-radio.json + curated Risk FM / Weekend Rush / Flava FM data (3.9.14)
 default.py                  + last-resort main() guard
 test/…                      121 new tests + stub support (+ slow-drip/redirect/art/description regressions)
 docs/HARDENING.md           this file
 docs/CODE-REVIEW.md         K11 accuracy (module list, Kodi/Python note)
 AGENTS.md                   K11 accuracy (local-only; git-excluded, not in the commit diff)
-addon.xml / changelog.txt   3.9.15 (3.9.11–3.9.14 earlier passes)
+addon.xml / changelog.txt   3.9.16 (3.9.11–3.9.15 earlier passes)
 ```
 
 Per the Lead's instruction the branch is committed locally but **not pushed**;
-`dist/` and `repo/` were not touched (so the 3.9.15 repo zip/catalogue remain a
+`dist/` and `repo/` were not touched (so the 3.9.16 repo zip/catalogue remain a
 publish-time step).
 
 > Branch note: `hardening/3.9.12` also contains an unrelated docs/CI commit
@@ -698,10 +700,12 @@ Exact ordered labels now pinned by `test_sources.NewSourceRouteTests`:
   Venue** (`rave_nights`).
 - **Mixes & Shows** (`?mode=shows_menu`, 5 + Back): Podcasts & Mixes
   (`media_menu`), DNB Radio (`dnb_list`), Moxser Mixes (`moxser`),
-  **Hardscore.com** (`hardscore`), **GetDarker (dubstep/grime)** (`getdarker`).
+  **Hardscore.com** (`hardscore`), **GetDarker (dubstep/grime)** (`getdarker`;
+  hidden without the Mixcloud add-on, §12).
 - **Curated Gems** (`?mode=curated_menu`, 3 + Back): Pirate Radio Archives
-  (`pirate_menu`), Rave Archive UK (`mixcloud_account key=rave-archive-uk`),
-  **Legacy Archives (2014)** (`legacy_menu`).
+  (`pirate_menu`), Rave Archive UK (`mixcloud_account key=rave-archive-uk`;
+  hidden without the Mixcloud add-on, §12), **Legacy Archives (2014)**
+  (`legacy_menu`).
 
 No route was deleted; `HANDLERS` still has every old mode, so saved favourites
 (including `filter_list key=kool/rinse`), deep links and the existing dist
@@ -734,3 +738,71 @@ Radio order and About sources; `test_routes.LatestCascadeTests` adds
 `test_latest_prepends_live_on_air_rows` and keeps the no-item/no-live case.
 328 → **334 tests**. README menu section, CODE-REVIEW 3.9.15, changelog and
 addon version updated.
+
+---
+
+## 12. Kodi-only hand-off policy (3.9.16)
+
+> This section supersedes the browser/link-out behaviour described for 3.9.14
+> (§10.3) and 3.9.15 (§11.4): those rows now hand off to official Kodi add-ons
+> or are hidden; no browser/OS intent is used anywhere in the runtime.
+
+Owner decision: **no Kodi row may open a browser or leave Kodi.** Any source
+without a direct in-add-on stream must hand off to an official Kodi add-on and
+be hidden if that add-on is absent.
+
+### 12.1 Detection
+
+New `resources/lib/handoff.py`:
+- `plugin.audio.mixcloud`, `plugin.audio.soundcloud`, `plugin.video.youtube`.
+- `available(kind)` checks `xbmcaddon.Addon(id).getAddonInfo("id")` and falls
+  back to `xbmc.getCondVisibility("System.HasAddon(<id>)")` (AddonManager).
+  A missing/foreign add-on is treated as unavailable (no row).
+
+### 12.2 Hand-off URLs (rows are `plugin://` paths)
+
+| Source | Present add-on → path |
+|---|---|
+| Mixcloud cloudcast | `plugin://plugin.audio.mixcloud/?mode=40&key=<urlencoded /user/slug>` |
+| Mixcloud search | `plugin://plugin.audio.mixcloud/?mode=30&key=cloudcast&offset=0&query=<q>` |
+| SoundCloud page | `plugin://plugin.audio.soundcloud/play/?url=<urlencoded page>` |
+| SoundCloud search | `plugin://plugin.audio.soundcloud/search/?query=<q>` |
+| YouTube video | `plugin://plugin.video.youtube/play/?video_id=<id>` |
+| YouTube search | `plugin://plugin.video.youtube/search/?q=<q>` |
+
+The row URL is the hand-off path itself, so selecting it enters the official
+add-on's search/cloudcast directory inside Kodi; no `open_url`/OS intent/dialog.
+
+### 12.3 What is hidden without each add-on
+
+| Missing add-on | Hidden |
+|---|---|
+| `plugin.audio.mixcloud` | GetDarker row in Mixes & Shows; Rave Archive UK row in Curated Gems; Mixcloud links on Hardscore/GetDarker pages; direct `mode=getdarker`/`mode=mixcloud_account` produce no rows (notify only). |
+| `plugin.audio.soundcloud` | SoundCloud links on Hardscore/GetDarker pages. |
+| `plugin.video.youtube` | YouTube links on Hardscore/GetDarker pages. |
+
+Also hidden rather than offered as dead rows: Moxser mix pages without a direct
+MP3; Hardscore/GetDarker posts with no direct media and no supported hand-off;
+Pirate Radio Archives metadata-only entries (Risk FM/Flava FM stay in the JSON
+with notes, but the menu only lists direct-file stations such as Weekend Rush).
+Direct-file sources are untouched: Moxser MP3s, Hardscore MP3s, archive.org,
+tape packs, Kool/Rinse live streams.
+
+### 12.4 Removed browser paths
+
+`routes.open_url`, `_open_source_item`, the `open_url` handler and
+`kodi.open_external` are gone. About & Sources is a read-only `ui.info_item`
+credits list (no URLs). `HANDLERS` has no `open_url`; there are no
+`open_external`/browser/OS-intent calls in `resources/lib`.
+
+### 12.5 Tests
+
+- `test_handoff.py`: availability via xbmcaddon/condvisibility; exact Mixcloud
+  cloudcast/search, SoundCloud play/search and YouTube play/search URLs;
+  foreign hosts rejected.
+- `test_sources.py`: missing mixcloud → GetDarker/Rave Archive rows absent and
+  direct routes produce no rows; present mixcloud → cloudcast rows are
+  `plugin://plugin.audio.mixcloud`; Hardscore/GetDarker links become
+  Mixcloud/SoundCloud/YouTube plugin rows when present and disappear when
+  absent; About rows have empty URLs; no `open_url` handler/browser helper.
+- 334 → **350 tests**; docs/changelog/addon version updated.
