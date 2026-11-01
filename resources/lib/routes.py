@@ -71,7 +71,7 @@ ARCHIVE_SECTIONS = [
     },
     {
         "key": "pirate",
-        "art": "pirate_source.png",
+        "art": "pirate-archive.png",
         "label": "Pirate Radio",
         "query": 'collection:ravetapes AND (Kool OR Centreforce OR "Don FM")',
         "plot": "Kool FM, Centreforce and Don FM sets from the archives.",
@@ -409,37 +409,36 @@ def dispatch(argv):
 
 
 def root(handle, params):
-    """Top-level menu: nine journey steps, not a source inventory."""
+    """Top-level menu: nine journey steps, not a source inventory.
+
+    Each row carries its own sticker icon and 1280x720 fanart, so Estuary (and
+    any skin that shows the focused item's fanart) gives every destination its
+    own room. Art is declared in resources/art/; see docs/THEME-2026.md.
+    """
     menu_item = ui.menu_item
-
-    menu_item(handle, url_for(mode="latest"), "Latest",
-              icon=art("rave.png"),
-              plot="Newest packs, shows and radio rips — start here.")
-    menu_item(handle, url_for(mode="surprise"), "Surprise Me",
-              icon=art("tapepacks.png"),
-              plot="Plays a random tape pack.")
-    menu_item(handle, url_for(mode="packs_menu"), "Tape Packs",
-              icon=art("tapepacks.png"),
-              plot="The ravetapes archive: by genre, by year, by series, by rave.")
-    menu_item(handle, url_for(mode="shows_menu"), "Mixes & Shows",
-              icon=art("jungle.png"),
-              plot="Podcasts, DNB Radio, Moxser, Hardscore and GetDarker.")
-    menu_item(handle, url_for(mode="radio_menu"), "Live Radio",
-              icon=art("radio.png"),
-              plot="Stations streaming now: Kool, Rinse and every genre tag.")
-    menu_item(handle, url_for(mode="curated_menu"), "Curated Gems",
-              icon=art("pirate.png"),
-              plot="Pirate recordings, Rave Archive UK, the 2014 survivors.")
-    menu_item(handle, url_for(mode="fav_list"), "Favourites",
-              icon=art("about.png"),
-              plot="The packs and shows you saved.")
-    menu_item(handle, url_for(mode="search"), "Search the Archive",
-              icon=art("search.png"),
-              plot="Search every tape pack on archive.org.")
-    menu_item(handle, url_for(mode="about"), "About & Sources",
-              icon=art("about.png"),
-              plot="Version, credits and every source used.")
-
+    root_rows = [
+        ("latest", "Latest", "rave.png", "fanart-latest.jpg",
+         "Newest packs, shows and radio rips — start here."),
+        ("surprise", "Surprise Me", "surprise.png", "fanart-surprise.jpg",
+         "Plays a random tape pack."),
+        ("packs_menu", "Tape Packs", "tapepacks.png", "fanart-tapepacks.jpg",
+         "The ravetapes archive: by genre, by year, by series, by rave."),
+        ("shows_menu", "Mixes & Shows", "mixes.png", "fanart-mixes.jpg",
+         "Podcasts, DNB Radio, Moxser, Hardscore and GetDarker."),
+        ("radio_menu", "Live Radio", "radio.png", "fanart-live.jpg",
+         "Stations streaming now: Kool, Rinse and every genre tag."),
+        ("curated_menu", "Curated Gems", "curated.png", "fanart-curated.jpg",
+         "Pirate recordings, Rave Archive UK, the 2014 survivors."),
+        ("fav_list", "Favourites", "favourites.png", "fanart-favourites.jpg",
+         "The packs and shows you saved."),
+        ("search", "Search the Archive", "search.png", "fanart-search.jpg",
+         "Search every tape pack on archive.org."),
+        ("about", "About & Sources", "about.png", "fanart-about.jpg",
+         "Version, credits and every source used."),
+    ]
+    for mode, label, icon, fan, plot in root_rows:
+        menu_item(handle, url_for(mode=mode), label,
+                  icon=art(icon), fanart=art(fan), plot=plot)
     kodi.end_directory(handle, "files")
 
 
@@ -467,8 +466,9 @@ def packs_menu(handle, params):
         ("By Rave & Venue", url_for(mode="rave_nights"), "rave.png",
          "Promotions, venues and pirate stations from the research catalogue."),
     ]
+    hub_fanart = art("fanart-hub-packs.jpg")
     for label, url, icon, plot in rows:
-        ui.menu_item(handle, url, label, icon=art(icon), plot=plot)
+        ui.menu_item(handle, url, label, icon=art(icon), fanart=hub_fanart, plot=plot)
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -476,19 +476,22 @@ def packs_menu(handle, params):
 def shows_menu(handle, params):
     """Mixes & Shows hub: all streaming sources live behind one door."""
     rows = [
-        ("Podcasts & Mixes", url_for(mode="media_menu"), "radio.png",
+        ("Podcasts & Mixes", url_for(mode="media_menu"), "radio.png", None,
          "Current jungle, drum & bass, hardcore and rave shows — RSS feeds."),
-        ("DNB Radio", url_for(mode="dnb_list"), "hardcore.png",
+        ("DNB Radio", url_for(mode="dnb_list"), "hardcore.png", None,
          "Recent jungle and drum & bass shows from DNBRADIO.com."),
-        ("Moxser Mixes", url_for(mode="moxser"), "rave.png",
+        ("Moxser Mixes", url_for(mode="moxser"), "moxser.png", "fanart-moxser.jpg",
          "Moxser's curated dance-music mix archive — direct MP3s where available."),
-        ("Hardscore.com", url_for(mode="hardscore"), "hardcore.png",
+        ("Hardscore.com", url_for(mode="hardscore"), "hardscore.png", "fanart-hardscore.jpg",
          "Oldskool hardcore/jungle sets, tracklists and direct MP3s."),
-        ("GetDarker (dubstep/grime)", url_for(mode="getdarker"), "jungle.png",
+        ("GetDarker (dubstep/grime)", url_for(mode="getdarker"), "getdarker.png",
+         "fanart-getdarker.jpg",
          "GetDarker sets (RSS) plus the curated GetDarker Mixcloud archive."),
     ]
-    for label, url, icon, plot in rows:
-        ui.menu_item(handle, url, label, icon=art(icon), plot=plot)
+    hub_fanart = art("fanart-hub-shows.jpg")
+    for label, url, icon, fan, plot in rows:
+        ui.menu_item(handle, url, label, icon=art(icon),
+                     fanart=art(fan) if fan else hub_fanart, plot=plot)
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -496,15 +499,19 @@ def shows_menu(handle, params):
 def curated_menu(handle, params):
     """Curated Gems hub: hand-picked recordings and surviving sites."""
     rows = [
-        ("Pirate Radio Archives", url_for(mode="pirate_menu"), "pirate.png",
+        ("Pirate Radio Archives", url_for(mode="pirate_menu"), "pirate-archive.png",
+         "fanart-pirate-archive.jpg",
          "Curated 1990s pirate-radio recordings: Risk FM, Weekend Rush and Flava FM."),
         ("Rave Archive UK", url_for(mode="mixcloud_account", key="rave-archive-uk"), "rave.png",
+         None,
          "Rave Archive UK on Mixcloud — oldskool, hardcore, jungle and drum & bass."),
-        ("Legacy Archives (2014)", url_for(mode="legacy_menu"), "pirate.png",
+        ("Legacy Archives (2014)", url_for(mode="legacy_menu"), "pirate.png", None,
          "The 2014 fan sites that are still standing."),
     ]
-    for label, url, icon, plot in rows:
-        ui.menu_item(handle, url, label, icon=art(icon), plot=plot)
+    hub_fanart = art("fanart-hub-curated.jpg")
+    for label, url, icon, fan, plot in rows:
+        ui.menu_item(handle, url, label, icon=art(icon),
+                     fanart=art(fan) if fan else hub_fanart, plot=plot)
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -512,11 +519,12 @@ def curated_menu(handle, params):
 def radio_menu(handle, params):
     # Kool/Rinse first: each row offers its live stream plus the archive sets;
     # both were previously root rows competing with Live Radio.
+    hub_fanart = art("fanart-hub-live.jpg")
     ui.menu_item(handle, url_for(mode="filter_list", key="kool"), "Kool FM",
-                 icon=art("radio.png"),
+                 icon=art("radio.png"), fanart=hub_fanart,
                  plot="Kool FM — live now, plus every Kool FM set in the archive.")
     ui.menu_item(handle, url_for(mode="filter_list", key="rinse"), "Rinse FM",
-                 icon=art("radio.png"),
+                 icon=art("radio.png"), fanart=hub_fanart,
                  plot="Rinse FM — live now, plus every Rinse FM set in the archive.")
     for section in RADIO_SECTIONS:
         ui.menu_item(
@@ -524,6 +532,7 @@ def radio_menu(handle, params):
             url_for(mode="radio_tag", key=section["key"]),
             section["label"],
             icon=art(section["art"]),
+            fanart=hub_fanart,
             plot="Live stations tagged %s" % section["tag"],
         )
     ui.menu_item(handle, url_for(mode="root"), "Back")
@@ -1332,7 +1341,7 @@ def pirate_menu(handle, params):
             url_for(mode="pirate_station", station=group["station"]),
             "%s  [COLOR gray](%d recording%s)[/COLOR]"
             % (ui.plain(group["station"]), count, "" if count == 1 else "s"),
-            icon=art("pirate_source.png"),
+            icon=art("pirate-archive.png"),
             plot="Curated 1990s pirate-radio archive.",
         )
     ui.menu_item(handle, url_for(mode="root"), "Back")
@@ -1359,7 +1368,7 @@ def pirate_station(handle, params):
                 handle,
                 url_for(mode="play", url=entry["stream_url"], label=title),
                 title,
-                thumb=art("pirate_source.png"),
+                thumb=art("pirate-archive.png"),
                 plot=plot,
                 album=group["station"],
                 title=title,
@@ -1369,14 +1378,14 @@ def pirate_station(handle, params):
         elif entry["source_url"]:
             _open_source_item(
                 handle, title + "  [COLOR gray](source page)[/COLOR]",
-                entry["source_url"], icon=art("pirate_source.png"), plot=plot,
+                entry["source_url"], icon=art("pirate-archive.png"), plot=plot,
             )
         else:
             ui.menu_item(
                 handle,
                 url_for(mode="pirate_note", station=group["station"], title=entry["title"]),
                 title + "  [COLOR gray](metadata only)[/COLOR]",
-                icon=art("pirate_source.png"),
+                icon=art("pirate-archive.png"),
                 plot=plot,
                 title=title,
             )

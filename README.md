@@ -73,6 +73,17 @@ Every old destination is still reachable behind a hub with the same `mode=`/
 `key=` values, so favourites and deep links keep working. Latest starts with
 the curated "on air now" Kool/Rinse streams when available.
 
+### Kodi theme 2026 (3.9.16)
+
+The nine root rows, four hubs and key sources now carry their own sticker icon
+(256×256) and, when the skin shows focused-item fanart, their own 1280×720
+fanart — the same bright spot-colour / ink-glyph language as the web build's
+"The Last Transmission" art, re-cut for a TV list. The wordmark/logo are
+untouched. Tokens, grids, the full asset map and what a Kodi add-on can and
+cannot control are documented in [`docs/THEME-2026.md`](docs/THEME-2026.md);
+before/after menu renders are in `docs/theme-2026/`. After updating, restart
+Kodi once so the texture cache picks up the re-cut stickers.
+
 ## Why it was rebuilt rather than patched
 
 The 2014 add-on was Python 2, ran on `xbmc.python` 2.1.0 (Kodi 13), and
