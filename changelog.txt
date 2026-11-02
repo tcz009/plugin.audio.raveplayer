@@ -1,3 +1,14 @@
+Rave Player 3.9.24
+- Live M3U regression fix: write the bounded Kool/Rinse playlist through
+  xbmcvfs to special://temp, close/flush it, then resolve the translated
+  absolute .m3u path (never the special:// form). Mark the ListItem MIME as
+  audio/x-mpegurl.
+- If the M3U path is missing, non-absolute or cannot be verified, fall back to
+  the direct stream immediately instead of leaving a dead play. Device playback
+  confirmation remains with the owner.
+- Tests: 417 -> 420 (xbmcvfs absolute/existing path, .m3u extension, direct
+  fallback for empty/non-absolute paths). No device playback run.
+
 Rave Player 3.9.23
 - Live radio reconnect: Kool FM and Rinse FM resolve through a bounded local
   M3U playlist (6 copies of the curated stream). If a proxy connection drops,

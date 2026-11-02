@@ -116,6 +116,9 @@ class ListItem(object):
     def setPath(self, path):
         self.path = path
 
+    def setMimeType(self, mime):
+        self.mime = mime
+
     def setLabel(self, label):
         self.label = label
 
