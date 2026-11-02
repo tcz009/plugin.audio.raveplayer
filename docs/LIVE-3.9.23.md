@@ -1,4 +1,4 @@
-# Live radio reconnect + metadata (3.9.23)
+# Live radio reconnect + metadata (3.9.23, path fix 3.9.24)
 
 ## Kool/Rinse drop
 
@@ -15,6 +15,9 @@ route falls back to the direct stream (no reconnect) rather than failing.
 
 The M3U filename is a SHA-1 hash of the stream URL under
 `special://temp/raveplayer-live-<hash>.m3u`; no user text is used as a path.
+3.9.24 writes it through `xbmcvfs` and returns the translated **absolute**
+path, never `special://`, and verifies the file exists before resolving it.
+If that verification fails the route falls back to the direct stream.
 
 ## Fixed station metadata
 

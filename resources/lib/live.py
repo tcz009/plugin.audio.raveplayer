@@ -21,6 +21,8 @@ import os
 import re
 import urllib.parse
 
+import xbmcvfs
+
 from . import kodi
 
 LIVE_RECONNECT_ENTRIES = 6
@@ -101,21 +103,43 @@ def playlist_path(stream):
 
 
 def write_playlist(stream, station):
-    """Write the bounded M3U and return its real path, or "" on failure."""
+    """Write the bounded M3U through xbmcvfs and return its absolute path.
+
+    Kodi's Android sandbox is not necessarily the same path as Python's
+    ``open()`` cwd.  ``xbmcvfs`` is the supported file API for add-on-private
+    paths.  The returned value is the translated absolute path; callers must
+    never pass the ``special://`` form to ``setResolvedUrl``.
+    """
     text = playlist_text(stream, station)
     special = playlist_path(stream)
     if not text or not special:
         return ""
+    handle = None
     try:
-        path = kodi.translate_path(special)
-        if not path or not os.path.isabs(path):
-            return ""
-        directory = os.path.dirname(path)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as handle:
-            handle.write(text)
-        return path
+        xbmcvfs.mkdirs("special://temp/")
+        handle = xbmcvfs.File(special, "w")
+        handle.write(text)
+        flush = getattr(handle, "flush", None)
+        if callable(flush):
+            flush()
     except Exception as exc:  # noqa: BLE001 - best effort; caller falls back
-        kodi.log("live playlist unavailable (%s)" % exc.__class__.__name__, level=30)
+        kodi.log("live playlist write unavailable (%s)" % exc.__class__.__name__,
+                 level=30)
+        return ""
+    finally:
+        try:
+            if handle is not None:
+                handle.close()
+        except Exception:
+            pass
+    try:
+        if not xbmcvfs.exists(special):
+            return ""
+        path = xbmcvfs.translatePath(special)
+        if not path or not os.path.isabs(path) or not os.path.isfile(path):
+            return ""
+        return path
+    except Exception as exc:  # noqa: BLE001
+        kodi.log("live playlist path unavailable (%s)" % exc.__class__.__name__,
+                 level=30)
         return ""

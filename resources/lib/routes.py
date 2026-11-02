@@ -1775,6 +1775,10 @@ def play(handle, params):
     item.setProperty("IsPlayable", "true")
     if is_live:
         path = live.write_playlist(stream, station)
+        if path and (not os.path.isabs(path) or not os.path.isfile(path)):
+            # A special:// path or a vanished file must never be handed to
+            # setResolvedUrl: go straight back to the direct stream.
+            path = ""
         if path:
             # Finite repeated entries reconnect a dropped stream; Kodi stops
             # when the list ends and a user Stop does not auto-advance.
@@ -1783,6 +1787,10 @@ def play(handle, params):
             item.setInfo("music", info)
             item.setProperty("IsPlayable", "true")
             item.setProperty("IsLiveStream", "true")
+            # The absolute .m3u path is a playlist, not an audio codec.
+            setter = getattr(item, "setMimeType", None)
+            if callable(setter):
+                setter("audio/x-mpegurl")
             xbmcplugin.setResolvedUrl(handle, True, item)
             return
         kodi.log("live reconnect playlist unavailable; using direct stream")
