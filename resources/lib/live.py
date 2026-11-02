@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Fixed metadata/identity helpers for curated live radio.
+"""Live station identity and bounded reconnect playlist helpers.
 
-3.9.23/3.9.24 tried a local M3U to reconnect dropped streams. Kodi's audio
-player treats a local .m3u supplied via setResolvedUrl as a codec input
-("Unable to Init Codec"), so 3.9.25 resolves the known-good direct stream
-again. Reconnect is deferred to a separate tested change.
+3.9.23/3.9.24 tried a local M3U; Kodi's PAPlayer rejected it through
+setResolvedUrl. 3.9.26 uses a finite PlayList of direct stream URLs and
+``xbmc.Player().play(playlist)`` instead. A resolver is called for every
+entry, so a changing/stale live URL is refreshed while the playlist is built.
 """
 
 from __future__ import annotations
@@ -19,6 +19,8 @@ LIVE_STATION = {
 PLACEHOLDER_RE = re.compile(r"now\s+playing\s+info\s+goes\s+here", re.I)
 _CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]+")
 SAFE_LABEL = 80
+LIVE_RECONNECT_ENTRIES = 6
+MAX_RECONNECT_ENTRIES = 12
 
 
 def _stream_parts(stream):
@@ -50,3 +52,43 @@ def station_name(stream, fallback=""):
     if text and not PLACEHOLDER_RE.search(text):
         return text[:SAFE_LABEL]
     return "Live radio"
+
+
+def clean_url(stream):
+    """Public http(s) URL only; no newlines/control characters."""
+    text = str(stream or "").strip()
+    if (not text or "\n" in text or "\r" in text
+            or _CONTROL_RE.search(text)):
+        return ""
+    parts = _stream_parts(text)
+    if parts is None or parts.scheme not in ("http", "https") or not parts.netloc:
+        return ""
+    return text
+
+
+def reconnect_urls(stream, station, resolver=None, entries=LIVE_RECONNECT_ENTRIES):
+    """Return a finite list of direct stream URLs for one live station.
+
+    ``resolver`` is called once per entry (if supplied) so a URL that rotates
+    or was stale at the previous attempt is refreshed while the playlist is
+    built. A failed/empty resolve falls back to the last known direct URL.
+    """
+    base = clean_url(stream)
+    if not base:
+        return []
+    try:
+        count = max(1, min(int(entries), MAX_RECONNECT_ENTRIES))
+    except (TypeError, ValueError):
+        count = LIVE_RECONNECT_ENTRIES
+    urls = []
+    current = base
+    for _ in range(count):
+        if resolver is not None:
+            try:
+                candidate = clean_url(resolver(station))
+            except Exception:  # noqa: BLE001 - resolver is best effort
+                candidate = ""
+            if candidate:
+                current = candidate
+        urls.append(current)
+    return urls

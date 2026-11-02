@@ -1748,6 +1748,18 @@ def _safe_art(value, fallback=None):
     return fallback
 
 
+def _resolve_live_player_url(stream, station):
+    """Re-resolve a live station to its current direct URL, best effort."""
+    try:
+        for candidate in radio.curated(station or stream):
+            url = radio.stream_url(candidate)
+            if url:
+                return url
+    except Exception:  # noqa: BLE001 - keep last known direct URL
+        pass
+    return stream
+
+
 def play(handle, params):
     stream = _playable_url(params.get("url", ""))
     label = params.get("label", "Rave Player")
@@ -1774,10 +1786,31 @@ def play(handle, params):
     item.setInfo("music", info)
     item.setProperty("IsPlayable", "true")
     if is_live:
-        # Kodi's audio PAPlayer cannot decode a local .m3u supplied through
-        # setResolvedUrl (it treats it as a codec input).  Resolve the proven
-        # direct stream again; reconnect is a separate future change.
+        # Do not resolve a playlist file: PAPlayer cannot decode local .m3u
+        # through setResolvedUrl.  Start a finite direct-URL playlist instead;
+        # Kodi advances only when the current stream drops and a user Stop
+        # ends it immediately (no add-on loop/watchdog).
         item.setProperty("IsLiveStream", "true")
+        try:
+            urls = live.reconnect_urls(
+                stream, station,
+                resolver=lambda name: _resolve_live_player_url(stream, name),
+            )
+            if urls:
+                playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
+                playlist.clear()
+                for url in urls:
+                    entry = xbmcgui.ListItem(path=url)
+                    entry.setArt(art)
+                    entry.setInfo("music", dict(info))
+                    entry.setProperty("IsPlayable", "true")
+                    entry.setProperty("IsLiveStream", "true")
+                    playlist.add(url, entry)
+                xbmc.Player().play(playlist)
+                return
+        except Exception as exc:  # noqa: BLE001 - direct stream fallback
+            kodi.log("live reconnect playlist unavailable (%s); direct stream"
+                     % exc.__class__.__name__, level=30)
     xbmcplugin.setResolvedUrl(handle, True, item)
 
 
