@@ -1,3 +1,22 @@
+Rave Player 3.9.29
+- Security R6: downloads.json filenames are now validated as single safe leaves
+  and every resolved file path is realpath-contained under the downloads root.
+  Traversal (`..`), separators, absolute paths, percent-encoded variants and
+  symlinks escaping the root are rejected/dropped; existing bad keys are cleaned
+  on load. Delete/path/list/download share the same guard.
+- R1 live reconnect: each of the six entries now re-resolves through a fresh
+  radio-browser lookup (validated against the known live host), with the
+  canonical curated URL as fallback, instead of reading a cached/static URL.
+- R4: removed the uncollected `test/test_theme_art 2.py` duplicate; the canonical
+  theme/art test keeps the GetDarker mock. Added a test-filename/hygiene guard
+  so space-suffixed duplicates cannot hide again.
+- R2: playback audit now enumerates all 46 handlers and covers context menus /
+  runplugin routes; explicit playback remains separately asserted.
+- R3/R5/R7/R8: YouTube added to About & Sources; docs/versions refreshed;
+  `live=1` deep links can no longer promote arbitrary streams into live
+  playback; Surprise Me copy now says opens a random pack, not plays.
+- Tests: 437 OK. Repo artifacts rebuilt. No device playback.
+
 Rave Player 3.9.28
 - Live playlist: documented the repeated CCurlFile::Stat "Unsupported
   protocol(1)" noise. Kodi's Stat path does not understand the |noshout=true
