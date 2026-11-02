@@ -21,6 +21,7 @@ _CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]+")
 SAFE_LABEL = 80
 LIVE_RECONNECT_ENTRIES = 6
 MAX_RECONNECT_ENTRIES = 12
+NOSHOUT_SUFFIX = "|noshout=true"
 
 
 def _stream_parts(stream):
@@ -92,3 +93,22 @@ def reconnect_urls(stream, station, resolver=None, entries=LIVE_RECONNECT_ENTRIE
                 current = candidate
         urls.append(current)
     return urls
+
+
+def playback_url(stream):
+    """Play-time URL with Kodi's per-item shoutcast off switch.
+
+    The stored/config URL stays clean. Kodi must receive the option in its URL
+    protocol-option syntax; otherwise its audio file layer re-opens the Rinse
+    proxy as Shoutcast, opts into ICY metadata and replaces our fixed tags.
+    """
+    url = clean_url(stream)
+    if not url:
+        return ""
+    if url.lower().endswith(NOSHOUT_SUFFIX):
+        return url
+    if "|" in url:
+        if "noshout=true" in url.lower():
+            return url
+        return url + "&noshout=true"
+    return url + NOSHOUT_SUFFIX

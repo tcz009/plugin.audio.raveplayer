@@ -64,6 +64,24 @@ class ReconnectUrlTests(unittest.TestCase):
         self.assertEqual(live.reconnect_urls("file:///etc/passwd", "Kool FM"), [])
 
 
+class PlaybackUrlTests(unittest.TestCase):
+    def test_playback_url_appends_supported_lowercase_option(self):
+        self.assertEqual(live.playback_url(KOOL), KOOL + "|noshout=true")
+        self.assertEqual(live.playback_url(RINSE), RINSE + "|noshout=true")
+
+    def test_playback_url_is_idempotent(self):
+        once = live.playback_url(KOOL)
+        self.assertEqual(live.playback_url(once), once)
+
+    def test_invalid_url_has_no_option(self):
+        self.assertEqual(live.playback_url("file:///etc/passwd"), "")
+
+    def test_stored_curated_urls_are_clean(self):
+        from resources.lib import radio
+        for station in radio.CURATED:
+            self.assertNotIn("noshout", station["url_resolved"])
+
+
 class LivePlayRouteTests(unittest.TestCase):
     def setUp(self):
         del xbmcplugin.RESOLVED[:]
@@ -79,7 +97,7 @@ class LivePlayRouteTests(unittest.TestCase):
         self.assertEqual(xbmcplugin.RESOLVED, [])
         playlist = xbmc.PLAYED[-1]
         self.assertEqual(len(playlist.items), live.LIVE_RECONNECT_ENTRIES)
-        self.assertTrue(all(url == KOOL for url, _item in playlist.items))
+        self.assertTrue(all(url == KOOL + "|noshout=true" for url, _item in playlist.items))
         self.assertTrue(all(".m3u" not in url for url, _item in playlist.items))
         first_item = playlist.items[0][1]
         self.assertEqual(first_item.info["music"]["title"], "Kool FM")
@@ -91,7 +109,7 @@ class LivePlayRouteTests(unittest.TestCase):
         routes.play(1, {"url": RINSE, "label": "Rinse FM", "live": "1"})
         playlist = xbmc.PLAYED[-1]
         self.assertEqual(len(playlist.items), live.LIVE_RECONNECT_ENTRIES)
-        self.assertTrue(all(url == RINSE for url, _item in playlist.items))
+        self.assertTrue(all(url == RINSE + "|noshout=true" for url, _item in playlist.items))
         self.assertEqual(playlist.items[0][1].info["music"]["title"], "Rinse FM")
 
     def test_non_live_play_is_still_direct(self):
@@ -102,7 +120,7 @@ class LivePlayRouteTests(unittest.TestCase):
         with mock.patch.object(routes.xbmc.Player, "play",
                                side_effect=RuntimeError("no player")):
             routes.play(1, {"url": KOOL, "label": "Kool FM", "live": "1"})
-        self.assertEqual(xbmcplugin.RESOLVED[-1]["path"], KOOL)
+        self.assertEqual(xbmcplugin.RESOLVED[-1]["path"], KOOL + "|noshout=true")
 
     def test_user_stop_clears_playlist_without_addon_restart(self):
         routes.play(1, {"url": KOOL, "label": "Kool FM", "live": "1"})

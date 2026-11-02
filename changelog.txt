@@ -1,3 +1,14 @@
+Rave Player 3.9.27
+- ICY title fix: in the live play path only, append Kodi's lowercase per-item
+  URL option |noshout=true to every direct-URL playlist entry and to the
+  setResolvedUrl fallback. This stops Kodi re-opening the Rinse proxy as a
+  Shoutcast stream and replacing our fixed title/artist/album/art with the ICY
+  StreamTitle. Stored/config/favourite/deep-link URLs stay clean.
+- Helpers: live.playback_url() is idempotent and never creates the option for
+  invalid URLs. Finite six-entry reconnect and non-live playback unchanged.
+- Tests: 423 -> 427 (every playlist/fallback URL has |noshout=true, idempotent,
+  invalid URL, stored curated URLs clean). No device playback run.
+
 Rave Player 3.9.26
 - Proper live reconnect: Kool/Rinse now start a finite six-entry PlayList of
   direct stream URLs with xbmc.Player().play(playlist), never an M3U file and

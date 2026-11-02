@@ -1800,6 +1800,9 @@ def play(handle, params):
                 playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
                 playlist.clear()
                 for url in urls:
+                    url = live.playback_url(url)
+                    if not url:
+                        continue
                     entry = xbmcgui.ListItem(path=url)
                     entry.setArt(art)
                     entry.setInfo("music", dict(info))
@@ -1811,6 +1814,9 @@ def play(handle, params):
         except Exception as exc:  # noqa: BLE001 - direct stream fallback
             kodi.log("live reconnect playlist unavailable (%s); direct stream"
                      % exc.__class__.__name__, level=30)
+        direct = live.playback_url(stream) if is_live else ""
+        if direct:
+            item.setPath(direct)
     xbmcplugin.setResolvedUrl(handle, True, item)
 
 
