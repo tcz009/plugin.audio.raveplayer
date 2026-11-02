@@ -1,31 +1,17 @@
 # -*- coding: utf-8 -*-
-"""Bounded reconnect playlists and fixed metadata for curated live radio.
+"""Fixed metadata/identity helpers for curated live radio.
 
-Kodi's PAPlayer does not reconnect a dropped internet stream by itself: when
-the Rinse proxy connection ends after a few minutes, playback stops with
-"Kodi is not playing any media file".  The add-on resolves a local M3U with a
-small, finite number of copies of the resolved live URL instead of one stream.
-If a connection drops, Kodi advances to the next entry; when the list ends it
-stops.  A user stop stops it immediately (Kodi does not advance a playlist
-after Stop), and there is no infinite loop.
-
-The same playlist carries fixed ``#EXTINF`` station labels so the stream's
-placeholder ICY title is not the primary title.  The resolved ListItem also
-sets fixed title/artist/album/art metadata.
+3.9.23/3.9.24 tried a local M3U to reconnect dropped streams. Kodi's audio
+player treats a local .m3u supplied via setResolvedUrl as a codec input
+("Unable to Init Codec"), so 3.9.25 resolves the known-good direct stream
+again. Reconnect is deferred to a separate tested change.
 """
 
 from __future__ import annotations
 
-import hashlib
-import os
 import re
 import urllib.parse
 
-import xbmcvfs
-
-from . import kodi
-
-LIVE_RECONNECT_ENTRIES = 6
 LIVE_STATION = {
     "kool": "Kool FM",
     "rinse": "Rinse FM",
@@ -64,82 +50,3 @@ def station_name(stream, fallback=""):
     if text and not PLACEHOLDER_RE.search(text):
         return text[:SAFE_LABEL]
     return "Live radio"
-
-
-def _clean_url(stream):
-    text = str(stream or "").strip()
-    if not text or "\n" in text or "\r" in text or _CONTROL_RE.search(text):
-        return ""
-    parts = _stream_parts(text)
-    if parts is None or parts.scheme not in ("http", "https") or not parts.netloc:
-        return ""
-    return text
-
-
-def playlist_text(stream, station, entries=LIVE_RECONNECT_ENTRIES):
-    """Return a finite M3U body with fixed station labels and identical URLs."""
-    url = _clean_url(stream)
-    if not url:
-        return ""
-    try:
-        count = max(1, min(int(entries), 12))
-    except (TypeError, ValueError):
-        count = LIVE_RECONNECT_ENTRIES
-    name = _CONTROL_RE.sub(" ", station_name(url, station)).strip() or "Live radio"
-    lines = ["#EXTM3U"]
-    for _ in range(count):
-        lines.append("#EXTINF:-1,%s" % name[:SAFE_LABEL])
-        lines.append(url)
-    return "\n".join(lines) + "\n"
-
-
-def playlist_path(stream):
-    """Stable temp path for one live URL (no user text in the filename)."""
-    url = _clean_url(stream)
-    if not url:
-        return ""
-    digest = hashlib.sha1(url.encode("utf-8")).hexdigest()[:16]
-    return "special://temp/raveplayer-live-%s.m3u" % digest
-
-
-def write_playlist(stream, station):
-    """Write the bounded M3U through xbmcvfs and return its absolute path.
-
-    Kodi's Android sandbox is not necessarily the same path as Python's
-    ``open()`` cwd.  ``xbmcvfs`` is the supported file API for add-on-private
-    paths.  The returned value is the translated absolute path; callers must
-    never pass the ``special://`` form to ``setResolvedUrl``.
-    """
-    text = playlist_text(stream, station)
-    special = playlist_path(stream)
-    if not text or not special:
-        return ""
-    handle = None
-    try:
-        xbmcvfs.mkdirs("special://temp/")
-        handle = xbmcvfs.File(special, "w")
-        handle.write(text)
-        flush = getattr(handle, "flush", None)
-        if callable(flush):
-            flush()
-    except Exception as exc:  # noqa: BLE001 - best effort; caller falls back
-        kodi.log("live playlist write unavailable (%s)" % exc.__class__.__name__,
-                 level=30)
-        return ""
-    finally:
-        try:
-            if handle is not None:
-                handle.close()
-        except Exception:
-            pass
-    try:
-        if not xbmcvfs.exists(special):
-            return ""
-        path = xbmcvfs.translatePath(special)
-        if not path or not os.path.isabs(path) or not os.path.isfile(path):
-            return ""
-        return path
-    except Exception as exc:  # noqa: BLE001
-        kodi.log("live playlist path unavailable (%s)" % exc.__class__.__name__,
-                 level=30)
-        return ""

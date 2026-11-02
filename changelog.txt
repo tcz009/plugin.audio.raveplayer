@@ -1,3 +1,14 @@
+Rave Player 3.9.25
+- Revert M3U live playback: Kodi's audio PAPlayer cannot decode a local .m3u
+  supplied through setResolvedUrl ("Unable to Init Codec"). Kool FM and Rinse
+  FM now resolve the proven direct stream URL again, with the fixed Kool FM /
+  Rinse FM title/artist/album/art metadata. No .m3u is created or resolved.
+- No reconnect yet: dropping playback cannot be detected synchronously from the
+  plugin callback. A playlist-of-direct-URLs/Player.play watchdog is deferred
+  as a separate tested change.
+- Tests: 420 -> 416 (removed M3U tests; assert live routes resolve the direct
+  URL and no resolved path contains .m3u). No device playback run.
+
 Rave Player 3.9.24
 - Live M3U regression fix: write the bounded Kool/Rinse playlist through
   xbmcvfs to special://temp, close/flush it, then resolve the translated

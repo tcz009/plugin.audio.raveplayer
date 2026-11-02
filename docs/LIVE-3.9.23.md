@@ -50,3 +50,18 @@ read-only rows, the play resolver and `_play_tracks`.
 No 10-minute Shield playback was run (Kodi playback safety hold). The
 reconnect state is a pure bounded-list implementation; device confirmation of
 the six-entry M3U advance remains a QoL check once the owner re-enables Kodi.
+
+
+## 3.9.25 correction — direct stream restored
+
+Kodi 3.9.23/3.9.24 wrote a local `.m3u` and resolved it through
+`setResolvedUrl`. The Shield showed the file existed and was readable, but
+PAPlayer still treated it as an audio codec input (`Open - error probing input
+format`, `Init: Error creating demuxer`, `CAudioDecoder: Unable to Init Codec`).
+M3U resolution is therefore removed from the live play path.
+
+3.9.25 resolves the known-good **direct Kool/Rinse stream URL** again, while
+keeping the fixed station title/artist/album/art. No `.m3u` file is written or
+returned. Reconnect is deferred: a future change can use a playlist of six
+direct URLs with `xbmc.Player().play(playlist)` (the `play_all` mechanism) and
+its own tests; it must not use `setResolvedUrl` with a playlist file.
