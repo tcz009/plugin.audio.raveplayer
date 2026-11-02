@@ -1,3 +1,13 @@
+Rave Player 3.9.28
+- Live playlist: documented the repeated CCurlFile::Stat "Unsupported
+  protocol(1)" noise. Kodi's Stat path does not understand the |noshout=true
+  URL protocol option; there is no supported per-item property alternative and
+  removing the suffix would regress the fixed ICY title. Playback and ICY
+  suppression are unchanged. Evidence in docs/LIVE-3.9.28.md.
+- Unrelated docs/runbook polish landed in the web repo (AirPlay/VPN guidance,
+  literal-env deploy note, post-deploy login smoke).
+- Tests unchanged: 427 OK. No device playback run.
+
 Rave Player 3.9.27
 - ICY title fix: in the live play path only, append Kodi's lowercase per-item
   URL option |noshout=true to every direct-URL playlist entry and to the
