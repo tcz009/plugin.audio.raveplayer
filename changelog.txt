@@ -1,3 +1,16 @@
+Rave Player 3.9.26
+- Proper live reconnect: Kool/Rinse now start a finite six-entry PlayList of
+  direct stream URLs with xbmc.Player().play(playlist), never an M3U file and
+  never setResolvedUrl-to-playlist. Each entry is resolved through a callback
+  so a refreshed/stale URL replaces the last known direct URL; fixed station
+  title/artist/album/art is copied to every entry.
+- Kodi auto-advances only when the current stream drops; a user Stop ends the
+  finite playlist immediately (no add-on watchdog/loop). If playlist setup or
+  Player.play fails, the route falls back to the proven direct setResolvedUrl.
+- Non-live playback is unchanged.
+- Tests: 416 -> 423 (finite playlist, per-entry re-resolve, cap, Stop,
+  no .m3u/no playlist file, direct fallback). No device playback run.
+
 Rave Player 3.9.25
 - Revert M3U live playback: Kodi's audio PAPlayer cannot decode a local .m3u
   supplied through setResolvedUrl ("Unable to Init Codec"). Kool FM and Rinse
