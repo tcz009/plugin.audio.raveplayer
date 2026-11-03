@@ -98,7 +98,7 @@ RUNPLUGIN_MODES = frozenset(("play_all", "fav_add", "fav_remove",
 ARCHIVE_SECTIONS = [
     {
         "key": "rave",
-        "art": "rave.png",
+        "art": "rave-tapes.png",
         "label": "Rave Tape Packs",
         "query": "collection:ravetapes AND mediatype:audio",
         "plot": "The Rave Tapes — a curated 1990s cassette collection, 724 packs.",
@@ -126,7 +126,7 @@ ARCHIVE_SECTIONS = [
     },
     {
         "key": "pirate",
-        "art": "pirate-archive.png",
+        "art": "pirate-radio.png",
         "label": "Pirate Radio",
         "query": 'collection:ravetapes AND (Kool OR Centreforce OR "Don FM")',
         "plot": "Kool FM, Centreforce and Don FM sets from the archives.",
@@ -140,7 +140,7 @@ ARCHIVE_SECTIONS = [
     },
     {
         "key": "tapepacks",
-        "art": "tapepacks.png",
+        "art": "tapepacks-all.png",
         "label": "All Tape Packs",
         "query": '(jungle OR "drum and bass" OR hardcore OR house) AND "tape pack"',
         "plot": "Everything the Archive tags as a tape pack, across genres.",
@@ -148,14 +148,88 @@ ARCHIVE_SECTIONS = [
 ]
 
 RADIO_SECTIONS = [
-    {"key": "oldskool", "label": "Oldskool & Rave", "tag": "oldskool", "art": "radio.png"},
-    {"key": "jungle", "label": "Jungle", "tag": "jungle", "art": "jungle.png"},
-    {"key": "dnb", "label": "Drum & Bass", "tag": "drum and bass", "art": "jungle.png"},
-    {"key": "hardcore", "label": "Hardcore", "tag": "hardcore", "art": "hardcore.png"},
-    {"key": "house", "label": "House", "tag": "house", "art": "house.png"},
-    {"key": "ukg", "label": "UK Garage", "tag": "uk garage", "art": "garage.png"},
-    {"key": "breakbeat", "label": "Breakbeat", "tag": "breakbeat", "art": "rave.png"},
+    {"key": "oldskool", "label": "Oldskool & Rave", "tag": "oldskool", "art": "oldskool.png"},
+    {"key": "jungle", "label": "Jungle", "tag": "jungle", "art": "radio-jungle.png"},
+    {"key": "dnb", "label": "Drum & Bass", "tag": "drum and bass", "art": "radio-dnb.png"},
+    {"key": "hardcore", "label": "Hardcore", "tag": "hardcore", "art": "radio-hardcore.png"},
+    {"key": "house", "label": "House", "tag": "house", "art": "radio-house.png"},
+    {"key": "uk-garage", "label": "UK Garage", "tag": "uk garage", "art": "radio-uk-garage.png"},
+    {"key": "breakbeat", "label": "Breakbeat", "tag": "breakbeat", "art": "radio-breakbeat.png"},
 ]
+
+# Menu artwork: one distinct sticker per navigation row.  The duplicate-art
+# test (test/test_theme_art.py) asserts these files are all different, so a new
+# menu row must add a new key here rather than borrowing a neighbour's tile.
+# Leaf rows (tracks, episodes, archive results, individual years/raves/stations)
+# intentionally reuse their parent category sticker; those are the only allowed
+# repeats and are listed in the test's shared-art exceptions.
+MENU_ART = {
+    # root
+    "latest": "rave.png",
+    "surprise": "surprise.png",
+    "packs": "tapepacks.png",
+    "shows": "mixes.png",
+    "radio": "radio.png",
+    "curated": "curated.png",
+    "favourites": "favourites.png",
+    "search": "search.png",
+    "about": "about.png",
+    # tape-pack genres and entry points
+    "pack_rave": "rave-tapes.png",
+    "pack_jungle": "jungle.png",
+    "pack_hardcore": "hardcore.png",
+    "pack_house": "house.png",
+    "pack_garage": "garage.png",
+    "pack_pirate": "pirate-stations.png",
+    "pack_all": "tapepacks-all.png",
+    "pack_year": "years.png",
+    "pack_series": "series.png",
+    "pack_raves": "rave-nights.png",
+    # shows and sources
+    "shows_podcasts": "podcasts.png",
+    "shows_dnb": "dnb.png",
+    "shows_moxser": "moxser.png",
+    "shows_hardscore": "hardscore.png",
+    "shows_toronto": "toronto.png",
+    "shows_getdarker": "getdarker.png",
+    # curated gems
+    "curated_pirate": "pirate-archive.png",
+    "curated_ravearchive": "rave-archive.png",
+    "curated_legacy": "legacy.png",
+    # live radio stations and genre tags
+    "radio_kool": "kool.png",
+    "radio_rinse": "rinse.png",
+    "radio_oldskool": "oldskool.png",
+    "radio_jungle": "radio-jungle.png",
+    "radio_dnb": "radio-dnb.png",
+    "radio_hardcore": "radio-hardcore.png",
+    "radio_house": "radio-house.png",
+    "radio_uk_garage": "radio-uk-garage.png",
+    "radio_breakbeat": "radio-breakbeat.png",
+    # legacy sites
+    "legacy_ravetapepacks": "ravetapepacks.png",
+    "legacy_jungletapes": "jungletapes.png",
+    # shared utility rows
+    "downloads": "downloads.png",
+}
+
+# Classic pack series are distinct rows too, so each filter gets its own tile.
+FILTER_ART = {
+    "dreamscape": "dreamscape.png",
+    "helter-skelter": "helter-skelter.png",
+    "fantazia": "fantazia.png",
+    "one-nation": "one-nation.png",
+    "centreforce": "centreforce.png",
+    "don-fm": "don-fm.png",
+    "slammin-vinyl": "slammin-vinyl.png",
+    "one-in-the-jungle": "one-in-the-jungle.png",
+    "jungle-fever": "jungle-fever.png",
+    "roast": "roast.png",
+    "telepathy": "telepathy.png",
+    "world-dance": "world-dance.png",
+    "dj-ez": "djez.png",
+    "garage-nation": "garage-nation.png",
+}
 
 
 def _filters():
@@ -479,23 +553,23 @@ def root(handle, params):
     """
     menu_item = ui.menu_item
     root_rows = [
-        ("latest", "Latest", "rave.png", "fanart-latest.jpg",
+        ("latest", "Latest", MENU_ART["latest"], "fanart-latest.jpg",
          "Newest packs, shows and radio rips — start here."),
-        ("surprise", "Surprise Me", "surprise.png", "fanart-surprise.jpg",
+        ("surprise", "Surprise Me", MENU_ART["surprise"], "fanart-surprise.jpg",
          "Plays a random tape pack."),
-        ("packs_menu", "Tape Packs", "tapepacks.png", "fanart-tapepacks.jpg",
+        ("packs_menu", "Tape Packs", MENU_ART["packs"], "fanart-tapepacks.jpg",
          "The ravetapes archive: by genre, by year, by series, by rave."),
-        ("shows_menu", "Mixes & Shows", "mixes.png", "fanart-mixes.jpg",
+        ("shows_menu", "Mixes & Shows", MENU_ART["shows"], "fanart-mixes.jpg",
          "Podcasts, DNB Radio, Moxser, Hardscore and GetDarker."),
-        ("radio_menu", "Live Radio", "radio.png", "fanart-live.jpg",
+        ("radio_menu", "Live Radio", MENU_ART["radio"], "fanart-live.jpg",
          "Stations streaming now: Kool, Rinse and every genre tag."),
-        ("curated_menu", "Curated Gems", "curated.png", "fanart-curated.jpg",
+        ("curated_menu", "Curated Gems", MENU_ART["curated"], "fanart-curated.jpg",
          "Pirate recordings, Rave Archive UK, the 2014 survivors."),
-        ("fav_list", "Favourites", "favourites.png", "fanart-favourites.jpg",
+        ("fav_list", "Favourites", MENU_ART["favourites"], "fanart-favourites.jpg",
          "The packs and shows you saved."),
-        ("search", "Search the Archive", "search.png", "fanart-search.jpg",
+        ("search", "Search the Archive", MENU_ART["search"], "fanart-search.jpg",
          "Search every tape pack on archive.org."),
-        ("about", "About & Sources", "about.png", "fanart-about.jpg",
+        ("about", "About & Sources", MENU_ART["about"], "fanart-about.jpg",
          "Version, credits and every source used."),
     ]
     for mode, label, icon, fan, plot in root_rows:
@@ -507,25 +581,32 @@ def root(handle, params):
 def packs_menu(handle, params):
     """Tape Packs hub: one door for the six tape-pack entry points."""
     rows = [
-        ("Rave Tape Packs", url_for(mode="archive_list", key="rave", page=1), "rave.png",
+        ("Rave Tape Packs", url_for(mode="archive_list", key="rave", page=1),
+         MENU_ART["pack_rave"],
          "The Rave Tapes — a curated 1990s cassette collection."),
-        ("Jungle / Drum & Bass", url_for(mode="archive_list", key="jungle", page=1), "jungle.png",
+        ("Jungle / Drum & Bass", url_for(mode="archive_list", key="jungle", page=1),
+         MENU_ART["pack_jungle"],
          "Jungle and drum & bass sets from the rave tapes collection."),
-        ("Hardcore", url_for(mode="archive_list", key="hardcore", page=1), "hardcore.png",
+        ("Hardcore", url_for(mode="archive_list", key="hardcore", page=1),
+         MENU_ART["pack_hardcore"],
          "Hardcore and happy hardcore sets."),
-        ("House", url_for(mode="archive_list", key="house", page=1), "house.png",
+        ("House", url_for(mode="archive_list", key="house", page=1),
+         MENU_ART["pack_house"],
          "House sets from the archive."),
-        ("UK Garage", url_for(mode="archive_list", key="garage", page=1), "garage.png",
+        ("UK Garage", url_for(mode="archive_list", key="garage", page=1),
+         MENU_ART["pack_garage"],
          "UK garage, 90s to now."),
-        ("Pirate Stations", url_for(mode="archive_list", key="pirate", page=1), "pirate.png",
+        ("Pirate Stations", url_for(mode="archive_list", key="pirate", page=1),
+         MENU_ART["pack_pirate"],
          "Kool FM, Centreforce and Don FM sets from the archive."),
-        ("All Tape Packs", url_for(mode="archive_list", key="tapepacks", page=1), "tapepacks.png",
+        ("All Tape Packs", url_for(mode="archive_list", key="tapepacks", page=1),
+         MENU_ART["pack_all"],
          "Everything the Archive tags as a tape pack."),
-        ("By Year", url_for(mode="years"), "tapepacks.png",
+        ("By Year", url_for(mode="years"), MENU_ART["pack_year"],
          "Browse the ravetapes collection one year at a time."),
-        ("Classic Pack Series", url_for(mode="filters_menu"), "tapepacks.png",
+        ("Classic Pack Series", url_for(mode="filters_menu"), MENU_ART["pack_series"],
          "Dreamscape, Fantazia, Telepathy and the other classic pack series."),
-        ("By Rave & Venue", url_for(mode="rave_nights"), "rave.png",
+        ("By Rave & Venue", url_for(mode="rave_nights"), MENU_ART["pack_raves"],
          "Promotions, venues and pirate stations from the research catalogue."),
     ]
     hub_fanart = art("fanart-hub-packs.jpg")
@@ -538,20 +619,21 @@ def packs_menu(handle, params):
 def shows_menu(handle, params):
     """Mixes & Shows hub: all streaming sources live behind one door."""
     rows = [
-        ("Podcasts & Mixes", url_for(mode="media_menu"), "radio.png", None,
+        ("Podcasts & Mixes", url_for(mode="media_menu"), MENU_ART["shows_podcasts"], None,
          "Current jungle, drum & bass, hardcore and rave shows — RSS feeds."),
-        ("DNB Radio", url_for(mode="dnb_list"), "hardcore.png", None,
+        ("DNB Radio", url_for(mode="dnb_list"), MENU_ART["shows_dnb"], None,
          "Recent jungle and drum & bass shows from DNBRADIO.com."),
-        ("Moxser Mixes", url_for(mode="moxser"), "moxser.png", "fanart-moxser.jpg",
+        ("Moxser Mixes", url_for(mode="moxser"), MENU_ART["shows_moxser"], "fanart-moxser.jpg",
          "Moxser's curated dance-music mix archive — direct MP3s where available."),
-        ("Hardscore.com", url_for(mode="hardscore"), "hardscore.png", "fanart-hardscore.jpg",
+        ("Hardscore.com", url_for(mode="hardscore"), MENU_ART["shows_hardscore"],
+         "fanart-hardscore.jpg",
          "Oldskool hardcore/jungle sets, tracklists and direct MP3s."),
-        ("Toronto Rave Mixtape Archive", url_for(mode="toronto"), "toronto.png",
+        ("Toronto Rave Mixtape Archive", url_for(mode="toronto"), MENU_ART["shows_toronto"],
          "fanart-toronto.jpg", "1990s Toronto rave mixtapes by genre — direct MP3s."),
     ]
     if handoff.available("mixcloud"):
         rows.append(("GetDarker (dubstep/grime)", url_for(mode="getdarker"),
-                     "getdarker.png", "fanart-getdarker.jpg",
+                     MENU_ART["shows_getdarker"], "fanart-getdarker.jpg",
                      "GetDarker sets (RSS) plus the curated GetDarker Mixcloud archive."))
     hub_fanart = art("fanart-hub-shows.jpg")
     for label, url, icon, fan, plot in rows:
@@ -564,16 +646,16 @@ def shows_menu(handle, params):
 def curated_menu(handle, params):
     """Curated Gems hub: hand-picked recordings and surviving sites."""
     rows = [
-        ("Pirate Radio Archives", url_for(mode="pirate_menu"), "pirate-archive.png",
+        ("Pirate Radio Archives", url_for(mode="pirate_menu"), MENU_ART["curated_pirate"],
          "fanart-pirate-archive.jpg",
          "Curated 1990s pirate-radio recordings: Risk FM, Weekend Rush and Flava FM."),
-        ("Legacy Archives (2014)", url_for(mode="legacy_menu"), "pirate.png", None,
-         "The 2014 fan sites that are still standing."),
+        ("Legacy Archives (2014)", url_for(mode="legacy_menu"), MENU_ART["curated_legacy"],
+         None, "The 2014 fan sites that are still standing."),
     ]
     if handoff.available("mixcloud"):
         rows.insert(1, ("Rave Archive UK",
                         url_for(mode="mixcloud_account", key="rave-archive-uk"),
-                        "rave.png", None,
+                        MENU_ART["curated_ravearchive"], None,
                         "Rave Archive UK on Mixcloud — via the Kodi Mixcloud add-on."))
     hub_fanart = art("fanart-hub-curated.jpg")
     for label, url, icon, fan, plot in rows:
@@ -588,10 +670,10 @@ def radio_menu(handle, params):
     # both were previously root rows competing with Live Radio.
     hub_fanart = art("fanart-hub-live.jpg")
     ui.menu_item(handle, url_for(mode="filter_list", key="kool"), "Kool FM",
-                 icon=art("radio.png"), fanart=hub_fanart,
+                 icon=art(MENU_ART["radio_kool"]), fanart=hub_fanart,
                  plot="Kool FM — live now, plus every Kool FM set in the archive.")
     ui.menu_item(handle, url_for(mode="filter_list", key="rinse"), "Rinse FM",
-                 icon=art("radio.png"), fanart=hub_fanart,
+                 icon=art(MENU_ART["radio_rinse"]), fanart=hub_fanart,
                  plot="Rinse FM — live now, plus every Rinse FM set in the archive.")
     for section in RADIO_SECTIONS:
         ui.menu_item(
@@ -707,7 +789,7 @@ def fav_list(handle, params):
     download_rows = downloads.list_downloads()
     ui.menu_item(handle, url_for(mode="downloads_menu"),
                  "Downloads  [COLOR gray](%d)[/COLOR]" % len(download_rows),
-                 icon=art("tapepacks.png"),
+                 icon=art(MENU_ART["downloads"]),
                  plot="Offline downloads — play from the local copy or delete.")
     for entry in entries:
         entry_key = favourites.key(entry)
@@ -721,13 +803,16 @@ def fav_list(handle, params):
                          context=context)
         elif entry["kind"] == "legacy_pack":
             ui.menu_item(handle, url_for(mode="legacy_pack", pack=entry["target"]), title,
-                         icon=art("tapepacks.png"), plot="RaveTapePacks.com pack", context=context)
+                         icon=art(MENU_ART["legacy_ravetapepacks"]),
+                         plot="RaveTapePacks.com pack", context=context)
         elif entry["kind"] == "legacy_jt":
             ui.menu_item(handle, url_for(mode="legacy_jt_show", key=entry["target"]), title,
-                         icon=art("jungle.png"), plot="JungleTapes.com show", context=context)
+                         icon=art(MENU_ART["legacy_jungletapes"]),
+                         plot="JungleTapes.com show", context=context)
         elif entry["kind"] == "dnb":
             ui.track_item(handle, url_for(mode="dnb_play", id=entry["target"], label=title),
-                          title, thumb=art("jungle.png"), plot="DNB Radio", context=context)
+                          title, thumb=art(MENU_ART["shows_dnb"]),
+                          plot="DNB Radio", context=context)
         else:
             kind = handoff.platform_kind(entry["target"])
             if kind:
@@ -786,7 +871,7 @@ def rave_nights(handle, params):
         name = ui.plain(entry["name"])
         ui.menu_item(handle, url_for(mode="rave_list", key=entry["name"]),
                      "%s  [COLOR gray](%d items)[/COLOR]" % (name, entry["count"]),
-                     icon=art("rave.png"),
+                     icon=art(MENU_ART["pack_raves"]),
                      plot="Archive packs and sets for %s" % name)
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
@@ -816,13 +901,11 @@ def filters_menu(handle, params):
     filters = _filters()
     if not filters:
         kodi.notify("No quick filters are configured.")
-    icons = {"dj-ez": "djez.png", "garage-nation": "garage.png",
-             "one-in-the-jungle": "jungle.png", "dreamscape": "tapepacks.png"}
     for entry in filters:
         if entry["id"] in ("kool", "rinse"):
             continue
         ui.menu_item(handle, url_for(mode="filter_list", key=entry["id"]), entry["name"],
-                     icon=art(icons.get(entry["id"], "tapepacks.png")),
+                     icon=art(FILTER_ART.get(entry["id"], MENU_ART["pack_series"])),
                      plot=entry.get("plot") or entry["name"])
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
@@ -904,7 +987,7 @@ def _latest_live_rows(handle):
             url_for(mode="play", url=stream, label=label,
                     live=1, station=name),
             label,
-            thumb=art("radio.png"),
+            thumb=art(MENU_ART["radio_kool" if token == "kool" else "radio_rinse"]),
             plot="Live radio · %s" % name,
             artist=name,
             album="Live radio",
@@ -943,11 +1026,11 @@ def latest_view(handle, params):
         elif item["kind"] == "episode":
             if handoff.platform_kind(item["url"]):
                 if not _platform_item(handle, item["url"], label, title,
-                                      art("radio.png"), source):
+                                      art(MENU_ART["shows_podcasts"]), source):
                     continue
                 continue
             ui.track_item(handle, url_for(mode="play", url=item["url"], label=title), label,
-                          thumb=art("radio.png"), plot=source, title=title,
+                          thumb=art(MENU_ART["shows_podcasts"]), plot=source, title=title,
                           duration=item.get("duration"),
                           context=[_favourite("stream", item["url"], title, source)])
         else:
@@ -956,7 +1039,7 @@ def latest_view(handle, params):
                 # Host unreachable / listen page changed: do not offer the row.
                 continue
             ui.track_item(handle, url_for(mode="play", url=stream, label=title), label,
-                          thumb=art("jungle.png"), plot="DNBRADIO.com", title=title,
+                          thumb=art(MENU_ART["shows_dnb"]), plot="DNBRADIO.com", title=title,
                           context=[_favourite("dnb", item["id"], title, "DNB Radio")])
 
     # Visible terminator: folder+playable mix means Kodi should not wrap or
@@ -1000,7 +1083,7 @@ def years(handle, params):
     this_year = datetime.date.today().year
     for year in range(this_year, 1987, -1):
         ui.menu_item(handle, url_for(mode="year_list", year=year), str(year),
-                     icon=art("tapepacks.png"), plot="%s tape packs" % year)
+                     icon=art(MENU_ART["pack_year"]), plot="%s tape packs" % year)
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -1041,7 +1124,7 @@ def media_menu(handle, params):
             handle,
             url_for(mode="feed", key=entry["id"]),
             "%s  [COLOR gray](%d episodes)[/COLOR]" % (entry["name"], len(episodes)),
-            icon=art("radio.png"),
+            icon=art(MENU_ART["shows_podcasts"]),
             plot=entry.get("plot") or entry["name"],
         )
     if not shown:
@@ -1066,7 +1149,7 @@ def feed(handle, params):
             label = "%s  [COLOR gray](%s)[/COLOR]" % (label, ui.plain(episode["published"])[:16])
         if handoff.platform_kind(episode["url"]):
             if not _platform_item(handle, episode["url"], label, title,
-                                  art("radio.png"),
+                                  art(MENU_ART["shows_podcasts"]),
                                   episode.get("description") or entry.get("plot") or ""):
                 continue
             continue
@@ -1074,7 +1157,7 @@ def feed(handle, params):
             handle,
             url_for(mode="play", url=episode["url"], label=title),
             label,
-            thumb=art("radio.png"),
+            thumb=art(MENU_ART["shows_podcasts"]),
             plot=episode.get("description") or entry.get("plot") or "",
             album=entry["name"],
             title=title,
@@ -1096,7 +1179,7 @@ def dnb_list(handle, params):
             handle,
             url_for(mode="dnb_play", id=show["id"], label=title),
             label,
-            thumb=art("jungle.png"),
+            thumb=art(MENU_ART["shows_dnb"]),
             plot="DNBRADIO.com · %s" % date if date else "DNBRADIO.com",
             album="DNBRADIO.com",
             title=title,
@@ -1130,9 +1213,12 @@ def dnb_play(handle, params):
 
 def legacy_menu(handle, params):
     menu = [
-        ("RaveTapePacks.com", "legacy_packs", "tapepacks.png", "Full tape packs, hotlink-protected MP3s."),
-        ("JungleTapes.com", "legacy_jt", "jungle.png", "Toronto jungle & drum n bass radio shows from cassette."),
-        ("Toronto Rave Mixtape Archive", "legacy_toronto", "toronto.png", "Rave mixtapes from Toronto, 1990s."),
+        ("RaveTapePacks.com", "legacy_packs", MENU_ART["legacy_ravetapepacks"],
+         "Full tape packs, hotlink-protected MP3s."),
+        ("JungleTapes.com", "legacy_jt", MENU_ART["legacy_jungletapes"],
+         "Toronto jungle & drum n bass radio shows from cassette."),
+        ("Toronto Rave Mixtape Archive", "legacy_toronto", MENU_ART["shows_toronto"],
+         "Rave mixtapes from Toronto, 1990s."),
     ]
     for label, mode, icon, plot in menu:
         ui.menu_item(handle, url_for(mode=mode), label, icon=art(icon), plot=plot)
@@ -1150,7 +1236,7 @@ def legacy_jt(handle, params):
             handle,
             url_for(mode="legacy_jt_show", key=show["key"]),
             name,
-            icon=art("jungle.png"),
+            icon=art(MENU_ART["legacy_jungletapes"]),
             plot="JungleTapes.com · Toronto jungle radio",
             context=[_favourite("legacy_jt", show["key"], name, "JungleTapes.com")],
         )
@@ -1173,9 +1259,10 @@ def legacy_jt_show(handle, params):
         name = ui.plain(track["name"])
         ui.track_item(
             handle,
-            url_for(mode="play", url=stream, label=name, thumb=art("jungle.png")),
+            url_for(mode="play", url=stream, label=name,
+                    thumb=art(MENU_ART["legacy_jungletapes"])),
             name,
-            thumb=art("jungle.png"),
+            thumb=art(MENU_ART["legacy_jungletapes"]),
             plot="JungleTapes.com · %s" % ui.plain(key.replace("-", " ")),
             context=[_favourite("stream", stream, name, "JungleTapes.com")],
         )
@@ -1261,7 +1348,7 @@ def legacy_packs(handle, params):
             url_for(mode="legacy_pack", pack=entry["key"]),
             "%s  [COLOR gray](%d tape%s)[/COLOR]"
             % (name, len(entry["tracks"]), "" if len(entry["tracks"]) == 1 else "s"),
-            icon=art("tapepacks.png"),
+            icon=art(MENU_ART["legacy_ravetapepacks"]),
             plot="RaveTapePacks.com · %d tapes" % len(entry["tracks"]),
             title=name,
             context=[_favourite("legacy_pack", entry["key"], name, "RaveTapePacks.com")],
@@ -1287,9 +1374,10 @@ def legacy_pack(handle, params):
         name = ui.plain(track["name"])
         ui.track_item(
             handle,
-            url_for(mode="play", url=url, label=name, thumb=art("tapepacks.png")),
+            url_for(mode="play", url=url, label=name,
+                    thumb=art(MENU_ART["legacy_ravetapepacks"])),
             name,
-            thumb=art("tapepacks.png"),
+            thumb=art(MENU_ART["legacy_ravetapepacks"]),
             plot="RaveTapePacks.com · %s" % ui.plain(entry["name"]),
             album=ui.plain(entry["name"]),
             context=[_favourite("stream", url, name, "RaveTapePacks.com")],
@@ -1377,7 +1465,7 @@ def moxser(handle, params):
         label = title
         if row.get("date"):
             label += "  [COLOR gray](%s)[/COLOR]" % ui.plain(row["date"])
-        flyer = _safe_art(row.get("flyer"), art("rave.png"))
+        flyer = _safe_art(row.get("flyer"), art(MENU_ART["shows_moxser"]))
         ui.menu_item(
             handle,
             url_for(mode="moxser_mix", page=row["page_url"], label=row["title"],
@@ -1399,7 +1487,8 @@ def moxser_mix(handle, params):
         kodi.end_directory(handle, "songs")
         return
     title = ui.plain(details["title"])
-    flyer = _safe_art(params.get("flyer") or details.get("flyer"), art("rave.png"))
+    flyer = _safe_art(params.get("flyer") or details.get("flyer"),
+                      art(MENU_ART["shows_moxser"]))
     plotted = "Moxser.com"
     if details.get("date"):
         plotted += " · %s" % details["date"]
@@ -1435,7 +1524,7 @@ def hardscore(handle, params):
                 handle,
                 url_for(mode="play", url=media[0], label=title),
                 label,
-                thumb=art("hardcore.png"),
+                thumb=art(MENU_ART["shows_hardscore"]),
                 plot=row.get("description") or "Hardscore.com",
                 title=title,
                 context=[
@@ -1447,7 +1536,7 @@ def hardscore(handle, params):
                 handle,
                 url_for(mode="hardscore_event", page=row["page_url"], label=row["title"]),
                 label + "  [COLOR gray](post)[/COLOR]",
-                icon=art("hardcore.png"),
+                icon=art(MENU_ART["shows_hardscore"]),
                 plot=row.get("description") or "Hardscore.com post",
                 title=title,
             )
@@ -1466,13 +1555,13 @@ def hardscore_event(handle, params):
     for url in [u for u in details["media_urls"] if _playable_url(u)]:
         ui.track_item(
             handle, url_for(mode="play", url=url, label=title), title,
-            thumb=art("hardcore.png"), plot="Hardscore.com",
+            thumb=art(MENU_ART["shows_hardscore"]), plot="Hardscore.com",
             title=title,
             context=[_favourite("stream", url, title, "Hardscore.com")]
             + _download_context(url, title, "Hardscore.com"),
         )
     shown = _handoff_link_items(handle, details["links"], title,
-                                art("hardcore.png"),
+                                art(MENU_ART["shows_hardscore"]),
                                 "Hardscore.com link — hand-off to a Kodi add-on.")
     if not details["media_urls"] and not shown:
         kodi.notify("No in-Kodi media on that Hardscore post.")
@@ -1489,7 +1578,7 @@ def getdarker(handle, params):
         handle,
         handoff.mixcloud_search("GetDarker"),
         "GetDarker on Mixcloud",
-        icon=art("jungle.png"),
+        icon=art(MENU_ART["shows_getdarker"]),
         plot="Open the GetDarker cloudcasts in the Kodi Mixcloud add-on.",
     )
     if not rows:
@@ -1502,7 +1591,7 @@ def getdarker(handle, params):
             handle,
             url_for(mode="getdarker_page", page=row["page_url"], label=row["title"]),
             label,
-            icon=art("jungle.png"),
+            icon=art(MENU_ART["shows_getdarker"]),
             plot="GetDarker · RSS set page",
             title=title,
         )
@@ -1520,10 +1609,11 @@ def getdarker_page(handle, params):
     title = ui.plain(details["title"])
     for url in [u for u in details["media_urls"] if _playable_url(u)]:
         ui.track_item(handle, url_for(mode="play", url=url, label=title), title,
-                      thumb=art("jungle.png"), plot="GetDarker",
+                      thumb=art(MENU_ART["shows_getdarker"]), plot="GetDarker",
                       title=title,
                       context=[_favourite("stream", url, title, "GetDarker")])
-    shown = _handoff_link_items(handle, details["links"], title, art("jungle.png"),
+    shown = _handoff_link_items(handle, details["links"], title,
+                                art(MENU_ART["shows_getdarker"]),
                                 "GetDarker link — hand-off to a Kodi add-on.")
     if not details["media_urls"] and not shown:
         kodi.notify("No in-Kodi media on that GetDarker page.")
@@ -1582,7 +1672,7 @@ def pirate_menu(handle, params):
             "%s  [COLOR gray](%d recording%s)[/COLOR]"
             % (ui.plain(group["station"]), len(playable),
                "" if len(playable) == 1 else "s"),
-            icon=art("pirate-archive.png"),
+            icon=art(MENU_ART["curated_pirate"]),
             plot="Curated 1990s pirate-radio archive.",
         )
     if not shown:
@@ -1641,7 +1731,7 @@ def downloads_menu(handle, params):
                 handle,
                 row["path"],
                 label,
-                thumb=art("tapepacks.png"),
+                thumb=art(MENU_ART["downloads"]),
                 plot="Downloaded · %s · %s" % (row["source"], row["added"][:10]),
                 album="Downloads",
                 title=row["title"],
@@ -1653,7 +1743,7 @@ def downloads_menu(handle, params):
                 handle,
                 url_for(mode="downloads_menu"),
                 label + "  [COLOR gray](missing)[/COLOR]",
-                icon=art("tapepacks.png"),
+                icon=art(MENU_ART["downloads"]),
                 plot="The file is missing — delete the entry or download it again.",
                 context=[("Delete download", "RunPlugin(%s)" % url_for(
                     mode="download_delete", key=row["key"]))],

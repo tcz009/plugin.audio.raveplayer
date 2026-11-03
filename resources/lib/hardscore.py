@@ -34,9 +34,26 @@ _H1_RE = re.compile(r"<h1\b[^>]*>(.*?)</h1>", re.IGNORECASE | re.DOTALL)
 _TITLE_RE = re.compile(r"<title\b[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 
 
+def _decode(value):
+    """Decode HTML entities, including titles a CMS encoded twice.
+
+    Scrapers see ``&amp;`` in a text node and ``&amp;#x2013;`` when the source
+    encoded the entity itself.  Loop until stable (bounded) so the rendered
+    title carries ``&`` and ``–``, never the entity source.
+    """
+    text = str(value or "")
+    for _ in range(3):
+        decoded = html.unescape(text)
+        if decoded == text:
+            break
+        text = decoded
+    return text
+
+
 def _clean(value):
-    text = html.unescape(str(value or ""))
+    text = _decode(value)
     text = re.sub(r"<[^>]+>", " ", text)
+    text = _decode(text)
     return re.sub(r"\s+", " ", text).strip()
 
 
@@ -78,7 +95,7 @@ def _media_urls(text):
     """Extract public direct-media URLs from arbitrary post HTML."""
     urls = []
     for candidate in _MEDIA_RE.findall(str(text or "")):
-        candidate = html.unescape(candidate).strip()
+        candidate = _decode(candidate).strip()
         safe = http.safe_stream_url(candidate)
         if safe and safe not in urls:
             urls.append(safe)
@@ -161,7 +178,7 @@ def parse_page(html_text, page_url):
     media = _media_urls(html_text)
     links = []
     for candidate in _LINK_RE.findall(html_text or ""):
-        candidate = html.unescape(candidate).strip().rstrip(".,);")
+        candidate = _decode(candidate).strip().rstrip(".,);")
         if any(token in candidate for token in
                ("soundcloud.com/", "mixcloud.com/", "youtube.com/", "youtu.be/")):
             if candidate not in links:

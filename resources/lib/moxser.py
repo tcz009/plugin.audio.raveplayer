@@ -67,8 +67,24 @@ def _fetch(url, ttl, timeout=25):
     return http.fetch(url, timeout=timeout, headers={"User-Agent": BROWSER_UA}, ttl=ttl)
 
 
+def _decode(value):
+    """Decode HTML entities, including titles a CMS encoded twice.
+
+    Scrapers see ``&amp;`` in a text node and ``&amp;#x2013;`` when the source
+    encoded the entity itself.  Loop until stable (bounded) so the rendered
+    title carries ``&`` and ``–``, never the entity source.
+    """
+    text = str(value or "")
+    for _ in range(3):
+        decoded = html.unescape(text)
+        if decoded == text:
+            break
+        text = decoded
+    return text
+
+
 def _clean(value):
-    text = html.unescape(urllib.parse.unquote_plus(str(value or "")))
+    text = _decode(urllib.parse.unquote_plus(str(value or "")))
     return re.sub(r"\s+", " ", text).strip()
 
 
@@ -207,7 +223,7 @@ def mix(page_url):
     flyer = _meta(page, "og:image")
     mp3 = ""
     for candidate in _MP3_RE.findall(page):
-        candidate = html.unescape(candidate)
+        candidate = _decode(candidate)
         safe = http.safe_stream_url(candidate)
         if safe:
             mp3 = safe

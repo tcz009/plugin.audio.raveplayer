@@ -1,3 +1,27 @@
+Rave Player 3.9.38
+- 2026 art rollout, Direction C2 (owner-approved): all 38 duplicated
+  navigation rows now carry their own sticker from the nine C2 objects
+  (cassette, tape, flyer, speaker, vinyl, smiley, glowstick, lazer, balloon),
+  each in its own pose, plus the ten approved Live Radio station tiles
+  (Kool FM, Rinse FM, Oldskool & Rave, Jungle, Drum & Bass, Hardcore, House,
+  UK Garage, Breakbeat, Pirate Stations). Same generator renders Kodi 256² and
+  web 512²; review sheet docs/theme-2026/final-rollout-sheet.png.
+- MENU_ART/FILTER_ART wiring for root, packs, shows, curated, live radio,
+  quick filters, years, legacy and downloads rows. Live Radio genre rows use
+  the station tiles; the Pirate Stations pack row uses the pirate station tile.
+- The RATIONALE watch-list fallbacks were applied: rave-nights is now a flyer
+  (venue listings) and podcasts a second cassette; both read without a caption
+  at 64 px.
+- Naming: every art file and reference is lowercase kebab-case, enforced by
+  test/test_naming.py. UK Garage is `uk-garage` (route key and
+  radio-uk-garage.png), no `ukg` file or key remains.
+- Scraped titles decode HTML entities, including double-encoded `&amp;amp;`,
+  `&amp;#x2013;` and `&amp;quot;`, for Toronto, Moxser, Hardscore and RSS/Atom
+  feeds. Fixtures assert the rendered title carries `&` and `–`, never the
+  entity source.
+- Tests: 479 OK. No routing or playback changes; repo/ artifacts rebuilt for
+  3.9.38. Not pushed or deployed until the owner approves the sheet.
+
 Rave Player 3.9.36
 - Surprise Me Shield fix: WindowXML controls are guarded individually; any
   missing control or TypeError logs and falls back to the instant random pick

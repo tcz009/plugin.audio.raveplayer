@@ -298,7 +298,7 @@
       },
       {
         "label": "UK Garage",
-        "url": "scripts/make-theme-shots.py?mode=radio_tag&key=ukg",
+        "url": "scripts/make-theme-shots.py?mode=radio_tag&key=uk-garage",
         "isFolder": true,
         "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer-handoff/resources/art/garage.png",
         "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer-handoff/resources/art/garage.png",

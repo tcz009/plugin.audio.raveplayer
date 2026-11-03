@@ -107,6 +107,24 @@ cannot control are documented in [`docs/THEME-2026.md`](docs/THEME-2026.md);
 before/after menu renders are in `docs/theme-2026/`. After updating, restart
 Kodi once so the texture cache picks up the re-cut stickers.
 
+### 2026 art rollout, Direction C2 (3.9.38)
+
+The owner-approved C2 direction now covers **all 38 duplicated navigation
+rows** and the **ten Live Radio station tiles**, not just the nine study
+samples. Every row has its own sticker: nine C2 objects (cassette, labelled
+tape, rave flyer, speaker stack, vinyl/turntable, acid smiley, glowsticks,
+lazer beams, smiley balloon) in per-row poses, plus the station tiles for Kool
+FM, Rinse FM, Oldskool & Rave, Jungle, Drum & Bass, Hardcore, House, UK Garage,
+Breakbeat and Pirate Stations. Kodi renders 256×256 and the web build 512×512
+from the same generator (`scripts/make-rollout-art.py`).
+
+The 64 px review surface — all 38 rows plus the station tiles, on a dark list
+panel — is `docs/theme-2026/final-rollout-sheet.png`. Two watch-list fallbacks
+from the C2 rationale were applied because they read better without a caption:
+rave-nights is a flyer (venue listings) and podcasts is a second cassette. UK
+Garage is spelled `uk-garage` in art, route keys and tests; filenames are
+lowercase kebab-case and `test/test_naming.py` enforces it.
+
 **"Curated Gems" keeps that exact label** — the proposed Pirate & Rave Archives
 rename is rejected.
 
@@ -188,7 +206,7 @@ Warm root import+dispatch is ~0.08 s (was 0.78 s), the root route itself is
 ~0.0001 s, Latest cold is ~6 s / warm ~0.04 s, and cached pack open ~0.003 s.
 Full methodology, before/after table and residual risks:
 [`docs/PERF-3.9.20.md`](docs/PERF-3.9.20.md); reproduce with
-`python3 scripts/benchmark.py`. No URL/label/route changes; 469 tests in 3.9.36.
+`python3 scripts/benchmark.py`. No URL/label/route changes; 479 tests in 3.9.38.
 
 ## Why it was rebuilt rather than patched
 

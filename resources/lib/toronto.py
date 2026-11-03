@@ -66,9 +66,26 @@ _TAG_RE = re.compile(r"<[^>]+>")
 _last_fetch_at = 0.0
 
 
+def _decode(value):
+    """Decode HTML entities, including titles a CMS encoded twice.
+
+    Scrapers see ``&amp;`` in a text node and ``&amp;#x2013;`` when the source
+    encoded the entity itself.  Loop until stable (bounded) so the rendered
+    title carries ``&`` and ``–``, never the entity source.
+    """
+    text = str(value or "")
+    for _ in range(3):
+        decoded = html.unescape(text)
+        if decoded == text:
+            break
+        text = decoded
+    return text
+
+
 def _clean(value):
-    text = html.unescape(str(value or ""))
+    text = _decode(value)
     text = _TAG_RE.sub(" ", text)
+    text = _decode(text)
     text = _CONTROL_RE.sub(" ", text)
     return re.sub(r"\s+", " ", text).strip()
 

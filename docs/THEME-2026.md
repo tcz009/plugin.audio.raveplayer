@@ -1,8 +1,9 @@
 # Rave Player — Kodi theme 2026
 
 **Status:** implemented on branch `theme/3.9.16` (off `main @ b0a515a`, add-on
-3.9.16); the Toronto source sticker (`RP-20`) was added in **3.9.31** without
-changing the system. **Direction from the owner:** brutalist, modern
+3.9.16); the Toronto source sticker (`RP-20`) was added in **3.9.31**, and the
+owner-approved **Direction C2 rollout** (38 duplicated rows + 10 station tiles)
+lands in **3.9.38 / web 1.6.43** without changing the system. **Direction from the owner:** brutalist, modern
 streaming-app energy; **bling what exists, don't redesign it.** The logo,
 wordmark and identity are untouched. This is a Kodi-surface pass only — no skin
 fork.
@@ -16,7 +17,8 @@ what a Kodi add-on can and cannot control on that surface.
 
 ### Changed
 - **20 sticker icons** in `resources/art/` at Kodi size **256×256 PNG** — the
-  2026 treatment of the existing glyph language: bright spot-colour tile,
+  2026 treatment of the existing glyph language (the C2 rollout in §8 adds 39
+  more stickers in the same language): bright spot-colour tile,
   black ink glyph, hard misregistration, halftone screen, crop marks,
   scanlines, sticker code.
 - **18 fanarts** in `resources/art/` at **1280×720 JPG** — one per root
@@ -177,7 +179,7 @@ Hub-row icons are the existing section stickers, updated to the 2026 treatment:
 `rave`, `jungle`, `hardcore`, `house`, `garage`, `pirate`, `tapepacks`, `radio`,
 `djez` (Classic Pack Series filters), `search`, `about`.
 
-### 3.4 Full icon list (20 files)
+### 3.4 Full icon list (20 files in 3.9.16; +39 in the 3.9.38 C2 rollout)
 
 `rave` `surprise` `tapepacks` `mixes` `radio` `curated` `favourites` `search`
 `about` `jungle` `hardcore` `house` `garage` `pirate` `djez` `moxser`
@@ -353,3 +355,58 @@ device capture.
    does not touch it. The glyph language is shared, the treatment is Kodi's.
 6. No new sources, no new claims, no copy changes, no routing changes beyond
    artwork wiring and the missing-art fix.
+
+
+---
+
+## 8. Direction C2 production rollout (3.9.38 / web 1.6.43)
+
+The art study became the production set on owner approval. C2's print
+treatment is unchanged; the full duplicated-row set and the Live Radio station
+tiles now ship in it.
+
+### 8.1 What is drawn
+
+- **38 navigation rows** — the rows that previously borrowed one of six
+  generic tiles. Nine C2 objects carry them (cassette, labelled tape, rave
+  flyer, speaker stack, vinyl/turntable, acid smiley, glowsticks, lazer beams,
+  smiley balloon); each repeat is a different pose (tilt, scale, paired stack,
+  plate pair), not a recolour.
+- **10 station tiles** — Kool FM, Rinse FM, Oldskool & Rave, Jungle, Drum &
+  Bass, Hardcore, House, UK Garage, Breakbeat and Pirate Stations. The nine
+  genre/station rows use them in the Live Radio hub; Pirate Stations is the
+  pack row tile.
+- The RATIONALE watch-list fallbacks were adopted: `rave-nights` is a flyer
+  (venue listings are flyers) and `podcasts` is a second cassette. Both read
+  without the row label at 64 px.
+
+### 8.2 Sizes and generator
+
+One generator renders both surfaces from the approved studies:
+
+```sh
+python3 scripts/make-rollout-art.py            # Kodi 256² + web 512² + sheets
+python3 scripts/make-rollout-art.py --check    # names, sizes, existence
+```
+
+It imports `directions-3.9.33-trippy-c2/build_direction_c2.py` and
+`stations/build_stations.py` read-only, so the print pipeline cannot drift from
+the approved art. Kodi receives **256×256** icons; the web build receives
+**512×512** copies of the same tile.
+
+### 8.3 Naming
+
+Filenames are lowercase kebab-case (`[a-z0-9]+(-[a-z0-9]+)*`), no underscores
+or spaces. UK Garage is `uk-garage` / `radio-uk-garage.png`; the old `ukg` key
+and route are gone. `test/test_naming.py` (Kodi) and the web's
+`test/test_naming.py` enforce the rule; the duplicate-art guard is
+`test/test_theme_art.py`'s `MENU_ART`/`FILTER_ART` check.
+
+### 8.4 Review surface
+
+`docs/theme-2026/final-rollout-sheet.png` — all 38 rows at their real 64 px
+list size, labelled with the filename and the blind read, plus the ten station
+tiles at 256 with 128/64 insets. `docs/theme-2026/final-rollout-64px.png` is
+the unlabelled 64 px strip used for the blind read.
+
+Nothing is pushed or deployed until the owner approves the sheet.
