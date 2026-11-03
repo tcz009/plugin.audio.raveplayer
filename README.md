@@ -48,7 +48,9 @@ rebuilt in 2026 from the 2014 original.
     playback URLs carry a `Referer` suffix that Kodi sends as a real header.
   - *JungleTapes.com* — 310 Toronto jungle/DnB radio shows from cassette,
     catalogued via the site sitemap.
-  - *Toronto Rave Mixtape Archive* — 1990s Toronto rave mixtapes.
+  - *Toronto Rave Mixtape Archive* — first-class **Mixes & Shows** source from
+    3.9.30: genre subfolders (Jungle & Hardcore, House & Techno, Studio,
+    X-Static, plus extra nav genres), direct MP3 play/download, no hand-off.
 
 ## Menu (3.9.21 IA)
 
@@ -147,7 +149,7 @@ inside Kodi. All links were checked on 2026-11-01.
 | Kool FM / Rinse FM | <https://www.rinse.fm/> | live streams via `admin.stream.rinse.fm` |
 | RaveTapePacks.com | <https://www.ravetapepacks.com/> | full tape packs (Referer-protected files) |
 | JungleTapes.com | <https://jungletapes.com/> | 310 Toronto jungle/drum & bass radio shows |
-| Toronto Rave Mixtape Archive | <https://www.torontoravemixtapearchive.com/> | 1990s Toronto rave mixtapes |
+| Toronto Rave Mixtape Archive | <https://www.torontoravemixtapearchive.com/> | 1990s Toronto rave mixtapes by genre; direct MP3 play/download |
 
 ## Downloads & offline (3.9.18)
 
@@ -184,7 +186,7 @@ Warm root import+dispatch is ~0.08 s (was 0.78 s), the root route itself is
 ~0.0001 s, Latest cold is ~6 s / warm ~0.04 s, and cached pack open ~0.003 s.
 Full methodology, before/after table and residual risks:
 [`docs/PERF-3.9.20.md`](docs/PERF-3.9.20.md); reproduce with
-`python3 scripts/benchmark.py`. No URL/label/route changes; 403 tests unchanged.
+`python3 scripts/benchmark.py`. No URL/label/route changes; 437 tests in 3.9.30.
 
 ## Why it was rebuilt rather than patched
 
@@ -240,7 +242,8 @@ raveplayer/
 │       ├── archive.py      # Internet Archive provider
 │       ├── feeds.py        # RSS/Atom podcast provider
 │       ├── dnbradio.py     # DNBRADIO.com recordings
-│       ├── legacy.py       # ravetapepacks.com / jungletapes.com / Toronto
+│       ├── legacy.py       # ravetapepacks.com / jungletapes.com
+│       ├── toronto.py      # Toronto Rave Mixtape Archive genre pages
 │       ├── moxser.py       # Moxser sitemap/page provider
 │       ├── hardscore.py    # Hardscore RSS/post provider
 │       ├── getdarker.py    # GetDarker RSS + Mixcloud route

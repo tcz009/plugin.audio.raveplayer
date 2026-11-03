@@ -1,3 +1,13 @@
+Rave Player 3.9.30
+- New source: Toronto Rave Mixtape Archive. Mixes & Shows now opens genre
+  subfolders (Jungle & Hardcore, House & Techno, Studio, X-Static, plus extra
+  genre links found in the site nav) with direct MP3 play and Download context
+  actions. `resources/lib/toronto.py` is fixture-tested, cached (6h) and
+  serialised with a small request gap; no hand-off add-on required.
+- Download eligibility adds the Toronto archive host; artwork falls back to the
+  existing rave sticker/fanart.
+- About/README/source credits updated. Tests: 437 OK. No device playback.
+
 Rave Player 3.9.29
 - Security R6: downloads.json filenames are now validated as single safe leaves
   and every resolved file path is realpath-contained under the downloads root.

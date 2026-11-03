@@ -75,6 +75,7 @@ nowplaying = _lazy("nowplaying")
 pirate_source = _lazy("pirate")
 radio = _lazy("radio")
 spinner = _lazy("spinner")
+toronto_source = _lazy("toronto")
 
 ROWS_PER_PAGE = 50
 MAX_ROWS_PER_PAGE = 200
@@ -544,6 +545,8 @@ def shows_menu(handle, params):
          "Moxser's curated dance-music mix archive — direct MP3s where available."),
         ("Hardscore.com", url_for(mode="hardscore"), "hardscore.png", "fanart-hardscore.jpg",
          "Oldskool hardcore/jungle sets, tracklists and direct MP3s."),
+        ("Toronto Rave Mixtape Archive", url_for(mode="toronto"), "rave.png", None,
+         "1990s Toronto rave mixtapes by genre — direct MP3s."),
     ]
     if handoff.available("mixcloud"):
         rows.append(("GetDarker (dubstep/grime)", url_for(mode="getdarker"),
@@ -1172,6 +1175,54 @@ def legacy_toronto(handle, params):
     kodi.end_directory(handle, "songs")
 
 
+def toronto(handle, params):
+    """Toronto archive genre folders (jungle, house, studio, x-static, extras)."""
+    rows = toronto_source.genres()
+    if not rows:
+        kodi.notify("Toronto archive did not answer — try again later.")
+    hub_fanart = art("fanart-hub-shows.jpg")
+    for row in rows:
+        label = ui.plain(row["label"])
+        ui.menu_item(
+            handle,
+            url_for(mode="toronto_genre", genre=row["genre"]),
+            label,
+            icon=art("rave.png"),
+            fanart=hub_fanart,
+            plot="Toronto Rave Mixtape Archive · %s" % label,
+        )
+    ui.menu_item(handle, url_for(mode="shows_menu"), "Back")
+    kodi.end_directory(handle, "files")
+
+
+def toronto_genre(handle, params):
+    """Direct MP3 rows for one Toronto genre page."""
+    slug = params.get("genre", "")
+    tracks = toronto_source.tracks(slug)
+    genre_label = next((label for name, label in toronto_source.GENRES if name == slug), slug)
+    if not tracks:
+        kodi.notify("No Toronto mixtapes on that page right now.")
+    for track in tracks:
+        stream = _playable_url(track["url"])
+        if not stream:
+            continue
+        name = ui.plain(track["name"])
+        plot = "Toronto Rave Mixtape Archive · %s" % ui.plain(genre_label)
+        context = [_favourite("stream", stream, name, "Toronto Rave Archive")]
+        context.extend(_download_context(stream, name, "Toronto Rave Mixtape Archive"))
+        ui.track_item(
+            handle,
+            url_for(mode="play", url=stream, label=name, thumb=art("rave.png")),
+            name,
+            thumb=art("rave.png"),
+            plot=plot,
+            album=ui.plain(genre_label),
+            context=context,
+        )
+    ui.menu_item(handle, url_for(mode="toronto"), "Back")
+    kodi.end_directory(handle, "songs")
+
+
 def legacy_packs(handle, params):
     entries = legacy.packs()
     if not entries:
@@ -1712,7 +1763,7 @@ def about(handle, params):
         ("Source: JungleTapes.com", "jungle.png",
          "Toronto jungle/drum & bass radio shows from the site sitemap."),
         ("Source: Toronto Rave Mixtape Archive", "rave.png",
-         "1990s Toronto rave mixtapes."),
+         "1990s Toronto rave mixtapes by genre (jungle, house, studio, X-Static) — direct MP3s."),
     ]
     for label, icon, plot in rows:
         ui.info_item(handle, label, plot=plot, icon=art(icon))
@@ -1862,6 +1913,8 @@ HANDLERS = {
     "legacy_jt": legacy_jt,
     "legacy_jt_show": legacy_jt_show,
     "legacy_toronto": legacy_toronto,
+    "toronto": toronto,
+    "toronto_genre": toronto_genre,
     "legacy_packs": legacy_packs,
     "legacy_pack": legacy_pack,
     "search": search,

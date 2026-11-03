@@ -36,6 +36,8 @@ ALLOWED_SOURCES = {
     "Moxser.com": ("moxser.com", "enceladus.feralhosting.com"),
     "Hardscore.com": ("hardscore.com", "www.hardscore.com"),
     "Pirate Radio Archives": ("hardscore.com", "www.hardscore.com"),
+    "Toronto Rave Mixtape Archive": ("torontoravemixtapearchive.com",
+                                     "www.torontoravemixtapearchive.com"),
 }
 ALLOWED_CONTENT_TYPES = ("audio/", "application/octet-stream")
 

@@ -44,7 +44,7 @@ class NewSourceRouteTests(unittest.TestCase):
             routes.shows_menu(1, {})
         self.assertEqual(self._labels(), [
             "Podcasts & Mixes", "DNB Radio", "Moxser Mixes",
-            "Hardscore.com", "Back",
+            "Hardscore.com", "Toronto Rave Mixtape Archive", "Back",
         ])
         del xbmcplugin.ITEMS[:]
         with mock.patch.object(routes.handoff, "available", return_value=True):
@@ -52,7 +52,8 @@ class NewSourceRouteTests(unittest.TestCase):
         labels = self._labels()
         self.assertEqual(labels, [
             "Podcasts & Mixes", "DNB Radio", "Moxser Mixes",
-            "Hardscore.com", "GetDarker (dubstep/grime)", "Back",
+            "Hardscore.com", "Toronto Rave Mixtape Archive",
+            "GetDarker (dubstep/grime)", "Back",
         ])
         urls = dict(zip(labels, self._urls()))
         self.assertIn("mode=moxser", urls["Moxser Mixes"])

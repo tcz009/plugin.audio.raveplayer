@@ -1,4 +1,4 @@
-# Playback audit (3.9.29)
+# Playback audit (3.9.30)
 
 Triggered by the Shield incident on 2026-11-01 where audio appeared to move
 between tracks while the owner was not in the add-on.
@@ -51,7 +51,7 @@ link invoked `mode=play` with an invalid URL. It now only notifies and calls
 - dispatches root, all four hubs, Latest/on-air, archive item, favourites
   `kind=stream`, Downloads, About and other directory pages with
   `PlayList`/`Player`/`setResolvedUrl` mocked, asserting none are called;
-- enumerates every one of the **46** `HANDLERS` modes, so a new route cannot
+- enumerates every one of the **48** `HANDLERS` modes, so a new route cannot
   silently escape the audit;
 - covers context menus / RunPlugin routes (`fav_add`, `fav_remove`,
   `download_delete`, Surprise Me) and asserts they never start playback;
@@ -59,4 +59,4 @@ link invoked `mode=play` with an invalid URL. It now only notifies and calls
   `play_all` still starts the playlist;
 - asserts a failed resolve does not stop user playback.
 
-Full suite: **437 tests OK** (3.9.29).
+Full suite: **437 tests OK** (3.9.30).
