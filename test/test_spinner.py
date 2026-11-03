@@ -182,11 +182,12 @@ class TuningSpinnerTests(unittest.TestCase):
                                      window_factory=self._factory,
                                      notify=notes.append)
         tune.start()
-        time_sleep(0.10)
+        tune._expire()
         self.assertTrue(tune.expired)
         self.assertTrue(tune.closed)
-        self.assertTrue(FakeTuningWindow.created and FakeTuningWindow.created[0].closed)
         self.assertIn("taking too long", " ".join(notes))
+        tune.close()
+        self.assertEqual(len(notes), 1)
 
     def test_update_tuning_sets_label_and_clears_progress(self):
         window = spinner.SpinnerWindow()
