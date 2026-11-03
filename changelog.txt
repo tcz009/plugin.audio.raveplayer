@@ -1,3 +1,13 @@
+Rave Player 3.9.33
+- Removed silent listing caps: Moxser (5000 mixes / 20 sitemaps), Hardscore
+  (5000 feed items), GetDarker (full feed), Toronto (5000 tracks; 678-row
+  genre fixture), feeds (5000 episodes default/max), Mixcloud (1000) and live
+  radio (500 tags / 200 name lookup). Archive/rave/year/filter pages keep their
+  page + Next page pagination. No playback or auto-play changes.
+- Tests: test_listing_caps.py asserts 150 Moxser/150 Hardscore/678 Toronto/120
+  feed fixtures and full route rendering; 444 tests OK.
+- Docs: docs/LISTING-CAPS-3.9.33.md; README/settings updated. No device run.
+
 Rave Player 3.9.31
 - New Toronto Rave Mixtape Archive identity: `resources/art/toronto.png`
   (256x256) and `fanart-toronto.jpg` (1280x720) — cyan 2026 sticker with a CN

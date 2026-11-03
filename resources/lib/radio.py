@@ -17,7 +17,7 @@ MIRROR_TIMEOUT = 8
 STATIONS_TTL = 10 * 60  # station lists change slowly
 
 
-def stations(tag, limit=100):
+def stations(tag, limit=500):
     """Return live, non-broken stations for a tag, most-clicked first."""
     limit = _clamp(limit, 100, 1000)
     query = (
@@ -61,7 +61,7 @@ def curated(name):
     return [dict(station) for station in CURATED if station["token"] in token or token in station["token"]]
 
 
-def stations_by_name(name, limit=20):
+def stations_by_name(name, limit=200):
     """Live stations whose name matches (used for "Kool FM live now")."""
     limit = _clamp(limit, 20, 100)
     query = "/json/stations/search?name=%s&limit=%d&hidebroken=true&order=clickcount&reverse=true" % (

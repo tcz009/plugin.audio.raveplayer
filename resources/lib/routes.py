@@ -79,8 +79,9 @@ toronto_source = _lazy("toronto")
 
 ROWS_PER_PAGE = 50
 MAX_ROWS_PER_PAGE = 200
-EPISODES_PER_FEED = 60
-MAX_EPISODES_PER_FEED = 500
+# Default to all entries a feed carries; the setting can cap deliberately.
+EPISODES_PER_FEED = 5000
+MAX_EPISODES_PER_FEED = 5000
 
 # Total network time a single plugin invocation may spend before the
 # remaining sources are skipped and the partial directory is shown.
@@ -611,7 +612,7 @@ def radio_tag(handle, params):
         kodi.notify("That radio section no longer exists.")
         kodi.end_directory(handle, "files")
         return
-    stations = radio.stations(section["tag"], limit=kodi.setting_int("radio_limit", 100))
+    stations = radio.stations(section["tag"], limit=kodi.setting_int("radio_limit", 500))
     if not stations:
         kodi.notify("No working stations for %s right now." % section["label"])
     _station_items(handle, stations, "Live radio · %s" % section["label"])
@@ -836,7 +837,7 @@ def filter_live(handle, params):
     stations = radio.curated(entry["live_name"])
     if not stations:
         token = str(entry["live_name"] or "").lower()
-        stations = [station for station in radio.stations_by_name(entry["live_name"], limit=20)
+        stations = [station for station in radio.stations_by_name(entry["live_name"], limit=200)
                     if token and token in str(station.get("name", "")).lower()]
     if not stations:
         kodi.notify("%s is not listed as live right now." % entry["name"])
@@ -1342,7 +1343,7 @@ def _handoff_link_items(handle, links, title, icon, plot):
 
 
 def moxser(handle, params):
-    rows = moxser_source.mixes(limit=60)
+    rows = moxser_source.mixes(limit=moxser_source.MAX_MIXES)
     if not rows:
         kodi.notify("Moxser did not answer — try again later.")
     for row in rows:
@@ -1395,7 +1396,7 @@ def moxser_mix(handle, params):
 
 
 def hardscore(handle, params):
-    rows = hardscore_source.items(limit=60)
+    rows = hardscore_source.items(limit=hardscore_source.MAX_ITEMS)
     if not rows:
         kodi.notify("Hardscore did not answer — try again later.")
     for row in rows:
@@ -1457,7 +1458,7 @@ def getdarker(handle, params):
         kodi.notify("GetDarker needs the Kodi Mixcloud add-on — row hidden.")
         kodi.end_directory(handle, "files")
         return
-    rows = getdarker_source.items(limit=60)
+    rows = getdarker_source.items(limit=hardscore_source.MAX_ITEMS)
     ui.menu_item(
         handle,
         handoff.mixcloud_search("GetDarker"),
@@ -1513,7 +1514,7 @@ def mixcloud_account(handle, params):
         kodi.notify("%s needs the Kodi Mixcloud add-on — row hidden." % source["name"])
         kodi.end_directory(handle, "files")
         return
-    rows = mixcloud_source.cloudcasts(source["account"], limit=60)
+    rows = mixcloud_source.cloudcasts(source["account"], limit=mixcloud_source.MAX_CLOUDS)
     if not rows:
         kodi.notify("%s did not return any cloudcasts." % source["name"])
     for row in rows:

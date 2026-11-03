@@ -26,8 +26,8 @@ SITEMAP_INDEX = SITE + "/sitemaps-1-sitemap.xml"
 SITEMAP_TTL = 6 * 60 * 60
 MIX_TTL = 6 * 60 * 60
 MIN_INTERVAL = 1.0  # <= 1 request/second
-MAX_SITEMAPS = 4
-MAX_MIXES = 120
+MAX_SITEMAPS = 20
+MAX_MIXES = 5000
 BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"

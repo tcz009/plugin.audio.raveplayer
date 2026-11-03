@@ -15,7 +15,7 @@ from . import http
 
 API = "https://api.mixcloud.com"
 ACCOUNT_TTL = 60 * 60
-MAX_CLOUDS = 80
+MAX_CLOUDS = 1000
 
 SOURCES = [
     {

@@ -22,7 +22,7 @@ BASE = "https://www.torontoravemixtapearchive.com"
 PAGE_TTL = 6 * 60 * 60
 INDEX_TTL = 6 * 60 * 60
 MIN_PAGE_GAP = 0.5
-MAX_TRACKS = 600
+MAX_TRACKS = 5000
 BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"

@@ -19,7 +19,7 @@ from . import http, kodi
 FEED_URL = "https://www.hardscore.com/?feed=rss2"
 FEED_TTL = 30 * 60
 PAGE_TTL = 6 * 60 * 60
-MAX_ITEMS = 100
+MAX_ITEMS = 5000
 BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
