@@ -237,12 +237,18 @@ class SurpriseReveal(object):
         self.window = None
         self.cancelled = False
         self.failed = False
+        self.missing_controls = []
 
     def _control(self, control_id):
         try:
-            return self.window.getControl(control_id)
+            control = self.window.getControl(control_id)
+        except (TypeError, AttributeError, RuntimeError, ValueError):
+            control = None
         except Exception:
-            return None
+            control = None
+        if control is None:
+            self.missing_controls.append(control_id)
+        return control
 
     def _label(self, control_id, text):
         control = self._control(control_id)
@@ -282,6 +288,15 @@ class SurpriseReveal(object):
             self._label(CONTROL_SURPRISE_SUB, "SPINNING THE RACK…")
             self._label(CONTROL_SURPRISE_CODE, self.code)
             self._label(CONTROL_SURPRISE_HINT, "Back to cancel")
+            if self.missing_controls:
+                # A skin/window load failure must fall back to the instant
+                # pick, not leave a half-open overlay or abort the route.
+                kodi.log("surprise reveal controls unavailable (%s)"
+                         % ",".join(str(c) for c in self.missing_controls),
+                         level=xbmc.LOGWARNING)
+                self.failed = True
+                self.close()
+                return False
             started = self._clock()
             while True:
                 if getattr(self.window, "_rave_cancelled", False):
@@ -418,8 +433,9 @@ def _build_window_class():
                 code = None
             if code in (getattr(xbmcgui, "ACTION_NAV_BACK", 92),
                         getattr(xbmcgui, "ACTION_STOP", 13)):
+                # Mark cancel; the owner (download loop / reveal) closes the
+                # window. Closing inside onAction can tear down the plugin.
                 self._rave_cancelled = True
-                self.close()
                 return
             try:
                 base.onAction(self, action)

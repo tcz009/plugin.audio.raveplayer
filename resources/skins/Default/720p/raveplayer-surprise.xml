@@ -30,7 +30,7 @@
             <width>1080</width>
             <height>70</height>
             <align>center</align>
-            <font>font60</font>
+            <font>font13</font>
             <textcolor>0xFFFF3D8B</textcolor>
             <label>SURPRISE ME</label>
         </control>
@@ -41,7 +41,7 @@
             <width>1080</width>
             <height>32</height>
             <align>center</align>
-            <font>font16</font>
+            <font>font13</font>
             <textcolor>0xFFF4F1EA</textcolor>
             <label>SPINNING THE RACK…</label>
         </control>

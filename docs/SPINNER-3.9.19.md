@@ -54,6 +54,15 @@ resolve never flashes an overlay. It shows the item/station name plus
   default on). The download overlay remains its own `spinner_overlay` opt-in.
 - No extra art or window XML: `TuningSpinner` reuses the existing controls.
 
+## Pre-buffer (3.9.36)
+
+While the tuning spinner is active for a slow direct source (Toronto archive
+hosts), the add-on opens the stream first and reads the first chunk (ceiling
+64 KB, 12 s). On success it closes the spinner and resolves earlier; on timeout
+it logs, notifies “Slow source — Kodi will continue buffering.” and still
+resolves. Fast/local sources are unchanged. The 400 ms threshold, 25 s tuning
+timeout and close-before-play ordering remain.
+
 ## Lifecycle
 
 ```
@@ -80,7 +89,7 @@ open failure, cancel state, delayed threshold, timeout notification and
 tuning-mode labels. `test/test_tuning_routes.py` — close-before-resolve/play,
 DNB/live paths, timeout failure and disabled setting. `test/test_download_routes.py` — overlay selected
 and closed on success, and automatic fallback to `DialogProgress` when the
-window fails. Full suite **461 tests OK** (3.9.35; see `docs/SURPRISE-3.9.35.md` for the reveal overlay).
+window fails. Full suite **469 tests OK** (3.9.36; see `docs/SURPRISE-3.9.35.md` for the reveal overlay and the 3.9.36 pre-buffer notes).
 
 ## Cost / risks
 

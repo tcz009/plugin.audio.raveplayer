@@ -1,3 +1,17 @@
+Rave Player 3.9.36
+- Surprise Me Shield fix: WindowXML controls are guarded individually; any
+  missing control or TypeError logs and falls back to the instant random pick
+  instead of aborting the route. Overlay fonts use skin-safe IDs; Back marks
+  cancel and lets the owner close the window (no close inside onAction). Folder
+  still ends via archive_item/notification or the cancel end_directory.
+- Pre-buffer slow Toronto MP3s while tuning: read first chunk (64 KB ceiling)
+  with 12 s timeout, then close spinner and resolve. Timeout/no bytes logs and
+  notifies “Slow source — Kodi will continue buffering.”, then still resolves.
+  400 ms threshold, 25 s total timeout, close-before-play and settings remain.
+- Tests: 469 OK (TypeError/missing-control fallback, close-before-pick,
+  pre-buffer ceiling, timeout still resolves, fast sources untouched).
+- No playback routing/auto-play changes.
+
 Rave Player 3.9.35
 - Surprise Me reveal: full-screen-ish WindowXML with the existing large
   spinning head frames, 2026 burst artwork, SURPRISE ME / SPINNING THE RACK…

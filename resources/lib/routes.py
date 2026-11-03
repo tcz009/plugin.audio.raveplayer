@@ -1838,6 +1838,44 @@ def _resolve_live_player_url(stream, station):
     return stream
 
 
+PREBUFFER_BYTES = 64 * 1024
+PREBUFFER_TIMEOUT = 12.0
+PREBUFFER_HOSTS = ("torontoravemixtapearchive.com",
+                   "www.torontoravemixtapearchive.com")
+
+
+def _should_prebuffer(stream):
+    """Only sources known to be slow get the extra pre-buffer request.
+
+    The URL has already passed the public-stream guard.  Local/fast sources and
+    the live playlist path are untouched.
+    """
+    try:
+        host = (urllib.parse.urlsplit(str(stream or "").split("|", 1)[0]).hostname or "").lower()
+    except ValueError:
+        return False
+    return host in PREBUFFER_HOSTS
+
+
+def _prebuffer_stream(stream, timeout=PREBUFFER_TIMEOUT):
+    """Read the first bytes while the tuning spinner is visible.
+
+    Returns True on any non-empty chunk.  A timeout/error is logged and treated
+    as a slow source; the caller still resolves so Kodi can take over.
+    """
+    try:
+        with http.open_media(stream, timeout=timeout) as response:
+            chunk = response.read(PREBUFFER_BYTES)
+        if chunk:
+            return True
+    except Exception as exc:  # noqa: BLE001 - pre-buffer is advisory
+        kodi.log("pre-buffer failed (%s); Kodi will take over"
+                 % exc.__class__.__name__, level=30)
+        return False
+    kodi.log("pre-buffer returned no bytes; Kodi will take over", level=30)
+    return False
+
+
 def _start_tuning_spinner(label):
     """Start the delayed stream spinner when the separate toggle is on."""
     if not kodi.setting_bool("spinner_tuning", True):
@@ -1885,6 +1923,16 @@ def play(handle, params):
                            "That stream address is not playable "
                            "(private, loopback or unresolved host).")
             return
+        if tuning is not None and not live.is_live_stream(stream) \
+                and _should_prebuffer(stream):
+            prebuffered = _prebuffer_stream(stream)
+            if not prebuffered:
+                try:
+                    kodi.notify("Slow source — Kodi will continue buffering.")
+                except Exception:
+                    pass
+            if _tuning_aborted(handle, tuning):
+                return
         is_live = _flag(params, "live") or live.is_live_stream(stream)
         station = live.station_name(stream, params.get("station") or label) if is_live else ""
         display_label = station or label

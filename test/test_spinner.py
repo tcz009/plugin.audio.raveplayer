@@ -255,6 +255,18 @@ class SurpriseRevealTests(unittest.TestCase):
         self.assertFalse(reveal.show())
         self.assertTrue(reveal.cancelled)
 
+    def test_missing_controls_or_typeerror_is_fail_soft(self):
+        class BadWindow(SurpriseWindowFake):
+            def getControl(self, control_id):
+                raise TypeError("Non-Existent Control %s" % control_id)
+        window = BadWindow()
+        reveal = spinner.SurpriseReveal(
+            "RANDOM PACK", window_factory=lambda: window,
+            sleep=lambda seconds: None, clock=lambda: 0.0)
+        self.assertFalse(reveal.show())
+        self.assertTrue(reveal.failed)
+        self.assertTrue(window.closed)
+
     def test_window_failure_is_fail_soft(self):
         def broken():
             raise RuntimeError("no window")

@@ -85,6 +85,18 @@ class SurpriseRouteTests(unittest.TestCase):
         end.assert_called_once()
         self.assertTrue(any(event[0] == "close" for event in FakeReveal.events))
 
+    def test_typeerror_during_reveal_still_picks(self):
+        pack = {"identifier": "pack-1", "title": "Pack"}
+        def typeerror_show(self):
+            raise TypeError("Non-Existent Control 100")
+        with mock.patch.object(routes.kodi, "setting_bool", return_value=True), \
+                mock.patch.object(FakeReveal, "show", typeerror_show), \
+                mock.patch.object(routes.latest, "random_pack", return_value=pack), \
+                mock.patch.object(routes, "archive_item") as archive:
+            routes.surprise(1, {})
+        archive.assert_called_once()
+        self.assertTrue(any(event[0] == "close" for event in FakeReveal.events))
+
     def test_reveal_failure_still_picks(self):
         pack = {"identifier": "pack-1", "title": "Pack"}
         def fail_show(self):
