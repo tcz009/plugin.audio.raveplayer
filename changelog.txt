@@ -1,3 +1,14 @@
+Rave Player 3.9.34
+- Stream-tuning spinner: play, DNB play and the live playlist path start the
+  existing spinning-head WindowXML only after a 400 ms delay, show the item or
+  station name + “Tuning in…”, close before setResolvedUrl/Player.play, and
+  always close in finally. 25 s timeout closes and notifies “Stream taking too
+  long — check your connection”; Back cancels. New separate setting
+  “Show spinner while tuning streams” (default on); download spinner remains
+  its own opt-in.
+- Tests: 453 OK (delayed threshold, no fast flash, timeout, close-before-play,
+  DNB/live paths, disabled setting). No playback/auto-play changes.
+
 Rave Player 3.9.33
 - Removed silent listing caps: Moxser (5000 mixes / 20 sitemaps), Hardscore
   (5000 feed items), GetDarker (full feed), Toronto (5000 tracks; 678-row

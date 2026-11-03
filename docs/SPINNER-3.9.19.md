@@ -39,6 +39,21 @@ Frame index = `int(elapsed * 10) % 10`; format: `head-256-XX.png`.
 The icon is alpha-masked to its circular head before rotation, so the yellow
 square corners do not spin.
 
+## Stream-tuning overlay (3.9.34)
+
+The same compact `WindowXML` is reused for stream resolution in `play`,
+`dnb_play` and the live playlist path. It is **delayed by 400 ms**, so a fast
+resolve never flashes an overlay. It shows the item/station name plus
+“Tuning in…” and the usual animated head; Back sets the existing cancel flag.
+
+- Close happens immediately **before** `setResolvedUrl` / `Player.play`, and a
+  `finally` closes it on success, error, cancel and timeout.
+- 25 s without resolution closes the overlay and notifies “Stream taking too
+  long — check your connection.”
+- Separate setting: **Show spinner while tuning streams** (`spinner_tuning`,
+  default on). The download overlay remains its own `spinner_overlay` opt-in.
+- No extra art or window XML: `TuningSpinner` reuses the existing controls.
+
 ## Lifecycle
 
 ```
@@ -61,9 +76,11 @@ picks it up and the download loop removes the `.part` file. The existing
 
 `test/test_spinner.py` — frame files/sizes/XML, frame-index wrapping, byte/
 remaining formatting, open/update/close lifecycle with a fake WindowXML,
-open failure, cancel state. `test/test_download_routes.py` — overlay selected
+open failure, cancel state, delayed threshold, timeout notification and
+tuning-mode labels. `test/test_tuning_routes.py` — close-before-resolve/play,
+DNB/live paths, timeout failure and disabled setting. `test/test_download_routes.py` — overlay selected
 and closed on success, and automatic fallback to `DialogProgress` when the
-window fails. Full suite **403 tests OK**.
+window fails. Full suite **453 tests OK** (3.9.34).
 
 ## Cost / risks
 

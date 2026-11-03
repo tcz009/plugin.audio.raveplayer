@@ -1088,17 +1088,24 @@ def dnb_list(handle, params):
 
 def dnb_play(handle, params):
     mix_id = params.get("id", "")
+    label = params.get("label", "DNBRADIO")
+    tuning = _start_tuning_spinner(label)
     url = ""
-    if mix_id:
-        try:
-            url = dnbradio.stream_url(mix_id)
-        except Exception as exc:  # never let a scraper error cascade playback
-            kodi.log("DNB resolve failed for mix %s (%s)" % (mix_id, exc), level=30)
-            url = ""
+    try:
+        if mix_id:
+            try:
+                url = dnbradio.stream_url(mix_id)
+            except Exception as exc:  # never let a scraper error cascade playback
+                kodi.log("DNB resolve failed for mix %s (%s)" % (mix_id, exc), level=30)
+                url = ""
+        if _tuning_aborted(handle, tuning):
+            return
+    finally:
+        _close_tuning_spinner(tuning)
     if not url:
         _fail_playback(handle, "Could not resolve that DNBRADIO mix.")
         return
-    play(handle, {"url": url, "label": params.get("label", "DNBRADIO"),
+    play(handle, {"url": url, "label": label,
                   "thumb": params.get("thumb") or kodi.ICON})
 
 
@@ -1812,64 +1819,108 @@ def _resolve_live_player_url(stream, station):
     return stream
 
 
-def play(handle, params):
-    stream = _playable_url(params.get("url", ""))
-    label = params.get("label", "Rave Player")
-    thumb = _safe_art(params.get("thumb"), kodi.ICON)
-    fanart = _safe_art(params.get("fanart"), "")
-    plotted = params.get("plot") or ""
-    if not stream:
-        _fail_playback(handle,
-                       "That stream address is not playable "
-                       "(private, loopback or unresolved host).")
-        return
-    is_live = _flag(params, "live") or live.is_live_stream(stream)
-    station = live.station_name(stream, params.get("station") or label) if is_live else ""
-    display_label = station or label
-    item = xbmcgui.ListItem(path=stream)
-    art = {"thumb": thumb, "icon": thumb}
-    if fanart:
-        art["fanart"] = fanart
-    item.setArt(art)
-    info = kodi.music_info(ui.plain(display_label), plotted, mediatype="music")
-    if is_live:
-        info["artist"] = station
-        info["album"] = "Live radio"
-    item.setInfo("music", info)
-    item.setProperty("IsPlayable", "true")
-    if is_live:
-        # Do not resolve a playlist file: PAPlayer cannot decode local .m3u
-        # through setResolvedUrl.  Start a finite direct-URL playlist instead;
-        # Kodi advances only when the current stream drops and a user Stop
-        # ends it immediately (no add-on loop/watchdog).
-        item.setProperty("IsLiveStream", "true")
+def _start_tuning_spinner(label):
+    """Start the delayed stream spinner when the separate toggle is on."""
+    if not kodi.setting_bool("spinner_tuning", True):
+        return None
+    try:
+        tuning = spinner.TuningSpinner(label)
+        tuning.start()
+        return tuning
+    except Exception as exc:  # noqa: BLE001 - never block playback
+        kodi.log("tuning spinner unavailable (%s)" % exc.__class__.__name__, level=30)
+        return None
+
+
+def _close_tuning_spinner(tuning):
+    if tuning is not None:
         try:
-            urls = live.reconnect_urls(
-                stream, station,
-                resolver=lambda name: _resolve_live_player_url(stream, name),
-            )
-            if urls:
-                playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
-                playlist.clear()
-                for url in urls:
-                    url = live.playback_url(url)
-                    if not url:
-                        continue
-                    entry = xbmcgui.ListItem(path=url)
-                    entry.setArt(art)
-                    entry.setInfo("music", dict(info))
-                    entry.setProperty("IsPlayable", "true")
-                    entry.setProperty("IsLiveStream", "true")
-                    playlist.add(url, entry)
-                xbmc.Player().play(playlist)
-                return
-        except Exception as exc:  # noqa: BLE001 - direct stream fallback
-            kodi.log("live reconnect playlist unavailable (%s); direct stream"
-                     % exc.__class__.__name__, level=30)
-        direct = live.playback_url(stream) if is_live else ""
-        if direct:
-            item.setPath(direct)
-    xbmcplugin.setResolvedUrl(handle, True, item)
+            tuning.close()
+        except Exception:
+            pass
+
+
+def _tuning_aborted(handle, tuning):
+    """Return True (and fail the resolve) if timeout/Back cancelled tuning."""
+    if tuning is None:
+        return False
+    if getattr(tuning, "expired", False):
+        _fail_playback(handle, "Stream taking too long — check your connection.")
+        return True
+    if getattr(tuning, "cancelled", lambda: False)():
+        _fail_playback(handle, "Cancelled.")
+        return True
+    return False
+
+
+def play(handle, params):
+    label = params.get("label", "Rave Player")
+    tuning = _start_tuning_spinner(params.get("station") or label)
+    try:
+        stream = _playable_url(params.get("url", ""))
+        thumb = _safe_art(params.get("thumb"), kodi.ICON)
+        fanart = _safe_art(params.get("fanart"), "")
+        plotted = params.get("plot") or ""
+        if not stream:
+            _fail_playback(handle,
+                           "That stream address is not playable "
+                           "(private, loopback or unresolved host).")
+            return
+        is_live = _flag(params, "live") or live.is_live_stream(stream)
+        station = live.station_name(stream, params.get("station") or label) if is_live else ""
+        display_label = station or label
+        item = xbmcgui.ListItem(path=stream)
+        art = {"thumb": thumb, "icon": thumb}
+        if fanart:
+            art["fanart"] = fanart
+        item.setArt(art)
+        info = kodi.music_info(ui.plain(display_label), plotted, mediatype="music")
+        if is_live:
+            info["artist"] = station
+            info["album"] = "Live radio"
+        item.setInfo("music", info)
+        item.setProperty("IsPlayable", "true")
+        if is_live:
+            # Do not resolve a playlist file: PAPlayer cannot decode local .m3u
+            # through setResolvedUrl.  Start a finite direct-URL playlist instead;
+            # Kodi advances only when the current stream drops and a user Stop
+            # ends it immediately (no add-on loop/watchdog).
+            item.setProperty("IsLiveStream", "true")
+            try:
+                urls = live.reconnect_urls(
+                    stream, station,
+                    resolver=lambda name: _resolve_live_player_url(stream, name),
+                )
+                if urls:
+                    playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
+                    playlist.clear()
+                    for url in urls:
+                        url = live.playback_url(url)
+                        if not url:
+                            continue
+                        entry = xbmcgui.ListItem(path=url)
+                        entry.setArt(art)
+                        entry.setInfo("music", dict(info))
+                        entry.setProperty("IsPlayable", "true")
+                        entry.setProperty("IsLiveStream", "true")
+                        playlist.add(url, entry)
+                    if _tuning_aborted(handle, tuning):
+                        return
+                    _close_tuning_spinner(tuning)
+                    xbmc.Player().play(playlist)
+                    return
+            except Exception as exc:  # noqa: BLE001 - direct stream fallback
+                kodi.log("live reconnect playlist unavailable (%s); direct stream"
+                         % exc.__class__.__name__, level=30)
+            direct = live.playback_url(stream) if is_live else ""
+            if direct:
+                item.setPath(direct)
+        if _tuning_aborted(handle, tuning):
+            return
+        _close_tuning_spinner(tuning)
+        xbmcplugin.setResolvedUrl(handle, True, item)
+    finally:
+        _close_tuning_spinner(tuning)
 
 
 HANDLERS = {

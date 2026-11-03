@@ -123,3 +123,82 @@ class SpinnerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FakeTuningWindow(object):
+    created = []
+
+    def __init__(self):
+        self.opened = False
+        self.closed = False
+        self.updated = []
+        FakeTuningWindow.created.append(self)
+
+    def open(self):
+        self.opened = True
+        return True
+
+    def close(self):
+        self.closed = True
+
+    def update_tuning(self, label, elapsed=None):
+        self.updated.append(label)
+
+    def iscanceled(self):
+        return False
+
+
+class TuningSpinnerTests(unittest.TestCase):
+    def setUp(self):
+        FakeTuningWindow.created = []
+
+    def _factory(self):
+        return FakeTuningWindow()
+
+    def test_fast_resolve_never_opens_the_window(self):
+        tune = spinner.TuningSpinner("Kool FM", threshold=0.05, timeout=1.0,
+                                     window_factory=self._factory)
+        tune.start()
+        tune.close()
+        time_sleep(0.12)
+        self.assertEqual(FakeTuningWindow.created, [])
+        self.assertFalse(tune.expired)
+
+    def test_slow_resolve_opens_tuning_mode_and_closes(self):
+        tune = spinner.TuningSpinner("Kool FM", threshold=0.01, timeout=1.0,
+                                     window_factory=self._factory)
+        tune.start()
+        time_sleep(0.06)
+        self.assertEqual(len(FakeTuningWindow.created), 1)
+        window = FakeTuningWindow.created[0]
+        self.assertTrue(window.opened)
+        self.assertEqual(window.updated[0], "Kool FM")
+        tune.close()
+        self.assertTrue(window.closed)
+
+    def test_timeout_closes_and_notifies(self):
+        notes = []
+        tune = spinner.TuningSpinner("Rinse FM", threshold=0.01, timeout=0.03,
+                                     window_factory=self._factory,
+                                     notify=notes.append)
+        tune.start()
+        time_sleep(0.10)
+        self.assertTrue(tune.expired)
+        self.assertTrue(tune.closed)
+        self.assertTrue(FakeTuningWindow.created and FakeTuningWindow.created[0].closed)
+        self.assertIn("taking too long", " ".join(notes))
+
+    def test_update_tuning_sets_label_and_clears_progress(self):
+        window = spinner.SpinnerWindow()
+        fake = FakeWindow(spinner.WINDOW_XML, "/tmp")
+        window.window = fake
+        self.assertTrue(window.update_tuning("Kool FM", 0))
+        self.assertEqual(fake.controls[spinner.CONTROL_FILENAME].label,
+                         "Kool FM — Tuning in…")
+        self.assertEqual(fake.controls[spinner.CONTROL_REMAINING].label, "Tuning in…")
+        self.assertEqual(fake.controls[spinner.CONTROL_HINT].label, "Back to cancel")
+
+
+def time_sleep(seconds):
+    import time
+    time.sleep(seconds)

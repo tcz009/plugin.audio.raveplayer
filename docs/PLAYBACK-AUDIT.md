@@ -59,4 +59,4 @@ link invoked `mode=play` with an invalid URL. It now only notifies and calls
   `play_all` still starts the playlist;
 - asserts a failed resolve does not stop user playback.
 
-Full suite: **444 tests OK** (3.9.33).
+Full suite: **453 tests OK** (3.9.34).

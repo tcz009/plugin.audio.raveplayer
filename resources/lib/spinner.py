@@ -14,6 +14,7 @@ the download.
 
 import functools
 import os
+import threading
 import time
 
 import xbmc
@@ -34,6 +35,8 @@ CONTROL_SIZE = 103
 CONTROL_REMAINING = 104
 CONTROL_HINT = 105
 CONTROL_PROGRESS = 106
+TUNING_THRESHOLD = 0.4
+TUNING_TIMEOUT = 25.0
 
 
 def frames_dir(addon_path=None):
@@ -161,6 +164,34 @@ class SpinnerWindow(object):
             self.close()
             return False
 
+    def update_tuning(self, label, elapsed=None):
+        """Show the compact panel in stream-tuning mode (no byte progress)."""
+        if self.window is None:
+            return False
+        try:
+            if elapsed is None:
+                elapsed = time.monotonic() - self.started
+            image = self._control(CONTROL_HEAD)
+            if image is not None:
+                image.setImage(frame_paths(FRAME_SIZE, self.addon_path)[frame_index(elapsed)])
+            self._label(CONTROL_FILENAME, "%s — Tuning in…" % (label or "Stream"))
+            self._label(CONTROL_PERCENT, "")
+            self._label(CONTROL_SIZE, "")
+            self._label(CONTROL_REMAINING, "Tuning in…")
+            self._label(CONTROL_HINT, "Back to cancel")
+            progress = self._control(CONTROL_PROGRESS)
+            if progress is not None:
+                try:
+                    progress.setPercent(0)
+                except Exception:
+                    pass
+            return True
+        except Exception as exc:
+            self.failed = True
+            kodi.log("tuning spinner update failed (%s)" % exc, level=xbmc.LOGWARNING)
+            self.close()
+            return False
+
     def iscanceled(self):
         if self.cancelled:
             return True
@@ -175,6 +206,98 @@ class SpinnerWindow(object):
             except Exception:
                 pass
             self.window = None
+
+
+class TuningSpinner(object):
+    """Delayed stream-tuning overlay.
+
+    The window is opened by a timer only after ``threshold`` seconds, so a fast
+    resolve never flashes an overlay.  A second timer closes it and notifies the
+    user after ``timeout`` seconds.  ``close()`` is idempotent and must be
+    called before setResolvedUrl / Player.play.
+    """
+
+    def __init__(self, label, *, threshold=TUNING_THRESHOLD,
+                 timeout=TUNING_TIMEOUT, window_factory=None,
+                 notify=None, clock=time.monotonic):
+        self.label = str(label or "Stream")
+        self.threshold = max(0.0, float(threshold))
+        self.timeout = max(0.0, float(timeout))
+        self._window_factory = window_factory or SpinnerWindow
+        self._notify = notify or kodi.notify
+        self._clock = clock
+        self._lock = threading.RLock()
+        self.window = None
+        self.expired = False
+        self.closed = False
+        self._show_timer = None
+        self._timeout_timer = None
+
+    def start(self):
+        if self.closed:
+            return False
+        with self._lock:
+            if self._show_timer is not None or self._timeout_timer is not None:
+                return True
+            self._show_timer = threading.Timer(self.threshold, self._show)
+            self._show_timer.daemon = True
+            self._show_timer.start()
+            self._timeout_timer = threading.Timer(self.timeout, self._expire)
+            self._timeout_timer.daemon = True
+            self._timeout_timer.start()
+        return True
+
+    def _show(self):
+        with self._lock:
+            if self.closed or self.expired or self.window is not None:
+                return
+            try:
+                window = self._window_factory()
+                opened = bool(window.open())
+            except Exception:
+                opened = False
+                window = None
+            if not opened:
+                return
+            self.window = window
+            try:
+                window.update_tuning(self.label, 0)
+            except Exception:
+                pass
+
+    def _expire(self):
+        with self._lock:
+            if self.closed or self.expired:
+                return
+            self.expired = True
+            self.closed = True
+            self._close_locked()
+        try:
+            self._notify("Stream taking too long — check your connection.")
+        except Exception:
+            pass
+
+    def _close_locked(self):
+        for timer in (self._show_timer, self._timeout_timer):
+            if timer is not None:
+                timer.cancel()
+        window = self.window
+        self.window = None
+        if window is not None:
+            try:
+                window.close()
+            except Exception:
+                pass
+
+    def close(self):
+        with self._lock:
+            if self.closed:
+                return
+            self.closed = True
+            self._close_locked()
+
+    def cancelled(self):
+        return bool(self.window is not None and self.window.iscanceled())
 
 
 def _build_window_class():
