@@ -94,7 +94,7 @@ the curated "on air now" Kool/Rinse streams when available.
 
 The menu renders are generated from the add-on's real ListItem output by
 `scripts/make-theme-shots.py`; the spinner preview is from
-`docs/SPINNER-3.9.19.md`. The download spinner is opt-in and defaults off; the stream-tuning spinner (3.9.34) defaults on and closes before playback starts.
+`docs/SPINNER-3.9.19.md`. The download spinner is opt-in and defaults off; the stream-tuning spinner (3.9.34) defaults on and closes before playback starts. Surprise Me has a 1.2 s animated reveal in 3.9.35 (setting: Animate Surprise Me).
 
 ### Kodi theme 2026 (3.9.16)
 
@@ -188,7 +188,7 @@ Warm root import+dispatch is ~0.08 s (was 0.78 s), the root route itself is
 ~0.0001 s, Latest cold is ~6 s / warm ~0.04 s, and cached pack open ~0.003 s.
 Full methodology, before/after table and residual risks:
 [`docs/PERF-3.9.20.md`](docs/PERF-3.9.20.md); reproduce with
-`python3 scripts/benchmark.py`. No URL/label/route changes; 453 tests in 3.9.34.
+`python3 scripts/benchmark.py`. No URL/label/route changes; 461 tests in 3.9.35.
 
 ## Why it was rebuilt rather than patched
 

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window type="dialog" id="14001">
+    <coordinates>
+        <system>1</system>
+        <posx>0</posx>
+        <posy>0</posy>
+    </coordinates>
+    <controls>
+        <control type="image" id="99">
+            <description>Surprise burst backdrop</description>
+            <posx>0</posx>
+            <posy>0</posy>
+            <width>1280</width>
+            <height>720</height>
+            <aspectratio>stretch</aspectratio>
+        </control>
+        <control type="image" id="100">
+            <description>Large spinning Rave Player head</description>
+            <posx>440</posx>
+            <posy>130</posy>
+            <width>400</width>
+            <height>400</height>
+            <aspectratio>keep</aspectratio>
+            <align>center</align>
+        </control>
+        <control type="label" id="101">
+            <description>Surprise caption</description>
+            <posx>100</posx>
+            <posy>548</posy>
+            <width>1080</width>
+            <height>70</height>
+            <align>center</align>
+            <font>font60</font>
+            <textcolor>0xFFFF3D8B</textcolor>
+            <label>SURPRISE ME</label>
+        </control>
+        <control type="label" id="102">
+            <description>Surprise sub-caption</description>
+            <posx>100</posx>
+            <posy>618</posy>
+            <width>1080</width>
+            <height>32</height>
+            <align>center</align>
+            <font>font16</font>
+            <textcolor>0xFFF4F1EA</textcolor>
+            <label>SPINNING THE RACK…</label>
+        </control>
+        <control type="label" id="103">
+            <description>Optional code line</description>
+            <posx>100</posx>
+            <posy>650</posy>
+            <width>1080</width>
+            <height>24</height>
+            <align>center</align>
+            <font>font12</font>
+            <textcolor>0xFFC9B8C8</textcolor>
+            <label>RANDOM PACK</label>
+        </control>
+        <control type="label" id="104">
+            <description>Cancel hint</description>
+            <posx>100</posx>
+            <posy>680</posy>
+            <width>1080</width>
+            <height>24</height>
+            <align>center</align>
+            <font>font10</font>
+            <textcolor>0xFF9B8F9B</textcolor>
+            <label>Back to cancel</label>
+        </control>
+    </controls>
+    <defaultcontrol>100</defaultcontrol>
+</window>

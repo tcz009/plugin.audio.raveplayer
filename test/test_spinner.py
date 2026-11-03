@@ -203,3 +203,61 @@ class TuningSpinnerTests(unittest.TestCase):
 def time_sleep(seconds):
     import time
     time.sleep(seconds)
+
+
+class SurpriseWindowFake(object):
+    def __init__(self, cancelled=False):
+        self.controls = {}
+        self.shown = False
+        self.closed = False
+        self._rave_cancelled = cancelled
+
+    def show(self):
+        self.shown = True
+
+    def close(self):
+        self.closed = True
+
+    def getControl(self, control_id):
+        if control_id not in self.controls:
+            self.controls[control_id] = FakeControl(control_id)
+        return self.controls[control_id]
+
+
+class SurpriseRevealTests(unittest.TestCase):
+    def test_reveal_animates_for_at_least_min_duration(self):
+        window = SurpriseWindowFake()
+        clock = {"now": 0.0}
+        def now():
+            return clock["now"]
+        def sleep(seconds):
+            clock["now"] += seconds
+        reveal = spinner.SurpriseReveal(
+            "RANDOM PACK", duration=1.2, fps=10,
+            window_factory=lambda: window, sleep=sleep, clock=now)
+        self.assertTrue(reveal.show())
+        self.assertTrue(window.shown)
+        self.assertGreaterEqual(clock["now"], 1.2)
+        self.assertGreaterEqual(len(window.controls[spinner.CONTROL_SURPRISE_HEAD].image), 1)
+        self.assertEqual(window.controls[spinner.CONTROL_SURPRISE_TITLE].label,
+                         "SURPRISE ME")
+        self.assertEqual(window.controls[spinner.CONTROL_SURPRISE_SUB].label,
+                         "SPINNING THE RACK…")
+        reveal.close()
+        self.assertTrue(window.closed)
+
+    def test_back_cancels_without_waiting_for_min_duration(self):
+        window = SurpriseWindowFake(cancelled=True)
+        reveal = spinner.SurpriseReveal(
+            "RANDOM PACK", duration=1.2,
+            window_factory=lambda: window, sleep=lambda seconds: None,
+            clock=lambda: 0.0)
+        self.assertFalse(reveal.show())
+        self.assertTrue(reveal.cancelled)
+
+    def test_window_failure_is_fail_soft(self):
+        def broken():
+            raise RuntimeError("no window")
+        reveal = spinner.SurpriseReveal("RANDOM PACK", window_factory=broken)
+        self.assertFalse(reveal.show())
+        self.assertTrue(reveal.failed)

@@ -1,3 +1,12 @@
+Rave Player 3.9.35
+- Surprise Me reveal: full-screen-ish WindowXML with the existing large
+  spinning head frames, 2026 burst artwork, SURPRISE ME / SPINNING THE RACK…
+  captions and optional code line. Minimum 1.2 s at ~10 fps, closes before the
+  existing random pick, Back cancels cleanly, failures never block the pick.
+  New “Animate Surprise Me” setting (default on); off = instant pick as before.
+- Added resources/art/surprise-burst.jpg + scripts/make-surprise-art.py.
+- Tests: 461 OK. No playback/auto-play changes.
+
 Rave Player 3.9.34
 - Stream-tuning spinner: play, DNB play and the live playlist path start the
   existing spinning-head WindowXML only after a 400 ms delay, show the item or

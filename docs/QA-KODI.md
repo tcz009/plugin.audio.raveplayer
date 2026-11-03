@@ -1,4 +1,4 @@
-# Rave Player — Shield/Kodi QA checklist (3.9.34)
+# Rave Player — Shield/Kodi QA checklist (3.9.35)
 
 Repeat this on the Nvidia Shield before a release. It is deliberately short:
 one pass through every user-visible surface, with a hard check that the add-on
@@ -8,7 +8,7 @@ bottom.
 ## Preconditions
 
 - Kodi 20 (Nexus) through Kodi 22 (Piers), Estuary skin, 1080p.
-- Rave Player **3.9.34** installed from `repository.raveplayer-1.0.0`
+- Rave Player **3.9.35** installed from `repository.raveplayer-1.0.0`
   (or the release zip) and Kodi restarted once so the theme texture cache is
   refreshed.
 - Network available; a small Archive.org or Moxser direct MP3 available for the
@@ -16,11 +16,11 @@ bottom.
 - Optional: `RAVE_DOWNLOAD_DIR` is not needed on the Shield; downloads go to
   `special://userdata/downloads/raveplayer/`.
 - Full suite on the build machine: `python3 -m unittest discover -s test`
-  → **453 tests OK**.
+  → **461 tests OK**.
 
 ## 1. Install / update
 
-- [ ] Add-ons → Rave Player shows **3.9.34**; About & Sources shows the same
+- [ ] Add-ons → Rave Player shows **3.9.35**; About & Sources shows the same
   version.
 - [ ] Updating from 3.9.20 keeps favourites/downloads and does not reset the
   spinner setting.
@@ -120,7 +120,7 @@ Reference: `docs/SPINNER-3.9.19.md` and `docs/spinner-preview.png`.
 
 ## 8. About & Sources
 
-- [ ] Version/licence row: **Rave Player 3.9.34 — GPL-3.0**.
+- [ ] Version/licence row: **Rave Player 3.9.35 — GPL-3.0**.
 - [ ] Source rows are present for Internet Archive, Mixcloud, SoundCloud,
   radio-browser.info, Moxser, Hardscore, DNB Radio, GetDarker, podcast/RSS
   feeds, Pirate Radio Archives, Kool/Rinse, RaveTapePacks, JungleTapes and
@@ -133,7 +133,7 @@ Reference: `docs/SPINNER-3.9.19.md` and `docs/spinner-preview.png`.
 ## 9. Local smoke commands (build machine)
 
 ```sh
-python3 -m unittest discover -s test          # 453 tests
+python3 -m unittest discover -s test          # 461 tests
 python3 test/run.py root
 python3 test/run.py packs_menu
 python3 test/run.py shows_menu
@@ -148,7 +148,7 @@ python3 test/run.py about
 |---|---|
 | Date / tester | |
 | Shield Kodi version | |
-| Add-on version | 3.9.34 |
+| Add-on version | 3.9.35 |
 | Root / hubs | Pass / Fail |
 | Kool / Rinse live | Pass / Fail |
 | Pack playback | Pass / Fail |

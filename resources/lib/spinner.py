@@ -37,6 +37,15 @@ CONTROL_HINT = 105
 CONTROL_PROGRESS = 106
 TUNING_THRESHOLD = 0.4
 TUNING_TIMEOUT = 25.0
+SURPRISE_XML = "raveplayer-surprise.xml"
+SURPRISE_DURATION = 1.2
+SURPRISE_FPS = 10
+CONTROL_SURPRISE_BG = 99
+CONTROL_SURPRISE_HEAD = 100
+CONTROL_SURPRISE_TITLE = 101
+CONTROL_SURPRISE_SUB = 102
+CONTROL_SURPRISE_CODE = 103
+CONTROL_SURPRISE_HINT = 104
 
 
 def frames_dir(addon_path=None):
@@ -206,6 +215,98 @@ class SpinnerWindow(object):
             except Exception:
                 pass
             self.window = None
+
+
+class SurpriseReveal(object):
+    """Full-screen-ish Surprise Me reveal with a large animated head.
+
+    The window is shown for at least ``duration`` seconds while the head frame
+    advances at ``fps``.  Back/Stop marks it cancelled; a window or asset
+    failure is swallowed so the caller can still pick the random pack.
+    """
+
+    def __init__(self, code="RANDOM PACK", *, duration=SURPRISE_DURATION,
+                 fps=SURPRISE_FPS, window_factory=None, sleep=None,
+                 clock=time.monotonic):
+        self.code = str(code or "RANDOM PACK")
+        self.duration = max(0.0, float(duration))
+        self.fps = max(1, int(fps))
+        self._window_factory = window_factory
+        self._sleep = sleep or xbmc.sleep
+        self._clock = clock
+        self.window = None
+        self.cancelled = False
+        self.failed = False
+
+    def _control(self, control_id):
+        try:
+            return self.window.getControl(control_id)
+        except Exception:
+            return None
+
+    def _label(self, control_id, text):
+        control = self._control(control_id)
+        if control is not None:
+            try:
+                control.setLabel(str(text))
+            except Exception:
+                pass
+
+    def _image(self, control_id, image):
+        control = self._control(control_id)
+        if control is not None and image:
+            try:
+                control.setImage(image)
+            except Exception:
+                pass
+
+    def _frame(self, elapsed):
+        self._image(CONTROL_SURPRISE_HEAD,
+                    frame_paths(FRAME_SIZE, kodi.ADDON_PATH)[frame_index(elapsed)])
+
+    def show(self):
+        try:
+            if self._window_factory is not None:
+                window = self._window_factory()
+            else:
+                window_class = globals().get("_WINDOW_CLASS")
+                if window_class is None:
+                    return False
+                window = window_class(SURPRISE_XML, kodi.ADDON_PATH)
+            self.window = window
+            window.show()
+            burst = os.path.join(kodi.ADDON_PATH, "resources", "art", "surprise-burst.jpg")
+            self._image(CONTROL_SURPRISE_BG, burst)
+            self._frame(0)
+            self._label(CONTROL_SURPRISE_TITLE, "SURPRISE ME")
+            self._label(CONTROL_SURPRISE_SUB, "SPINNING THE RACK…")
+            self._label(CONTROL_SURPRISE_CODE, self.code)
+            self._label(CONTROL_SURPRISE_HINT, "Back to cancel")
+            started = self._clock()
+            while True:
+                if getattr(self.window, "_rave_cancelled", False):
+                    self.cancelled = True
+                    return False
+                elapsed = max(0.0, self._clock() - started)
+                self._frame(elapsed)
+                if elapsed >= self.duration:
+                    return True
+                self._sleep(min(1.0 / self.fps, max(0.0, self.duration - elapsed)))
+        except Exception as exc:  # noqa: BLE001 - reveal is decorative only
+            self.failed = True
+            kodi.log("surprise reveal unavailable (%s)" % exc.__class__.__name__,
+                     level=xbmc.LOGWARNING)
+            self.close()
+            return False
+
+    def close(self):
+        window = self.window
+        self.window = None
+        if window is not None:
+            try:
+                window.close()
+            except Exception:
+                pass
 
 
 class TuningSpinner(object):

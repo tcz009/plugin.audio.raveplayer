@@ -80,7 +80,7 @@ open failure, cancel state, delayed threshold, timeout notification and
 tuning-mode labels. `test/test_tuning_routes.py` — close-before-resolve/play,
 DNB/live paths, timeout failure and disabled setting. `test/test_download_routes.py` — overlay selected
 and closed on success, and automatic fallback to `DialogProgress` when the
-window fails. Full suite **453 tests OK** (3.9.34).
+window fails. Full suite **461 tests OK** (3.9.35; see `docs/SURPRISE-3.9.35.md` for the reveal overlay).
 
 ## Cost / risks
 

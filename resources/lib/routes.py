@@ -966,6 +966,25 @@ def latest_view(handle, params):
 
 
 def surprise(handle, params):
+    reveal = None
+    try:
+        if kodi.setting_bool("surprise_animate", True):
+            try:
+                reveal = spinner.SurpriseReveal(
+                    code=params.get("code") or "RANDOM PACK")
+                reveal.show()
+            except Exception as exc:  # noqa: BLE001 - reveal must never block
+                kodi.log("surprise reveal failed (%s)" % exc.__class__.__name__,
+                         level=30)
+    finally:
+        if reveal is not None:
+            try:
+                reveal.close()
+            except Exception:
+                pass
+    if reveal is not None and reveal.cancelled:
+        kodi.end_directory(handle, "files")
+        return
     pack = latest.random_pack()
     if not pack or not pack.get("identifier"):
         kodi.notify("Could not pick a pack — try again.")
