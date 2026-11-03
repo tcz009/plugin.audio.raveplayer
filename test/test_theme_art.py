@@ -184,6 +184,7 @@ class ThemeArtTests(unittest.TestCase):
         expectations = {
             "Moxser Mixes": ("moxser.png", "fanart-moxser.jpg"),
             "Hardscore.com": ("hardscore.png", "fanart-hardscore.jpg"),
+            "Toronto Rave Mixtape Archive": ("toronto.png", "fanart-toronto.jpg"),
             "GetDarker (dubstep/grime)": ("getdarker.png", "fanart-getdarker.jpg"),
         }
         for label, (icon, fanart) in expectations.items():
@@ -194,6 +195,28 @@ class ThemeArtTests(unittest.TestCase):
         pirate = curated["Pirate Radio Archives"]
         self.assertTrue(pirate["art"]["icon"].endswith("pirate-archive.png"))
         self.assertTrue(pirate["art"]["fanart"].endswith("fanart-pirate-archive.jpg"))
+
+    def test_toronto_hub_and_genre_rows_use_their_own_art(self):
+        genres = [{"genre": "jungle", "label": "Jungle & Hardcore"},
+                  {"genre": "house", "label": "House & Techno"}]
+        with mock.patch.object(routes.toronto_source, "genres", return_value=genres):
+            items = rows_before_back(capture(routes.toronto))
+        self.assertEqual([item["label"] for item in items],
+                         ["Jungle & Hardcore", "House & Techno"])
+        for item in items:
+            with self.subTest(row=item["label"]):
+                self.assertTrue(item["art"]["icon"].endswith("toronto.png"))
+                self.assertTrue(item["art"]["fanart"].endswith("fanart-toronto.jpg"))
+
+        tracks = [{"name": "Brockie & DJ Rap - Side A",
+                   "url": "https://www.torontoravemixtapearchive.com/files/mixtape/a.mp3",
+                   "metadata": "40:00"}]
+        with mock.patch.object(routes.toronto_source, "tracks", return_value=tracks), \
+                mock.patch.object(routes, "_playable_url", side_effect=lambda url: url), \
+                mock.patch.object(routes.downloads, "eligible", return_value=True):
+            rows = rows_before_back(capture(routes.toronto_genre, {"genre": "jungle"}))
+        self.assertEqual(len(rows), 1)
+        self.assertTrue(rows[0]["art"]["thumb"].endswith("toronto.png"))
 
     def test_all_fanart_assets_are_used(self):
         used = {os.path.basename(name) for name in art_literals()

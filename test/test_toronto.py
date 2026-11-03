@@ -111,7 +111,7 @@ class TorontoRouteTests(unittest.TestCase):
         item = xbmcplugin.ITEMS[0]
         self.assertIn("mode=play", item["url"])
         self.assertIn("files%2Fmixtape%2Fa.mp3", item["url"])
-        self.assertTrue(item["art"]["thumb"].endswith("rave.png"))
+        self.assertTrue(item["art"]["thumb"].endswith("toronto.png"))
         labels = [ctx[0] for ctx in item["context"]]
         self.assertIn("Add to favourites", labels)
         self.assertIn("Download", labels)

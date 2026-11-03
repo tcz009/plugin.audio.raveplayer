@@ -209,6 +209,50 @@ def _glyph_cassette(d, accent):
             d.ellipse([cx - 9, cy - 9, cx + 9, cy + 9], fill=accent)
 
 
+def _glyph_toronto(d, accent):
+    """CN Tower over a cassette: the skyline and the tape it was traded on."""
+    # CN Tower — a tall antenna, the saucer pod and a shaft that tapers into
+    # the cassette, so the two shapes read as one silhouette at 64 px.
+    d.rectangle([161, 46, 171, 118], fill=INK)
+    d.ellipse([157, 32, 175, 50], fill=INK)
+    d.rounded_rectangle([102, 110, 230, 144], radius=17, fill=INK)
+    d.rectangle([114, 123, 218, 132], fill=accent)
+    d.polygon([(120, 142), (212, 142), (179, 178), (153, 178)], fill=INK)
+    d.polygon([(155, 172), (177, 172), (185, 310), (147, 310)], fill=INK)
+
+    # Toronto skyline: three blocks right of the tower, one low block left.
+    for x0, y0, x1 in ((276, 244, 332), (332, 216, 386), (386, 258, 438)):
+        d.rectangle([x0, y0, x1, 310], fill=INK)
+    for x in range(290, 326, 18):
+        for y in range(260, 300, 18):
+            d.rectangle([x, y, x + 7, y + 10], fill=accent)
+    for x in range(346, 380, 18):
+        for y in range(232, 300, 18):
+            d.rectangle([x, y, x + 7, y + 10], fill=accent)
+    for x in range(398, 432, 18):
+        for y in range(274, 300, 18):
+            d.rectangle([x, y, x + 7, y + 10], fill=accent)
+    d.rectangle([68, 268, 110, 310], fill=INK)
+    for y in (282, 296):
+        d.rectangle([78, y, 98, y + 6], fill=accent)
+
+    # Cassette shell in front, label band, window, reels and shell screws.
+    d.rounded_rectangle([64, 306, 448, 446], radius=26, fill=INK)
+    d.rounded_rectangle([96, 322, 416, 358], radius=10, fill=accent)
+    d.rounded_rectangle([104, 368, 408, 422], radius=10, fill=accent)
+    for cx in (172, 340):
+        d.ellipse([cx - 25, 370, cx + 25, 420], fill=INK)
+        d.ellipse([cx - 9, 386, cx + 9, 404], fill=accent)
+        for step in range(3):
+            angle = math.radians(step * 120)
+            x = cx + 14 * math.cos(angle)
+            y = 395 + 14 * math.sin(angle)
+            d.rectangle([x - 3, y - 3, x + 3, y + 3], fill=accent)
+    for cx in (82, 430):
+        for cy in (328, 418):
+            d.ellipse([cx - 6, cy - 6, cx + 6, cy + 6], fill=accent)
+
+
 def _glyph_headphones(d, accent):
     d.arc([96, 96, 416, 416], start=180, end=360, fill=INK, width=34)
     d.rounded_rectangle([82, 236, 178, 388], radius=40, fill=INK)
@@ -367,6 +411,7 @@ GLYPHS = {
     "hardscore": _glyph_hardscore,
     "speaker": _glyph_speaker,
     "eq": _glyph_eq,
+    "toronto": _glyph_toronto,
 }
 
 # ---------------------------------------------------------------- icon recipes
@@ -391,6 +436,7 @@ ICONS = [
     ("hardscore", ORANGE, CYAN, "hardscore", "RP-17"),
     ("getdarker", MAGENTA, CYAN, "speaker", "RP-18"),
     ("pirate-archive", ACID, MAGENTA, "flag", "RP-19"),
+    ("toronto", CYAN, MAGENTA, "toronto", "RP-20"),
 ]
 
 # ---------------------------------------------------------------- fanart recipes
@@ -413,6 +459,7 @@ FANARTS = [
     ("fanart-hardscore", ORANGE, "HARDSCORE", "OLD SKOOL HARDCORE / JUNGLE SETS"),
     ("fanart-getdarker", MAGENTA, "GETDARKER", "DUBSTEP · GRIME · SETS AND MIXCLOUD"),
     ("fanart-pirate-archive", ACID, "PIRATE ARCHIVES", "RISK FM · WEEKEND RUSH · FLAVA FM"),
+    ("fanart-toronto", CYAN, "TORONTO", "1990S RAVE MIXTAPES · DIRECT MP3"),
 ]
 
 
@@ -460,6 +507,7 @@ FANART_GLYPHS = {
     "hub-live": "tower", "hub-curated": "gem",
     "moxser": "moxser", "hardscore": "hardscore",
     "getdarker": "speaker", "pirate-archive": "flag",
+    "toronto": "toronto",
 }
 
 
@@ -475,7 +523,8 @@ def _glyph_silhouette(glyph, colour, alpha, scale, rotate=0):
     return plate
 
 
-def build_fanart(accent, word, subline, index, name="", size=FANART_SIZE):
+def build_fanart(accent, word, subline, index, name="", size=FANART_SIZE,
+                 glyph_scale=0.60, glyph_x=0.66, glyph_y=-0.06):
     w, h = size[0] * SS, size[1] * SS
     img = vertical_gradient((w, h), mix(INK, accent, 0.05), INK).convert("RGBA")
     img = Image.alpha_composite(
@@ -495,8 +544,8 @@ def build_fanart(accent, word, subline, index, name="", size=FANART_SIZE):
     slug = os.path.basename(name).replace("fanart-", "")
     glyph_name = FANART_GLYPHS.get(slug)
     if glyph_name:
-        mark = _glyph_silhouette(glyph_name, accent, 46, scale=int(h * 0.60))
-        img.alpha_composite(mark, (int(w * 0.66), -int(h * 0.06)))
+        mark = _glyph_silhouette(glyph_name, accent, 46, scale=int(h * glyph_scale))
+        img.alpha_composite(mark, (int(w * glyph_x), int(h * glyph_y)))
 
     band = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     bd = ImageDraw.Draw(band)

@@ -65,7 +65,8 @@ Curated Gems · Favourites · Search the Archive · About & Sources
   UK Garage · Pirate Stations · All Tape Packs · By Year · Classic Pack
   Series · By Rave & Venue.
 - **Mixes & Shows** — Podcasts & Mixes · DNB Radio · Moxser Mixes ·
-  Hardscore.com · GetDarker (dubstep/grime, when the Mixcloud add-on is installed).
+  Hardscore.com · Toronto Rave Mixtape Archive · GetDarker (dubstep/grime,
+  when the Mixcloud add-on is installed).
 - **Live Radio** — Kool FM · Rinse FM · Oldskool & Rave · Jungle · Drum & Bass ·
   Hardcore · House · UK Garage · Breakbeat.
 - **Curated Gems** — Pirate Radio Archives · Rave Archive UK (when the Mixcloud
@@ -74,7 +75,7 @@ Curated Gems · Favourites · Search the Archive · About & Sources
 - **Favourites → Downloads** — local files saved by the explicit download
   gesture (3.9.18); play offline, see size/date, delete file + metadata, and
   spot missing files. A Download context row appears only on direct MP3/M4A
-  items from the four approved sources.
+  items from the five approved sources.
 
 Every old destination is still reachable behind a hub with the same `mode=`/
 `key=` values, so favourites and deep links keep working. Latest starts with
@@ -154,10 +155,11 @@ inside Kodi. All links were checked on 2026-11-01.
 ## Downloads & offline (3.9.18)
 
 Explicit downloads only (no auto-download). A **Download** action appears in
-the context menu for direct MP3/M4A items from the four approved sources:
-Archive.org tracks, Moxser mix MP3s, Hardscore MP3/M4A and Pirate Radio
-Archives direct files. Podcast/RSS, Legacy, GetDarker and all
-Mixcloud/SoundCloud/YouTube/live/HLS rows are not downloadable.
+the context menu for direct MP3/M4A items from the five approved sources:
+Archive.org tracks, Moxser mix MP3s, Hardscore MP3/M4A, Pirate Radio
+Archives direct files and Toronto Rave Mixtape Archive MP3s. Podcast/RSS,
+Legacy, GetDarker and all Mixcloud/SoundCloud/YouTube/live/HLS rows are not
+downloadable.
 
 - Files are written atomically through `xbmcvfs` to
   `special://userdata/downloads/raveplayer/` as
@@ -186,7 +188,7 @@ Warm root import+dispatch is ~0.08 s (was 0.78 s), the root route itself is
 ~0.0001 s, Latest cold is ~6 s / warm ~0.04 s, and cached pack open ~0.003 s.
 Full methodology, before/after table and residual risks:
 [`docs/PERF-3.9.20.md`](docs/PERF-3.9.20.md); reproduce with
-`python3 scripts/benchmark.py`. No URL/label/route changes; 437 tests in 3.9.30.
+`python3 scripts/benchmark.py`. No URL/label/route changes; 438 tests in 3.9.31.
 
 ## Why it was rebuilt rather than patched
 

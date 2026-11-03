@@ -1,3 +1,16 @@
+Rave Player 3.9.31
+- New Toronto Rave Mixtape Archive identity: `resources/art/toronto.png`
+  (256x256) and `fanart-toronto.jpg` (1280x720) — cyan 2026 sticker with a CN
+  Tower/skyline-and-cassette glyph, magenta misregistration, RP-20 code.
+  Mixes & Shows, the Toronto hub's genre rows, direct track rows, the legacy
+  Toronto door and About & Sources now use it instead of falling back to
+  `rave.png` / the shows-hub fanart.
+- Reproducible generator: `scripts/make-toronto-art.py` (shares the 2026
+  primitives in `make-art.py`, rebuilds the 64/128/256 proof sheet and the
+  preview contact sheet). Theme art map refreshed to 20 icons / 18 fanarts.
+- Tests cover the new art references, hub/genre-row wiring and 256/1280 sizes.
+  No playback/routing/label changes. No deploy.
+
 Rave Player 3.9.30
 - New source: Toronto Rave Mixtape Archive. Mixes & Shows now opens genre
   subfolders (Jungle & Hardcore, House & Techno, Studio, X-Static, plus extra

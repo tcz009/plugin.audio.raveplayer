@@ -1,9 +1,11 @@
 # Rave Player — Kodi theme 2026
 
 **Status:** implemented on branch `theme/3.9.16` (off `main @ b0a515a`, add-on
-3.9.16). **Direction from the owner:** brutalist, modern streaming-app energy;
-**bling what exists, don't redesign it.** The logo, wordmark and identity are
-untouched. This is a Kodi-surface pass only — no skin fork.
+3.9.16); the Toronto source sticker (`RP-20`) was added in **3.9.31** without
+changing the system. **Direction from the owner:** brutalist, modern
+streaming-app energy; **bling what exists, don't redesign it.** The logo,
+wordmark and identity are untouched. This is a Kodi-surface pass only — no skin
+fork.
 
 This document is the token/visual spec, the asset map, and the honest list of
 what a Kodi add-on can and cannot control on that surface.
@@ -13,12 +15,12 @@ what a Kodi add-on can and cannot control on that surface.
 ## 1. What changed (and what did not)
 
 ### Changed
-- **19 sticker icons** in `resources/art/` at Kodi size **256×256 PNG** — the
+- **20 sticker icons** in `resources/art/` at Kodi size **256×256 PNG** — the
   2026 treatment of the existing glyph language: bright spot-colour tile,
   black ink glyph, hard misregistration, halftone screen, crop marks,
   scanlines, sticker code.
-- **17 fanarts** in `resources/art/` at **1280×720 JPG** — one per root
-  destination (9), one per hub screen (4) and one per key source (4).
+- **18 fanarts** in `resources/art/` at **1280×720 JPG** — one per root
+  destination (9), one per hub screen (4) and one per key source (5).
 - **Root menu rows now carry their own icon + fanart**, and the four hubs pass
   a hub fanart to every row, so a skin that shows the focused item's fanart
   gives each destination its own room (code: `resources/lib/routes.py`).
@@ -51,7 +53,7 @@ what a Kodi add-on can and cannot control on that surface.
 | muted | `#a8a399` | secondary fanart text, hints |
 | acid | `#e8ff00` | Latest, Curated Gems, pirate/flag, Moxser, focus rule |
 | magenta | `#ff2d8f` | Surprise, Mixes, Favourites, jungle, GetDarker |
-| cyan | `#22e6ff` | Tape Packs, Live Radio, house, emphasis |
+| cyan | `#22e6ff` | Tape Packs, Live Radio, house, Toronto, emphasis |
 | orange | `#ff6a1a` | Hardcore, Hardscore (energy sources only) |
 
 Icons are **one spot colour per tile plus ink** — the screen-print rule from
@@ -92,7 +94,7 @@ our artwork. Labels are plain text; keep them short and skin-agnostic.
   orange↔acid, paper↔magenta/cyan). This is the 2026 "print pass" that gives
   the tile its energy.
 - **Glyph** = the real mark, solid ink, knocked-out details in the tile colour.
-- **Code tag** `RP-01…RP-19` for catalogue flavour, never required to be read.
+- **Code tag** `RP-01…RP-20` for catalogue flavour, never required to be read.
 - **Do:** keep one idea per tile, max 2 shapes, generous ink mass.
 - **Don't:** put text in the icon (Kodi already draws the label), use a second
   spot colour, add a logo/wordmark, use thin hairlines that vanish at 64 px.
@@ -169,24 +171,25 @@ not glassmorphism.
 | Hardscore | `hardscore.png` | `fanart-hardscore.jpg` | orange |
 | GetDarker | `getdarker.png` | `fanart-getdarker.jpg` | magenta |
 | Pirate Radio Archives | `pirate-archive.png` | `fanart-pirate-archive.jpg` | acid |
+| Toronto Rave Mixtape Archive | `toronto.png` | `fanart-toronto.jpg` | cyan |
 
 Hub-row icons are the existing section stickers, updated to the 2026 treatment:
 `rave`, `jungle`, `hardcore`, `house`, `garage`, `pirate`, `tapepacks`, `radio`,
 `djez` (Classic Pack Series filters), `search`, `about`.
 
-### 3.4 Full icon list (19 files)
+### 3.4 Full icon list (20 files)
 
 `rave` `surprise` `tapepacks` `mixes` `radio` `curated` `favourites` `search`
 `about` `jungle` `hardcore` `house` `garage` `pirate` `djez` `moxser`
-`hardscore` `getdarker` `pirate-archive`
+`hardscore` `getdarker` `pirate-archive` `toronto`
 
-### 3.5 Full fanart list (17 files)
+### 3.5 Full fanart list (18 files)
 
 `fanart-latest` `fanart-surprise` `fanart-tapepacks` `fanart-mixes`
 `fanart-live` `fanart-curated` `fanart-favourites` `fanart-search`
 `fanart-about` `fanart-hub-packs` `fanart-hub-shows` `fanart-hub-live`
 `fanart-hub-curated` `fanart-moxser` `fanart-hardscore` `fanart-getdarker`
-`fanart-pirate-archive`
+`fanart-pirate-archive` `fanart-toronto`
 
 ---
 
@@ -287,8 +290,9 @@ are unaffected.
 Artwork is generated from code (Pillow is build-time only):
 
 ```sh
-python3 scripts/make-art.py            # 19 icons + 17 fanarts + preview sheet
+python3 scripts/make-art.py            # 20 icons + 18 fanarts + preview sheet
 python3 scripts/make-art.py --sheet docs/theme-2026/icon-sheet.jpg
+python3 scripts/make-toronto-art.py    # Toronto icon/fanart + 64/128/256 proof
 ```
 
 Menu screenshots are rendered from the add-on's real ListItem output through the

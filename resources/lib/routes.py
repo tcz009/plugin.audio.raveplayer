@@ -545,8 +545,8 @@ def shows_menu(handle, params):
          "Moxser's curated dance-music mix archive — direct MP3s where available."),
         ("Hardscore.com", url_for(mode="hardscore"), "hardscore.png", "fanart-hardscore.jpg",
          "Oldskool hardcore/jungle sets, tracklists and direct MP3s."),
-        ("Toronto Rave Mixtape Archive", url_for(mode="toronto"), "rave.png", None,
-         "1990s Toronto rave mixtapes by genre — direct MP3s."),
+        ("Toronto Rave Mixtape Archive", url_for(mode="toronto"), "toronto.png",
+         "fanart-toronto.jpg", "1990s Toronto rave mixtapes by genre — direct MP3s."),
     ]
     if handoff.available("mixcloud"):
         rows.append(("GetDarker (dubstep/grime)", url_for(mode="getdarker"),
@@ -1105,7 +1105,7 @@ def legacy_menu(handle, params):
     menu = [
         ("RaveTapePacks.com", "legacy_packs", "tapepacks.png", "Full tape packs, hotlink-protected MP3s."),
         ("JungleTapes.com", "legacy_jt", "jungle.png", "Toronto jungle & drum n bass radio shows from cassette."),
-        ("Toronto Rave Mixtape Archive", "legacy_toronto", "rave.png", "Rave mixtapes from Toronto, 1990s."),
+        ("Toronto Rave Mixtape Archive", "legacy_toronto", "toronto.png", "Rave mixtapes from Toronto, 1990s."),
     ]
     for label, mode, icon, plot in menu:
         ui.menu_item(handle, url_for(mode=mode), label, icon=art(icon), plot=plot)
@@ -1166,9 +1166,9 @@ def legacy_toronto(handle, params):
         name = ui.plain(track["name"])
         ui.track_item(
             handle,
-            url_for(mode="play", url=stream, label=name, thumb=art("rave.png")),
+            url_for(mode="play", url=stream, label=name, thumb=art("toronto.png")),
             name,
-            thumb=art("rave.png"),
+            thumb=art("toronto.png"),
             plot="Toronto Rave Mixtape Archive",
             context=[_favourite("stream", stream, name, "Toronto Rave Archive")],
         )
@@ -1180,14 +1180,14 @@ def toronto(handle, params):
     rows = toronto_source.genres()
     if not rows:
         kodi.notify("Toronto archive did not answer — try again later.")
-    hub_fanart = art("fanart-hub-shows.jpg")
+    hub_fanart = art("fanart-toronto.jpg")
     for row in rows:
         label = ui.plain(row["label"])
         ui.menu_item(
             handle,
             url_for(mode="toronto_genre", genre=row["genre"]),
             label,
-            icon=art("rave.png"),
+            icon=art("toronto.png"),
             fanart=hub_fanart,
             plot="Toronto Rave Mixtape Archive · %s" % label,
         )
@@ -1212,9 +1212,9 @@ def toronto_genre(handle, params):
         context.extend(_download_context(stream, name, "Toronto Rave Mixtape Archive"))
         ui.track_item(
             handle,
-            url_for(mode="play", url=stream, label=name, thumb=art("rave.png")),
+            url_for(mode="play", url=stream, label=name, thumb=art("toronto.png")),
             name,
-            thumb=art("rave.png"),
+            thumb=art("toronto.png"),
             plot=plot,
             album=ui.plain(genre_label),
             context=context,
@@ -1762,7 +1762,7 @@ def about(handle, params):
          "Full tape packs; playback URLs carry the required Referer header."),
         ("Source: JungleTapes.com", "jungle.png",
          "Toronto jungle/drum & bass radio shows from the site sitemap."),
-        ("Source: Toronto Rave Mixtape Archive", "rave.png",
+        ("Source: Toronto Rave Mixtape Archive", "toronto.png",
          "1990s Toronto rave mixtapes by genre (jungle, house, studio, X-Static) — direct MP3s."),
     ]
     for label, icon, plot in rows:
