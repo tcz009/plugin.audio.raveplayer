@@ -188,7 +188,7 @@ Warm root import+dispatch is ~0.08 s (was 0.78 s), the root route itself is
 ~0.0001 s, Latest cold is ~6 s / warm ~0.04 s, and cached pack open ~0.003 s.
 Full methodology, before/after table and residual risks:
 [`docs/PERF-3.9.20.md`](docs/PERF-3.9.20.md); reproduce with
-`python3 scripts/benchmark.py`. No URL/label/route changes; 438 tests in 3.9.31.
+`python3 scripts/benchmark.py`. No URL/label/route changes; 444 tests in 3.9.33.
 
 ## Why it was rebuilt rather than patched
 
