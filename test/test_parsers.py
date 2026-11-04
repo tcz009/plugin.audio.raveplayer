@@ -210,7 +210,10 @@ class LegacyTests(unittest.TestCase):
         self.assertIn(
             "https://www.ravetapepacks.com/music/PackSix/"
             "JS_Escaped_%26_Raw.mp3", urls)
-        self.assertEqual(len(urls), 6)
+        self.assertIn(
+            "https://www.ravetapepacks.com/music/PackSeven/"
+            "Caf%C3%A9%20%C3%89t%C3%A9.mp3", urls)
+        self.assertEqual(len(urls), 7)
         self.assertTrue(all(url.startswith("https://www.ravetapepacks.com/")
                             for url in urls))
 
