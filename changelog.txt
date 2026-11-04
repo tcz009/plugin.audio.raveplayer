@@ -1,3 +1,16 @@
+Rave Player 3.9.43
+- Merged feat/rtp-egress: per-host RaveTapePacks HTTP CONNECT proxy via
+  rtp_egress_proxy (default 192.168.1.142:8888) / RTP_EGRESS_PROXY; only RTP
+  hosts proxied, everything else direct, one-shot direct fallback, SSRF guards
+  preserved.
+- Loopback playback bridge for RTP: Kodi fetches a tokenised 127.0.0.1 URL;
+  bridge proxies only RTP hosts with Range/Referer/headers, follows validated
+  redirects, rejects bad tokens/non-RTP, stays alive until playback stops and
+  closes in finally. Direct fallback if bridge cannot start.
+- RTP failures are silent (debug log only): no browse/play notification,
+  dialog or error banner.
+- Includes 2acb41f/68806af RTP cache/perf evidence. Tests: 521 OK.
+
 Rave Player 3.9.42
 - Kodi taxonomy mirror of web 1.6.44: Tape Packs order Toronto → JungleTapes →
   RaveTapePacks (By Event/DJ/MC/Year/All Packs) → Classic Pack Series →

@@ -600,7 +600,7 @@ def _egress_open(url, headers, timeout, method=None):
             UnicodeError,
         ) as exc:
             kodi.log("RTP egress proxy unavailable for %s (%s); retrying direct"
-                     % (url, type(exc).__name__), level=30)
+                     % (url, type(exc).__name__), level=0)
             if not _egress_fallback_enabled():
                 raise
     return _OPENER.open(_build_request(url, headers, method), timeout=timeout)
@@ -750,8 +750,8 @@ def fetch_json(url, timeout=DEFAULT_TIMEOUT, headers=None, ttl=0):
 
 
 @contextlib.contextmanager
-def open_media(url, timeout=DEFAULT_TIMEOUT):
-    """Open a validated public media URL for streaming (downloads).
+def open_media(url, timeout=DEFAULT_TIMEOUT, headers=None, method=None):
+    """Open a validated public media URL for streaming (downloads/bridge).
 
     Only direct media URLs are accepted (the caller checks the audio
     extension).  Redirects are blocked by the safe opener; a redirecting media
@@ -762,12 +762,15 @@ def open_media(url, timeout=DEFAULT_TIMEOUT):
     if not text:
         raise ValueError("not a public media URL")
     base, separator, suffix = text.partition("|")
-    headers = {"User-Agent": USER_AGENT}
+    request_headers = {"User-Agent": USER_AGENT}
     if separator:
         for pair in suffix.split("&"):
             key, _sep, value = pair.partition("=")
             if key:
-                headers[key] = urllib.parse.unquote(value)
+                request_headers[key] = urllib.parse.unquote(value)
+    for key, value in (headers or {}).items():
+        if key:
+            request_headers[str(key)] = str(value)
     import urllib.error as urllib_error
     import urllib.request as urllib_request
 
@@ -778,7 +781,7 @@ def open_media(url, timeout=DEFAULT_TIMEOUT):
         if effective <= 0:
             raise ValueError("network budget exhausted")
         try:
-            response = _egress_open(current, headers, effective)
+            response = _egress_open(current, request_headers, effective, method=method)
             break
         except urllib_error.HTTPError as exc:
             location = exc.headers.get("Location") if exc.headers else None

@@ -74,6 +74,7 @@ moxser_source = _lazy("moxser")
 nowplaying = _lazy("nowplaying")
 pirate_source = _lazy("pirate")
 radio = _lazy("radio")
+rtp_bridge = _lazy("rtp_bridge")
 spinner = _lazy("spinner")
 toronto_source = _lazy("toronto")
 
@@ -942,7 +943,7 @@ def filter_list(handle, params):
     kodi.end_directory(handle, "files")
 
 
-def _fail_playback(handle, message):
+def _fail_playback(handle, message, quiet=False):
     """Fail a resolve without touching the user's current playback.
 
     A playable item inside a mixed folder can make Kodi build a music playlist
@@ -952,7 +953,8 @@ def _fail_playback(handle, message):
     clear a track the user is already playing (especially if a programmatic
     invocation hits an invalid play URL).
     """
-    kodi.notify(message)
+    if message and not quiet:
+        kodi.notify(message)
     xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
 
 
@@ -1231,8 +1233,6 @@ def legacy_index(handle, params):
         kodi.end_directory(handle, "files")
         return
     entries = legacy.packs()
-    if not entries:
-        kodi.notify("RaveTapePacks.com did not answer — try again later.")
     for entry in entries:
         name = ui.plain(entry["name"])
         ui.menu_item(
@@ -1345,8 +1345,6 @@ def toronto_genre(handle, params):
 
 def legacy_packs(handle, params):
     entries = legacy.packs()
-    if not entries:
-        kodi.notify("RaveTapePacks.com did not answer — try again later.")
     for entry in entries:
         name = ui.plain(entry["name"])
         ui.menu_item(
@@ -1365,12 +1363,10 @@ def legacy_packs(handle, params):
 def legacy_pack(handle, params):
     key = params.get("pack", "")
     if not key:
-        kodi.notify("That pack is no longer listed.")
         kodi.end_directory(handle, "songs")
         return
     entry = legacy.pack(key)
     if not entry:
-        kodi.notify("That pack is no longer listed.")
         kodi.end_directory(handle, "songs")
         return
     for track in entry["tracks"]:
@@ -2028,7 +2024,10 @@ def _tuning_aborted(handle, tuning):
 
 def play(handle, params):
     label = params.get("label", "Rave Player")
-    tuning = _start_tuning_spinner(params.get("station") or label)
+    is_rtp = http.is_egress_host(params.get("url", ""))
+    # RTP failures must stay silent: no spinner notification/dialog/banner.
+    tuning = None if is_rtp else _start_tuning_spinner(params.get("station") or label)
+    bridge = None
     try:
         stream = _playable_url(params.get("url", ""))
         thumb = _safe_art(params.get("thumb"), kodi.ICON)
@@ -2037,8 +2036,25 @@ def play(handle, params):
         if not stream:
             _fail_playback(handle,
                            "That stream address is not playable "
-                           "(private, loopback or unresolved host).")
+                           "(private, loopback or unresolved host).",
+                           quiet=is_rtp)
             return
+        if is_rtp:
+            try:
+                bridge = rtp_bridge.RTPBridge()
+                if bridge.start():
+                    bridged = bridge.url_for(stream)
+                    if bridged:
+                        stream = bridged
+                    else:
+                        bridge.close()
+                        bridge = None
+                else:
+                    bridge = None
+            except Exception as exc:  # noqa: BLE001 - fall back direct silently
+                kodi.log("RTP bridge unavailable (%s)" % exc.__class__.__name__,
+                         level=10)
+                bridge = None
         if tuning is not None and not live.is_live_stream(stream) \
                 and _should_prebuffer(stream):
             prebuffered = _prebuffer_stream(stream)
@@ -2102,8 +2118,15 @@ def play(handle, params):
             return
         _close_tuning_spinner(tuning)
         xbmcplugin.setResolvedUrl(handle, True, item)
+        if bridge is not None:
+            bridge.wait_for_playback()
     finally:
         _close_tuning_spinner(tuning)
+        if bridge is not None:
+            try:
+                bridge.close()
+            except Exception:
+                pass
 
 
 HANDLERS = {
