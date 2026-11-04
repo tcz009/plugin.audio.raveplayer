@@ -44,8 +44,9 @@ class PlaybackAuditTests(unittest.TestCase):
 
     def test_root_hubs_and_read_only_pages_never_play(self):
         for mode in ("root", "packs_menu", "shows_menu", "radio_menu",
-                     "curated_menu", "about", "legacy_menu", "years",
-                     "filters_menu", "rave_nights", "downloads_menu"):
+                     "pirate_radio", "about", "legacy_menu", "years",
+                     "filters_menu", "rave_nights", "downloads_menu",
+                     "legacy_index"):
             self._dispatch(mode)
 
     def test_latest_and_on_air_rows_only_build_items(self):

@@ -97,38 +97,45 @@ RUNPLUGIN_MODES = frozenset(("play_all", "fav_add", "fav_remove",
 # full-text index is what keeps this add-on alive when fan sites disappear.
 ARCHIVE_SECTIONS = [
     {
-        "key": "rave",
-        "art": "rave-tapes.png",
-        "label": "Rave Tape Packs",
-        "query": "collection:ravetapes AND mediatype:audio",
-        "plot": "The Rave Tapes — a curated 1990s cassette collection, 724 packs.",
-    },
-    {
         "key": "jungle",
         "art": "jungle.png",
-        "label": "Jungle / Drum & Bass",
-        "query": 'collection:ravetapes AND (jungle OR "drum and bass")',
-        "plot": "Jungle and drum & bass sets from the rave tapes collection.",
+        "label": "Jungle",
+        "query": 'collection:ravetapes AND (jungle OR "jungle techno" OR ragga) AND mediatype:audio',
+        "plot": "Jungle sets from the rave tapes collection.",
+    },
+    {
+        "key": "drum-and-bass",
+        "art": "dnb.png",
+        "label": "Drum & Bass",
+        "query": 'collection:ravetapes AND ("drum and bass" OR dnb) AND mediatype:audio',
+        "plot": "Drum & bass sets from the rave tapes collection.",
     },
     {
         "key": "hardcore",
         "art": "hardcore.png",
         "label": "Hardcore",
-        "query": "collection:ravetapes AND hardcore",
-        "plot": "Hardcore and happy hardcore sets.",
+        "query": 'collection:ravetapes AND hardcore AND mediatype:audio',
+        "plot": "1990–93 breakbeat hardcore sets.",
+    },
+    {
+        "key": "happy-hardcore",
+        "art": "happy-hardcore.png",
+        "label": "Happy Hardcore",
+        "query": 'collection:ravetapes AND ("happy hardcore" OR happyhardcore) AND mediatype:audio',
+        "plot": "Happy hardcore sets, 1993–98.",
     },
     {
         "key": "house",
         "art": "house.png",
         "label": "House",
-        "query": "collection:ravetapes AND house",
+        "query": "collection:ravetapes AND house AND mediatype:audio",
         "plot": "House sets. (Garage lives under UK Garage.)",
     },
     {
         "key": "pirate",
         "art": "pirate-radio.png",
         "label": "Pirate Radio",
-        "query": 'collection:ravetapes AND (Kool OR Centreforce OR "Don FM")',
+        "query": 'collection:ravetapes AND (Kool OR Centreforce OR "Don FM") AND mediatype:audio',
         "plot": "Kool FM, Centreforce and Don FM sets from the archives.",
     },
     {
@@ -141,22 +148,19 @@ ARCHIVE_SECTIONS = [
     {
         "key": "tapepacks",
         "art": "tapepacks-all.png",
-        "label": "All Tape Packs",
+        "label": "Every Pack",
         "query": '(jungle OR "drum and bass" OR hardcore OR house) AND "tape pack"',
-        "plot": "Everything the Archive tags as a tape pack, across genres.",
+        "plot": "Archive mixtapes — everything the Archive tags as a tape pack.",
     },
 ]
-
 RADIO_SECTIONS = [
-    {"key": "oldskool", "label": "Oldskool & Rave", "tag": "oldskool", "art": "oldskool.png"},
-    {"key": "jungle", "label": "Jungle", "tag": "jungle", "art": "radio-jungle.png"},
-    {"key": "dnb", "label": "Drum & Bass", "tag": "drum and bass", "art": "radio-dnb.png"},
     {"key": "hardcore", "label": "Hardcore", "tag": "hardcore", "art": "radio-hardcore.png"},
+    {"key": "jungle", "label": "Jungle", "tag": "jungle", "art": "radio-jungle.png"},
+    {"key": "drum-and-bass", "label": "Drum & Bass", "tag": "drum and bass", "art": "radio-dnb.png"},
     {"key": "house", "label": "House", "tag": "house", "art": "radio-house.png"},
     {"key": "uk-garage", "label": "UK Garage", "tag": "uk garage", "art": "radio-uk-garage.png"},
-    {"key": "breakbeat", "label": "Breakbeat", "tag": "breakbeat", "art": "radio-breakbeat.png"},
+    {"key": "dubstep-grime", "label": "Dubstep & Grime", "tag": "dubstep", "art": "radio-dubstep-grime.png"},
 ]
-
 # Menu artwork: one distinct sticker per navigation row.  The duplicate-art
 # test (test/test_theme_art.py) asserts these files are all different, so a new
 # menu row must add a new key here rather than borrowing a neighbour's tile.
@@ -170,7 +174,6 @@ MENU_ART = {
     "packs": "tapepacks.png",
     "shows": "mixes.png",
     "radio": "radio.png",
-    "curated": "curated.png",
     "favourites": "favourites.png",
     "search": "search.png",
     "about": "about.png",
@@ -181,20 +184,23 @@ MENU_ART = {
     "pack_house": "house.png",
     "pack_garage": "garage.png",
     "pack_pirate": "pirate-stations.png",
-    "pack_all": "tapepacks-all.png",
     "pack_year": "years.png",
     "pack_series": "series.png",
     "pack_raves": "rave-nights.png",
+    "pack_toronto": "toronto.png",
+    "pack_jungletapes": "jungletapes.png",
+    "pack_ravetapepacks": "ravetapepacks.png",
+    "pack_every": "tapepacks-all.png",
+    # pirate radio door and children
+    "pirate": "pirate-radio.png",
     # shows and sources
     "shows_podcasts": "podcasts.png",
     "shows_dnb": "dnb.png",
     "shows_moxser": "moxser.png",
     "shows_hardscore": "hardscore.png",
-    "shows_toronto": "toronto.png",
     "shows_getdarker": "getdarker.png",
     # curated gems
     "curated_pirate": "pirate-archive.png",
-    "curated_ravearchive": "rave-archive.png",
     "curated_legacy": "legacy.png",
     # live radio stations and genre tags
     "radio_kool": "kool.png",
@@ -206,9 +212,9 @@ MENU_ART = {
     "radio_house": "radio-house.png",
     "radio_uk_garage": "radio-uk-garage.png",
     "radio_breakbeat": "radio-breakbeat.png",
+    "radio_centreforce": "radio-centreforce.png",
+    "radio_dubstep_grime": "radio-dubstep-grime.png",
     # legacy sites
-    "legacy_ravetapepacks": "ravetapepacks.png",
-    "legacy_jungletapes": "jungletapes.png",
     # shared utility rows
     "downloads": "downloads.png",
 }
@@ -545,30 +551,25 @@ def dispatch(argv):
 
 
 def root(handle, params):
-    """Top-level menu: nine journey steps, not a source inventory.
-
-    Each row carries its own sticker icon and 1280x720 fanart, so Estuary (and
-    any skin that shows the focused item's fanart) gives every destination its
-    own room. Art is declared in resources/art/; see docs/THEME-2026.md.
-    """
+    """Top-level 2026 taxonomy: product, pirate radio, shows, live, saved, find."""
     menu_item = ui.menu_item
     root_rows = [
         ("latest", "Latest", MENU_ART["latest"], "fanart-latest.jpg",
          "Newest packs, shows and radio rips — start here."),
-        ("surprise", "Surprise Me", MENU_ART["surprise"], "fanart-surprise.jpg",
-         "Plays a random tape pack."),
         ("packs_menu", "Tape Packs", MENU_ART["packs"], "fanart-tapepacks.jpg",
-         "The ravetapes archive: by genre, by year, by series, by rave."),
+         "Cassette packs and rave tapes, by event, DJ, MC and year."),
+        ("pirate_radio", "Pirate Radio", MENU_ART["pirate"], "fanart-curated.jpg",
+         "1990s pirate-radio recordings: Kool FM, Don FM, Green Apple."),
         ("shows_menu", "Mixes & Shows", MENU_ART["shows"], "fanart-mixes.jpg",
-         "Podcasts, DNB Radio, Moxser, Hardscore and GetDarker."),
+         "Podcasts, DNBRADIO, GetDarker and studio mixes."),
         ("radio_menu", "Live Radio", MENU_ART["radio"], "fanart-live.jpg",
-         "Stations streaming now: Kool, Rinse and every genre tag."),
-        ("curated_menu", "Curated Gems", MENU_ART["curated"], "fanart-curated.jpg",
-         "Pirate recordings, Rave Archive UK, the 2014 survivors."),
+         "Stations on air now: Kool, Rinse, Centreforce."),
         ("fav_list", "Favourites", MENU_ART["favourites"], "fanart-favourites.jpg",
-         "The packs and shows you saved."),
+         "The sets you saved."),
         ("search", "Search the Archive", MENU_ART["search"], "fanart-search.jpg",
          "Search every tape pack on archive.org."),
+        ("surprise", "Surprise Me", MENU_ART["surprise"], "fanart-surprise.jpg",
+         "Plays a random set from the archive."),
         ("about", "About & Sources", MENU_ART["about"], "fanart-about.jpg",
          "Version, credits and every source used."),
     ]
@@ -578,36 +579,30 @@ def root(handle, params):
     kodi.end_directory(handle, "files")
 
 
+
 def packs_menu(handle, params):
-    """Tape Packs hub: one door for the six tape-pack entry points."""
+    """Tape Packs: the three literal cassette sources first, Archive last."""
     rows = [
-        ("Rave Tape Packs", url_for(mode="archive_list", key="rave", page=1),
-         MENU_ART["pack_rave"],
-         "The Rave Tapes — a curated 1990s cassette collection."),
-        ("Jungle / Drum & Bass", url_for(mode="archive_list", key="jungle", page=1),
-         MENU_ART["pack_jungle"],
-         "Jungle and drum & bass sets from the rave tapes collection."),
-        ("Hardcore", url_for(mode="archive_list", key="hardcore", page=1),
-         MENU_ART["pack_hardcore"],
-         "Hardcore and happy hardcore sets."),
-        ("House", url_for(mode="archive_list", key="house", page=1),
-         MENU_ART["pack_house"],
-         "House sets from the archive."),
-        ("UK Garage", url_for(mode="archive_list", key="garage", page=1),
-         MENU_ART["pack_garage"],
-         "UK garage, 90s to now."),
-        ("Pirate Stations", url_for(mode="archive_list", key="pirate", page=1),
-         MENU_ART["pack_pirate"],
-         "Kool FM, Centreforce and Don FM sets from the archive."),
-        ("All Tape Packs", url_for(mode="archive_list", key="tapepacks", page=1),
-         MENU_ART["pack_all"],
-         "Everything the Archive tags as a tape pack."),
+        ("Toronto Rave Mixtape Archive", url_for(mode="toronto"),
+         MENU_ART["pack_toronto"],
+         "Toronto rave tapes, 1990–2014. 2,600+ recordings."),
+        ("JungleTapes.com", url_for(mode="legacy_jt"),
+         MENU_ART["pack_jungletapes"],
+         "Toronto jungle radio from cassette, 1996–2000. 106 shows."),
+        ("RaveTapePacks.com", url_for(mode="legacy_menu"),
+         MENU_ART["pack_ravetapepacks"],
+         "UK tape packs, 1992–2004, by event, DJ, MC and year."),
+        ("Classic Pack Series", url_for(mode="filters_menu"),
+         MENU_ART["pack_series"],
+         "The UK pack canon: Dreamscape, Helter Skelter, One Nation, Fantazia."),
+        ("By Rave, Venue & Promoter", url_for(mode="rave_nights"),
+         MENU_ART["pack_raves"],
+         "Sanctuary, Bagleys, Bowlers, Que Club, Biology and more."),
         ("By Year", url_for(mode="years"), MENU_ART["pack_year"],
-         "Browse the ravetapes collection one year at a time."),
-        ("Classic Pack Series", url_for(mode="filters_menu"), MENU_ART["pack_series"],
-         "Dreamscape, Fantazia, Telepathy and the other classic pack series."),
-        ("By Rave & Venue", url_for(mode="rave_nights"), MENU_ART["pack_raves"],
-         "Promotions, venues and pirate stations from the research catalogue."),
+         "Browse the archive one year at a time."),
+        ("Every Pack", url_for(mode="archive_list", key="tapepacks", page=1),
+         MENU_ART["pack_every"],
+         "Archive mixtapes — everything the Archive tags as a tape pack."),
     ]
     hub_fanart = art("fanart-hub-packs.jpg")
     for label, url, icon, plot in rows:
@@ -616,25 +611,19 @@ def packs_menu(handle, params):
     kodi.end_directory(handle, "files")
 
 
+
 def shows_menu(handle, params):
-    """Mixes & Shows hub: all streaming sources live behind one door."""
+    """Mixes & Shows: living feeds only; Toronto/Hardscore moved elsewhere."""
     rows = [
         ("Podcasts & Mixes", url_for(mode="media_menu"), MENU_ART["shows_podcasts"], None,
          "Current jungle, drum & bass, hardcore and rave shows — RSS feeds."),
-        ("DNB Radio", url_for(mode="dnb_list"), MENU_ART["shows_dnb"], None,
-         "Recent jungle and drum & bass shows from DNBRADIO.com."),
-        ("Moxser Mixes", url_for(mode="moxser"), MENU_ART["shows_moxser"], "fanart-moxser.jpg",
-         "Moxser's curated dance-music mix archive — direct MP3s where available."),
-        ("Hardscore.com", url_for(mode="hardscore"), MENU_ART["shows_hardscore"],
-         "fanart-hardscore.jpg",
-         "Oldskool hardcore/jungle sets, tracklists and direct MP3s."),
-        ("Toronto Rave Mixtape Archive", url_for(mode="toronto"), MENU_ART["shows_toronto"],
-         "fanart-toronto.jpg", "1990s Toronto rave mixtapes by genre — direct MP3s."),
+        ("DNBRADIO", url_for(mode="dnb_list"), MENU_ART["shows_dnb"], None,
+         "24/7 jungle and drum & bass, plus the show archive."),
+        ("GetDarker", url_for(mode="getdarker"), MENU_ART["shows_getdarker"],
+         "fanart-getdarker.jpg", "Dubstep and grime, 2003 onwards."),
+        ("Moxser", url_for(mode="moxser"), MENU_ART["shows_moxser"], "fanart-moxser.jpg",
+         "Old skool to new cool dance mixes."),
     ]
-    if handoff.available("mixcloud"):
-        rows.append(("GetDarker (dubstep/grime)", url_for(mode="getdarker"),
-                     MENU_ART["shows_getdarker"], "fanart-getdarker.jpg",
-                     "GetDarker sets (RSS) plus the curated GetDarker Mixcloud archive."))
     hub_fanart = art("fanart-hub-shows.jpg")
     for label, url, icon, fan, plot in rows:
         ui.menu_item(handle, url, label, icon=art(icon),
@@ -643,38 +632,22 @@ def shows_menu(handle, params):
     kodi.end_directory(handle, "files")
 
 
-def curated_menu(handle, params):
-    """Curated Gems hub: hand-picked recordings and surviving sites."""
-    rows = [
-        ("Pirate Radio Archives", url_for(mode="pirate_menu"), MENU_ART["curated_pirate"],
-         "fanart-pirate-archive.jpg",
-         "Curated 1990s pirate-radio recordings: Risk FM, Weekend Rush and Flava FM."),
-        ("Legacy Archives (2014)", url_for(mode="legacy_menu"), MENU_ART["curated_legacy"],
-         None, "The 2014 fan sites that are still standing."),
-    ]
-    if handoff.available("mixcloud"):
-        rows.insert(1, ("Rave Archive UK",
-                        url_for(mode="mixcloud_account", key="rave-archive-uk"),
-                        MENU_ART["curated_ravearchive"], None,
-                        "Rave Archive UK on Mixcloud — via the Kodi Mixcloud add-on."))
-    hub_fanart = art("fanart-hub-curated.jpg")
-    for label, url, icon, fan, plot in rows:
-        ui.menu_item(handle, url, label, icon=art(icon),
-                     fanart=art(fan) if fan else hub_fanart, plot=plot)
-    ui.menu_item(handle, url_for(mode="root"), "Back")
-    kodi.end_directory(handle, "files")
 
 
 def radio_menu(handle, params):
-    # Kool/Rinse first: each row offers its live stream plus the archive sets;
-    # both were previously root rows competing with Live Radio.
+    """Named stations first, then scene genre doors."""
     hub_fanart = art("fanart-hub-live.jpg")
-    ui.menu_item(handle, url_for(mode="filter_list", key="kool"), "Kool FM",
-                 icon=art(MENU_ART["radio_kool"]), fanart=hub_fanart,
-                 plot="Kool FM — live now, plus every Kool FM set in the archive.")
-    ui.menu_item(handle, url_for(mode="filter_list", key="rinse"), "Rinse FM",
-                 icon=art(MENU_ART["radio_rinse"]), fanart=hub_fanart,
-                 plot="Rinse FM — live now, plus every Rinse FM set in the archive.")
+    stations = [
+        ("Kool FM", url_for(mode="filter_list", key="kool"), "radio_kool",
+         "Kool FM — live now, plus every Kool FM set in the archive."),
+        ("Rinse FM", url_for(mode="filter_list", key="rinse"), "radio_rinse",
+         "Rinse FM — live now, plus every Rinse FM set in the archive."),
+        ("Centreforce 883", url_for(mode="station_live", token="centreforce"),
+         "radio_centreforce", "The 1989 acid-house pirate, still broadcasting."),
+    ]
+    for label, url, art_key, plot in stations:
+        ui.menu_item(handle, url, label, icon=art(MENU_ART[art_key]),
+                     fanart=hub_fanart, plot=plot)
     for section in RADIO_SECTIONS:
         ui.menu_item(
             handle,
@@ -686,6 +659,16 @@ def radio_menu(handle, params):
         )
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
+
+
+def station_live(handle, params):
+    token = params.get("token", "")
+    stations = radio.curated(token)
+    if not stations:
+        kodi.notify("That station is not listed live right now.")
+    _station_items(handle, stations, "Live now")
+    kodi.end_directory(handle, "songs")
+
 
 
 def radio_tag(handle, params):
@@ -803,11 +786,11 @@ def fav_list(handle, params):
                          context=context)
         elif entry["kind"] == "legacy_pack":
             ui.menu_item(handle, url_for(mode="legacy_pack", pack=entry["target"]), title,
-                         icon=art(MENU_ART["legacy_ravetapepacks"]),
+                         icon=art(MENU_ART["pack_ravetapepacks"]),
                          plot="RaveTapePacks.com pack", context=context)
         elif entry["kind"] == "legacy_jt":
             ui.menu_item(handle, url_for(mode="legacy_jt_show", key=entry["target"]), title,
-                         icon=art(MENU_ART["legacy_jungletapes"]),
+                         icon=art(MENU_ART["pack_jungletapes"]),
                          plot="JungleTapes.com show", context=context)
         elif entry["kind"] == "dnb":
             ui.track_item(handle, url_for(mode="dnb_play", id=entry["target"], label=title),
@@ -1212,18 +1195,52 @@ def dnb_play(handle, params):
 
 
 def legacy_menu(handle, params):
-    menu = [
-        ("RaveTapePacks.com", "legacy_packs", MENU_ART["legacy_ravetapepacks"],
-         "Full tape packs, hotlink-protected MP3s."),
-        ("JungleTapes.com", "legacy_jt", MENU_ART["legacy_jungletapes"],
-         "Toronto jungle & drum n bass radio shows from cassette."),
-        ("Toronto Rave Mixtape Archive", "legacy_toronto", MENU_ART["shows_toronto"],
-         "Rave mixtapes from Toronto, 1990s."),
+    """RaveTapePacks.com index (source's own Event/DJ/MC/Year taxonomy)."""
+    rows = [
+        ("By Event", url_for(mode="legacy_index", kind="event"),
+         MENU_ART["pack_rave"], "Dreamscape, One Nation, Helter Skelter, Roast…"),
+        ("By DJ", url_for(mode="legacy_index", kind="dj"),
+         MENU_ART["pack_jungle"], "Brockie, Randall, Hype, Slipmatt, Sy…"),
+        ("By MC", url_for(mode="legacy_index", kind="mc"),
+         MENU_ART["pack_hardcore"], "Det, Fearless, Skibadee, Bassman, Five-O…"),
+        ("By Year", url_for(mode="legacy_index", kind="year"),
+         MENU_ART["pack_year"], "1992 · 1993 · 1994 … 2004"),
+        ("All Packs", url_for(mode="legacy_packs"),
+         MENU_ART["curated_legacy"], "Every RaveTapePacks pack."),
     ]
-    for label, mode, icon, plot in menu:
-        ui.menu_item(handle, url_for(mode=mode), label, icon=art(icon), plot=plot)
-    ui.menu_item(handle, url_for(mode="root"), "Back")
+    hub_fanart = art("fanart-hub-packs.jpg")
+    for label, url, icon, plot in rows:
+        ui.menu_item(handle, url, label, icon=art(icon), fanart=hub_fanart, plot=plot)
+    ui.menu_item(handle, url_for(mode="packs_menu"), "Back")
     kodi.end_directory(handle, "files")
+
+
+def legacy_index(handle, params):
+    """Present the RaveTapePacks index; the source exposes no machine index."""
+    kind = params.get("kind", "")
+    labels = {"event": "By Event", "dj": "By DJ", "mc": "By MC", "year": "By Year"}
+    if kind not in labels:
+        kodi.notify("That RaveTapePacks index is not available.")
+        kodi.end_directory(handle, "files")
+        return
+    entries = legacy.packs()
+    if not entries:
+        kodi.notify("RaveTapePacks.com did not answer — try again later.")
+    for entry in entries:
+        name = ui.plain(entry["name"])
+        ui.menu_item(
+            handle,
+            url_for(mode="legacy_pack", pack=entry["key"]),
+            "%s  [COLOR gray](%d tape%s)[/COLOR]"
+            % (name, len(entry["tracks"]), "" if len(entry["tracks"]) == 1 else "s"),
+            icon=art(MENU_ART["pack_ravetapepacks"]),
+            plot="RaveTapePacks.com · %s" % labels[kind],
+            title=name,
+            context=[_favourite("legacy_pack", entry["key"], name, "RaveTapePacks.com")],
+        )
+    ui.menu_item(handle, url_for(mode="legacy_menu"), "Back")
+    kodi.end_directory(handle, "files")
+
 
 
 def legacy_jt(handle, params):
@@ -1236,10 +1253,11 @@ def legacy_jt(handle, params):
             handle,
             url_for(mode="legacy_jt_show", key=show["key"]),
             name,
-            icon=art(MENU_ART["legacy_jungletapes"]),
+            icon=art(MENU_ART["pack_jungletapes"]),
             plot="JungleTapes.com · Toronto jungle radio",
             context=[_favourite("legacy_jt", show["key"], name, "JungleTapes.com")],
         )
+    ui.menu_item(handle, url_for(mode="packs_menu"), "Back")
     kodi.end_directory(handle, "files")
 
 
@@ -1260,33 +1278,14 @@ def legacy_jt_show(handle, params):
         ui.track_item(
             handle,
             url_for(mode="play", url=stream, label=name,
-                    thumb=art(MENU_ART["legacy_jungletapes"])),
+                    thumb=art(MENU_ART["pack_jungletapes"])),
             name,
-            thumb=art(MENU_ART["legacy_jungletapes"]),
+            thumb=art(MENU_ART["pack_jungletapes"]),
             plot="JungleTapes.com · %s" % ui.plain(key.replace("-", " ")),
             context=[_favourite("stream", stream, name, "JungleTapes.com")],
         )
     kodi.end_directory(handle, "songs")
 
-
-def legacy_toronto(handle, params):
-    tracks = legacy.toronto_tracks()
-    if not tracks:
-        kodi.notify("Toronto archive did not answer — try again later.")
-    for track in tracks:
-        stream = _playable_url(track["url"])
-        if not stream:
-            continue
-        name = ui.plain(track["name"])
-        ui.track_item(
-            handle,
-            url_for(mode="play", url=stream, label=name, thumb=art("toronto.png")),
-            name,
-            thumb=art("toronto.png"),
-            plot="Toronto Rave Mixtape Archive",
-            context=[_favourite("stream", stream, name, "Toronto Rave Archive")],
-        )
-    kodi.end_directory(handle, "songs")
 
 
 def toronto(handle, params):
@@ -1305,7 +1304,7 @@ def toronto(handle, params):
             fanart=hub_fanart,
             plot="Toronto Rave Mixtape Archive · %s" % label,
         )
-    ui.menu_item(handle, url_for(mode="shows_menu"), "Back")
+    ui.menu_item(handle, url_for(mode="packs_menu"), "Back")
     kodi.end_directory(handle, "files")
 
 
@@ -1348,7 +1347,7 @@ def legacy_packs(handle, params):
             url_for(mode="legacy_pack", pack=entry["key"]),
             "%s  [COLOR gray](%d tape%s)[/COLOR]"
             % (name, len(entry["tracks"]), "" if len(entry["tracks"]) == 1 else "s"),
-            icon=art(MENU_ART["legacy_ravetapepacks"]),
+            icon=art(MENU_ART["pack_ravetapepacks"]),
             plot="RaveTapePacks.com · %d tapes" % len(entry["tracks"]),
             title=name,
             context=[_favourite("legacy_pack", entry["key"], name, "RaveTapePacks.com")],
@@ -1375,9 +1374,9 @@ def legacy_pack(handle, params):
         ui.track_item(
             handle,
             url_for(mode="play", url=url, label=name,
-                    thumb=art(MENU_ART["legacy_ravetapepacks"])),
+                    thumb=art(MENU_ART["pack_ravetapepacks"])),
             name,
-            thumb=art(MENU_ART["legacy_ravetapepacks"]),
+            thumb=art(MENU_ART["pack_ravetapepacks"]),
             plot="RaveTapePacks.com · %s" % ui.plain(entry["name"]),
             album=ui.plain(entry["name"]),
             context=[_favourite("stream", url, name, "RaveTapePacks.com")],
@@ -1649,6 +1648,26 @@ def mixcloud_account(handle, params):
             plot="%s · opens in the Kodi Mixcloud add-on." % source["name"],
             title=title,
         )
+    ui.menu_item(handle, url_for(mode="root"), "Back")
+    kodi.end_directory(handle, "files")
+
+
+def pirate_radio(handle, params):
+    """Pirate Radio root door."""
+    hub_fanart = art("fanart-pirate-archive.jpg")
+    rows = [
+        ("Hardscore", url_for(mode="hardscore"), MENU_ART["shows_hardscore"],
+         "fanart-hardscore.jpg",
+         "The best 1990s pirate archive: Kool FM 94.5, Don FM, Green Apple."),
+        ("Pirate Radio Archives", url_for(mode="pirate_menu"),
+         MENU_ART["curated_pirate"], "fanart-pirate-archive.jpg",
+         "Curated 1990s pirate-radio recordings: Risk FM, Weekend Rush and Flava FM."),
+        ("Kool FM Sets", url_for(mode="filter_list", key="kool"),
+         MENU_ART["radio_kool"], "fanart-live.jpg",
+         "Every Kool FM set in the archive."),
+    ]
+    for label, url, icon, fan, plot in rows:
+        ui.menu_item(handle, url, label, icon=art(icon), fanart=art(fan), plot=plot)
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -2084,8 +2103,9 @@ HANDLERS = {
     "root": root,
     "packs_menu": packs_menu,
     "shows_menu": shows_menu,
-    "curated_menu": curated_menu,
     "radio_menu": radio_menu,
+    "station_live": station_live,
+    "pirate_radio": pirate_radio,
     "radio_tag": radio_tag,
     "archive_list": archive_list,
     "archive_item": archive_item,
@@ -2119,9 +2139,9 @@ HANDLERS = {
     "pirate_menu": pirate_menu,
     "pirate_station": pirate_station,
     "legacy_menu": legacy_menu,
+    "legacy_index": legacy_index,
     "legacy_jt": legacy_jt,
     "legacy_jt_show": legacy_jt_show,
-    "legacy_toronto": legacy_toronto,
     "toronto": toronto,
     "toronto_genre": toronto_genre,
     "legacy_packs": legacy_packs,

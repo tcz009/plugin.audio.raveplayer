@@ -145,13 +145,13 @@ class ThemeArtTests(unittest.TestCase):
         items = capture(routes.root)
         expected = {
             "Latest": "rave.png",
-            "Surprise Me": "surprise.png",
             "Tape Packs": "tapepacks.png",
+            "Pirate Radio": "pirate-radio.png",
             "Mixes & Shows": "mixes.png",
             "Live Radio": "radio.png",
-            "Curated Gems": "curated.png",
             "Favourites": "favourites.png",
             "Search the Archive": "search.png",
+            "Surprise Me": "surprise.png",
             "About & Sources": "about.png",
         }
         for item in items:
@@ -163,7 +163,7 @@ class ThemeArtTests(unittest.TestCase):
             (routes.packs_menu, "fanart-hub-packs.jpg"),
             (routes.shows_menu, "fanart-hub-shows.jpg"),
             (routes.radio_menu, "fanart-hub-live.jpg"),
-            (routes.curated_menu, "fanart-hub-curated.jpg"),
+            (routes.pirate_radio, "fanart-pirate-archive.jpg"),
         ]
         for handler, fanart in hubs:
             items = rows_before_back(capture(handler))
@@ -178,23 +178,20 @@ class ThemeArtTests(unittest.TestCase):
     def test_key_sources_have_their_own_icon_and_fanart(self):
         # GetDarker/Rave Archive are optional hand-offs: mock the Mixcloud add-on
         # present so the theme wiring for those rows is asserted too.
-        with mock.patch.object(routes.handoff, "available", return_value=True):
-            shows = {item["label"]: item for item in capture(routes.shows_menu)}
-            curated = {item["label"]: item for item in capture(routes.curated_menu)}
+        shows = {item["label"]: item for item in capture(routes.shows_menu)}
         expectations = {
-            "Moxser Mixes": ("moxser.png", "fanart-moxser.jpg"),
-            "Hardscore.com": ("hardscore.png", "fanart-hardscore.jpg"),
-            "Toronto Rave Mixtape Archive": ("toronto.png", "fanart-toronto.jpg"),
-            "GetDarker (dubstep/grime)": ("getdarker.png", "fanart-getdarker.jpg"),
+            "Moxser": ("moxser.png", "fanart-moxser.jpg"),
+            "GetDarker": ("getdarker.png", "fanart-getdarker.jpg"),
         }
         for label, (icon, fanart) in expectations.items():
             with self.subTest(source=label):
                 item = shows[label]
                 self.assertTrue(item["art"]["icon"].endswith(icon))
                 self.assertTrue(item["art"]["fanart"].endswith(fanart))
-        pirate = curated["Pirate Radio Archives"]
-        self.assertTrue(pirate["art"]["icon"].endswith("pirate-archive.png"))
-        self.assertTrue(pirate["art"]["fanart"].endswith("fanart-pirate-archive.jpg"))
+        pirate = {item["label"]: item for item in capture(routes.pirate_radio)}
+        self.assertTrue(pirate["Hardscore"]["art"]["icon"].endswith("hardscore.png"))
+        self.assertTrue(pirate["Pirate Radio Archives"]["art"]["icon"].endswith("pirate-archive.png"))
+        self.assertTrue(pirate["Pirate Radio Archives"]["art"]["fanart"].endswith("fanart-pirate-archive.jpg"))
 
     def test_toronto_hub_and_genre_rows_use_their_own_art(self):
         genres = [{"genre": "jungle", "label": "Jungle & Hardcore"},

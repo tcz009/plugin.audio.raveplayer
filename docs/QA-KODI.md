@@ -16,7 +16,7 @@ bottom.
 - Optional: `RAVE_DOWNLOAD_DIR` is not needed on the Shield; downloads go to
   `special://userdata/downloads/raveplayer/`.
 - Full suite on the build machine: `python3 -m unittest discover -s test`
-  → **469 tests OK**.
+  → **499 tests OK**.
 
 ## 1. Install / update
 
@@ -133,7 +133,7 @@ Reference: `docs/SPINNER-3.9.19.md` and `docs/spinner-preview.png`.
 ## 9. Local smoke commands (build machine)
 
 ```sh
-python3 -m unittest discover -s test          # 469 tests
+python3 -m unittest discover -s test          # 499 tests
 python3 test/run.py root
 python3 test/run.py packs_menu
 python3 test/run.py shows_menu

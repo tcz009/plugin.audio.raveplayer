@@ -29,83 +29,78 @@ class NewSourceRouteTests(unittest.TestCase):
     def test_root_is_the_nine_row_journey(self):
         routes.root(1, {})
         self.assertEqual(self._labels(), [
-            "Latest", "Surprise Me", "Tape Packs", "Mixes & Shows",
-            "Live Radio", "Curated Gems", "Favourites",
-            "Search the Archive", "About & Sources",
+            "Latest", "Tape Packs", "Pirate Radio", "Mixes & Shows",
+            "Live Radio", "Favourites", "Search the Archive",
+            "Surprise Me", "About & Sources",
         ])
         urls = dict(zip(self._labels(), self._urls()))
         self.assertIn("mode=packs_menu", urls["Tape Packs"])
+        self.assertIn("mode=pirate_radio", urls["Pirate Radio"])
         self.assertIn("mode=shows_menu", urls["Mixes & Shows"])
         self.assertIn("mode=radio_menu", urls["Live Radio"])
-        self.assertIn("mode=curated_menu", urls["Curated Gems"])
 
-    def test_shows_hub_contains_the_new_sources(self):
-        with mock.patch.object(routes.handoff, "available", return_value=False):
-            routes.shows_menu(1, {})
+    def test_shows_hub_is_the_four_living_feeds(self):
+        routes.shows_menu(1, {})
         self.assertEqual(self._labels(), [
-            "Podcasts & Mixes", "DNB Radio", "Moxser Mixes",
-            "Hardscore.com", "Toronto Rave Mixtape Archive", "Back",
-        ])
-        del xbmcplugin.ITEMS[:]
-        with mock.patch.object(routes.handoff, "available", return_value=True):
-            routes.shows_menu(1, {})
-        labels = self._labels()
-        self.assertEqual(labels, [
-            "Podcasts & Mixes", "DNB Radio", "Moxser Mixes",
-            "Hardscore.com", "Toronto Rave Mixtape Archive",
-            "GetDarker (dubstep/grime)", "Back",
-        ])
-        urls = dict(zip(labels, self._urls()))
-        self.assertIn("mode=moxser", urls["Moxser Mixes"])
-        self.assertIn("mode=hardscore", urls["Hardscore.com"])
-        self.assertIn("mode=getdarker", urls["GetDarker (dubstep/grime)"])
-
-    def test_tape_packs_hub_has_all_ten_existing_destinations(self):
-        routes.packs_menu(1, {})
-        labels = self._labels()
-        self.assertEqual(labels, [
-            "Rave Tape Packs", "Jungle / Drum & Bass", "Hardcore", "House",
-            "UK Garage", "Pirate Stations", "All Tape Packs", "By Year",
-            "Classic Pack Series", "By Rave & Venue", "Back",
-        ])
-        urls = dict(zip(labels, self._urls()))
-        self.assertIn("mode=archive_list", urls["Rave Tape Packs"])
-        self.assertIn("key=rave", urls["Rave Tape Packs"])
-        self.assertIn("key=garage", urls["UK Garage"])
-        self.assertIn("key=pirate", urls["Pirate Stations"])
-        self.assertIn("mode=years", urls["By Year"])
-        self.assertIn("mode=filters_menu", urls["Classic Pack Series"])
-        self.assertIn("mode=rave_nights", urls["By Rave & Venue"])
-
-    def test_curated_hub_hides_rave_archive_without_mixcloud_addon(self):
-        with mock.patch.object(routes.handoff, "available", return_value=False):
-            routes.curated_menu(1, {})
-        self.assertEqual(self._labels(), [
-            "Pirate Radio Archives", "Legacy Archives (2014)", "Back",
-        ])
-
-    def test_curated_hub_shows_rave_archive_with_mixcloud_addon(self):
-        with mock.patch.object(routes.handoff, "available", return_value=True):
-            routes.curated_menu(1, {})
-        self.assertEqual(self._labels(), [
-            "Pirate Radio Archives", "Rave Archive UK",
-            "Legacy Archives (2014)", "Back",
+            "Podcasts & Mixes", "DNBRADIO", "GetDarker", "Moxser", "Back",
         ])
         urls = dict(zip(self._labels(), self._urls()))
-        self.assertIn("mode=mixcloud_account", urls["Rave Archive UK"])
-        self.assertIn("key=rave-archive-uk", urls["Rave Archive UK"])
+        self.assertIn("mode=media_menu", urls["Podcasts & Mixes"])
+        self.assertIn("mode=dnb_list", urls["DNBRADIO"])
+        self.assertIn("mode=getdarker", urls["GetDarker"])
+        self.assertIn("mode=moxser", urls["Moxser"])
 
-    def test_live_radio_hub_promotes_kool_and_rinse(self):
-        routes.radio_menu(1, {})
-        labels = self._labels()
-        self.assertEqual(labels, [
-            "Kool FM", "Rinse FM", "Oldskool & Rave", "Jungle",
-            "Drum & Bass", "Hardcore", "House", "UK Garage", "Breakbeat", "Back",
+    def test_tape_packs_hub_is_the_2026_order(self):
+        routes.packs_menu(1, {})
+        self.assertEqual(self._labels(), [
+            "Toronto Rave Mixtape Archive", "JungleTapes.com",
+            "RaveTapePacks.com", "Classic Pack Series",
+            "By Rave, Venue & Promoter", "By Year", "Every Pack", "Back",
         ])
-        urls = dict(zip(labels, self._urls()))
+        urls = dict(zip(self._labels(), self._urls()))
+        self.assertIn("mode=toronto", urls["Toronto Rave Mixtape Archive"])
+        self.assertIn("mode=legacy_jt", urls["JungleTapes.com"])
+        self.assertIn("mode=legacy_menu", urls["RaveTapePacks.com"])
+        self.assertIn("mode=filters_menu", urls["Classic Pack Series"])
+        self.assertIn("mode=rave_nights", urls["By Rave, Venue & Promoter"])
+        self.assertIn("mode=years", urls["By Year"])
+        self.assertIn("key=tapepacks", urls["Every Pack"])
+
+    def test_pirate_radio_hub_has_three_children(self):
+        routes.pirate_radio(1, {})
+        self.assertEqual(self._labels(), [
+            "Hardscore", "Pirate Radio Archives", "Kool FM Sets", "Back",
+        ])
+        urls = dict(zip(self._labels(), self._urls()))
+        self.assertIn("mode=hardscore", urls["Hardscore"])
+        self.assertIn("mode=pirate_menu", urls["Pirate Radio Archives"])
+        self.assertIn("mode=filter_list", urls["Kool FM Sets"])
+        self.assertIn("key=kool", urls["Kool FM Sets"])
+
+    def test_live_radio_names_stations_then_genres(self):
+        routes.radio_menu(1, {})
+        self.assertEqual(self._labels(), [
+            "Kool FM", "Rinse FM", "Centreforce 883",
+            "Hardcore", "Jungle", "Drum & Bass", "House", "UK Garage",
+            "Dubstep & Grime", "Back",
+        ])
+        urls = dict(zip(self._labels(), self._urls()))
         self.assertIn("mode=filter_list", urls["Kool FM"])
         self.assertIn("key=kool", urls["Kool FM"])
-        self.assertIn("key=rinse", urls["Rinse FM"])
+        self.assertIn("mode=station_live", urls["Centreforce 883"])
+        self.assertIn("token=centreforce", urls["Centreforce 883"])
+
+    def test_ravetapepacks_submenu_exposes_its_native_index(self):
+        routes.legacy_menu(1, {})
+        self.assertEqual(self._labels(), [
+            "By Event", "By DJ", "By MC", "By Year", "All Packs", "Back",
+        ])
+        urls = dict(zip(self._labels(), self._urls()))
+        for label, kind in (("By Event", "event"), ("By DJ", "dj"),
+                            ("By MC", "mc"), ("By Year", "year")):
+            self.assertIn("mode=legacy_index", urls[label])
+            self.assertIn("kind=" + kind, urls[label])
+        self.assertIn("mode=legacy_packs", urls["All Packs"])
 
     def test_about_and_sources_lists_credits_and_every_source(self):
         routes.about(1, {})

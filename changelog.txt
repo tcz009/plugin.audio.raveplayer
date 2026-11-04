@@ -1,3 +1,17 @@
+Rave Player 3.9.42
+- Kodi taxonomy mirror of web 1.6.44: Tape Packs order Toronto → JungleTapes →
+  RaveTapePacks (By Event/DJ/MC/Year/All Packs) → Classic Pack Series →
+  By Rave, Venue & Promoter → By Year → Every Pack; new Pirate Radio root door;
+  Mixes & Shows reduced to Podcasts/DNBRADIO/GetDarker/Moxser; Live Radio names
+  Kool/Rinse/Centreforce before Hardcore/Jungle/Drum & Bass/House/UK Garage/
+  Dubstep & Grime; Jungle/DnB and Hardcore/Happy Hardcore split; Oldskool &
+  Rave/Breakbeat removed.
+- Removed Curated Gems/Legacy Archives bucket and duplicate legacy_toronto.
+- Ported 1.6.46 legacy-stream URL fixes (Referer, entity decode, JungleTapes
+  query, redirect follow) from fix/legacy-stream-urls.
+- Tests: 499 OK, including exact-order/kebab/duplicate-art and * 2.* guards.
+  No playback/autoplay changes.
+
 Rave Player 3.9.38
 - 2026 art rollout, Direction C2 (owner-approved): all 38 duplicated
   navigation rows now carry their own sticker from the nine C2 objects

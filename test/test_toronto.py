@@ -84,9 +84,8 @@ class TorontoRouteTests(unittest.TestCase):
         del xbmcplugin.ITEMS[:]
         del xbmcplugin.CONTENT[:]
 
-    def test_shows_menu_has_toronto_door(self):
-        with mock.patch.object(routes.handoff, "available", return_value=False):
-            routes.shows_menu(1, {})
+    def test_tape_packs_has_toronto_door(self):
+        routes.packs_menu(1, {})
         labels = [item["label"] for item in xbmcplugin.ITEMS]
         self.assertIn("Toronto Rave Mixtape Archive", labels)
 

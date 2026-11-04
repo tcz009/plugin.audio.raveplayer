@@ -52,6 +52,16 @@ class NamingTests(unittest.TestCase):
         self.assertEqual(routes.RADIO_BY_KEY["uk-garage"]["art"],
                          "radio-uk-garage.png")
 
+    def test_no_duplicate_copies_or_untracked_space_copies(self):
+        duplicates = []
+        for base, dirs, files in os.walk(ROOT):
+            dirs[:] = [name for name in dirs
+                       if name not in (".git", "repo", "dist", "build", "node_modules")]
+            for name in files:
+                if re.search(r" 2(?:\.|$)", name):
+                    duplicates.append(os.path.join(base, name))
+        self.assertEqual(duplicates, [], "remove untracked '* 2.*' duplicates")
+
     def test_menu_art_is_distinct(self):
         names = list(routes.MENU_ART.values())
         self.assertEqual(len(names), len(set(names)),
@@ -70,13 +80,12 @@ class NamingTests(unittest.TestCase):
 
     def test_station_rows_use_station_tiles(self):
         stations = {
-            "oldskool": "oldskool.png",
-            "jungle": "radio-jungle.png",
-            "dnb": "radio-dnb.png",
             "hardcore": "radio-hardcore.png",
+            "jungle": "radio-jungle.png",
+            "drum-and-bass": "radio-dnb.png",
             "house": "radio-house.png",
             "uk-garage": "radio-uk-garage.png",
-            "breakbeat": "radio-breakbeat.png",
+            "dubstep-grime": "radio-dubstep-grime.png",
         }
         for key, art in stations.items():
             with self.subTest(station=key):
