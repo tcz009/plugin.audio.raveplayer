@@ -1,4 +1,4 @@
-# Rave Player — Shield/Kodi QA checklist (3.9.36)
+# Rave Player — Shield/Kodi QA checklist (3.9.44)
 
 Repeat this on the Nvidia Shield before a release. It is deliberately short:
 one pass through every user-visible surface, with a hard check that the add-on
@@ -8,7 +8,7 @@ bottom.
 ## Preconditions
 
 - Kodi 20 (Nexus) through Kodi 22 (Piers), Estuary skin, 1080p.
-- Rave Player **3.9.36** installed from `repository.raveplayer-1.0.0`
+- Rave Player **3.9.44** installed from `repository.raveplayer-1.0.0`
   (or the release zip) and Kodi restarted once so the theme texture cache is
   refreshed.
 - Network available; a small Archive.org or Moxser direct MP3 available for the
@@ -16,11 +16,11 @@ bottom.
 - Optional: `RAVE_DOWNLOAD_DIR` is not needed on the Shield; downloads go to
   `special://userdata/downloads/raveplayer/`.
 - Full suite on the build machine: `python3 -m unittest discover -s test`
-  → **521 tests OK**.
+  → **542 tests OK**.
 
 ## 1. Install / update
 
-- [ ] Add-ons → Rave Player shows **3.9.36**; About & Sources shows the same
+- [ ] Add-ons → Rave Player shows **3.9.44**; About & Sources shows the same
   version.
 - [ ] Updating from 3.9.20 keeps favourites/downloads and does not reset the
   spinner setting.
@@ -120,7 +120,7 @@ Reference: `docs/SPINNER-3.9.19.md` and `docs/spinner-preview.png`.
 
 ## 8. About & Sources
 
-- [ ] Version/licence row: **Rave Player 3.9.36 — GPL-3.0**.
+- [ ] Version/licence row: **Rave Player 3.9.44 — GPL-3.0**.
 - [ ] Source rows are present for Internet Archive, Mixcloud, SoundCloud,
   radio-browser.info, Moxser, Hardscore, DNB Radio, GetDarker, podcast/RSS
   feeds, Pirate Radio Archives, Kool/Rinse, RaveTapePacks, JungleTapes and
@@ -130,10 +130,33 @@ Reference: `docs/SPINNER-3.9.19.md` and `docs/spinner-preview.png`.
 - [ ] The README **Sources & credits** table links resolve (checked 2026-11-01).
 - [ ] About is read-only: every row stays in Kodi; Back returns to root.
 
-## 9. Local smoke commands (build machine)
+## 9. Look and feel (3.9.44)
+
+- [ ] Root and hub rows in list view show a right-hand fact: `1990–2004`,
+  `106 shows`, `9 feeds`, `live`, `saved` — at most 16 characters, never the
+  title repeated.
+- [ ] A tape-pack track list shows durations (`43:57`) on the right.
+- [ ] The tape-pack song panel fills **Artist / Album / Year / Genre / Track**;
+  the album is the real item title, not a hyphenated identifier slug. Unknown
+  fields stay blank (no guessed DJ or genre).
+- [ ] Start **Play all**: the OSD shows the artist, and track numbers stay in
+  the pack's original order even with **Shuffle pack**.
+- [ ] **About & Sources** descriptions are visible in the list/poster panel,
+  not only inside the info dialog; **Downloads** shows its
+  `Downloaded · source · date` copy the same way.
+- [ ] Playing a tape is unchanged: no new dialog, no failed resolve, no OSD
+  crash. The music info dialog still shows the full plot on Kodi 22.
+- [ ] Log check: no `Unknown Music Info Key` errors and no new video/Demux
+  warnings after opening About, Downloads and a track list.
+- [ ] If a Kodi 20/21 box is available, repeat the About and track-list checks
+  (that path keeps the music `plot` *and* adds the video `plot`).
+
+Reference: `docs/LOOK-AND-FEEL-2026.md` and `docs/LOOK-AND-FEEL-3.9.44.md`.
+
+## 10. Local smoke commands (build machine)
 
 ```sh
-python3 -m unittest discover -s test          # 521 tests
+python3 -m unittest discover -s test          # 542 tests
 python3 test/run.py root
 python3 test/run.py packs_menu
 python3 test/run.py shows_menu
@@ -148,7 +171,7 @@ python3 test/run.py about
 |---|---|
 | Date / tester | |
 | Shield Kodi version | |
-| Add-on version | 3.9.36 |
+| Add-on version | 3.9.44 |
 | Root / hubs | Pass / Fail |
 | Kool / Rinse live | Pass / Fail |
 | Pack playback | Pass / Fail |

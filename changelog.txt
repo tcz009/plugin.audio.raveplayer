@@ -1,3 +1,23 @@
+Rave Player 3.9.44
+- Look-and-feel pass 1–3 from docs/LOOK-AND-FEEL-2026.md, no playback changes.
+- Label2 everywhere: a plain ≤16-character fact on every row it helps —
+  duration on tracks, size · date on downloads, counts/spans on hubs,
+  venue/year where parsed. Markup stripped; over-long facts clipped.
+- Visible descriptions: descriptions now go on a minimal video InfoTag as well
+  as the music tag, because Estuary resolves ListItem.Plot from the video tag
+  on Kodi 22. Root/hub, About & Sources and Downloads copy we written but had
+  never displayed. Music comment/plot stays authoritative for the dialog/OSD;
+  Kodi <22 keeps both tags, Kodi 22 keeps comment + video plot.
+- Track InfoTags: stop discarding parsed metadata. artist, year, genre,
+  tracknumber and the real album (item title, no more identifier slug) are set
+  on archive track rows and on the "Play all" playlist, so the Estuary song
+  panel and the OSD have real values. Genre comes from Archive subject tags (or an
+  explicit genre word in the title); unknown stays blank rather than guessed.
+- Removed all 70 tracked "* 2.*" duplicate artifacts (docs/theme-2026, art,
+  tests, scripts) that made test_naming fail; suite green again.
+- Tests: 542 OK (21 new in test/test_look_feel.py). Repo artifacts rebuilt for
+  3.9.44. Not pushed or deployed; Shield check is pending.
+
 Rave Player 3.9.43
 - Merged feat/rtp-egress: per-host RaveTapePacks HTTP CONNECT proxy via
   rtp_egress_proxy (default 192.168.1.142:8888) / RTP_EGRESS_PROXY; only RTP

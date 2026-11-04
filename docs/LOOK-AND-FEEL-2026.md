@@ -14,6 +14,15 @@ art box; focus colour `FF12A0C7`). The renderer is
 `docs/look-dev/tools/make-look-shots.py`; the captured ListItems are in
 `docs/look-dev/capture.json`.
 
+> **Implementation status (3.9.44, 4 Nov 2026):** recommendations **1–3**
+> (§4.1 Label2, §4.2 visible descriptions, §4.3 track InfoTags) are shipped on
+> branch `look-feel/3.9.44`; see
+> [`LOOK-AND-FEEL-3.9.44.md`](LOOK-AND-FEEL-3.9.44.md) for the change map and
+> the Shield checklist. Recommendations 4–8 (art ratios, `setContent("songs")`,
+> empty states, About regrouping, context menus) are **still open**. This
+> document remains the 3.9.36 audit snapshot; its screenshots were not
+> regenerated.
+
 ![Before / after board](look-dev/board-before-after.png)
 
 *One-page board: `docs/look-dev/board-before-after.png`.*

@@ -95,6 +95,7 @@ class DialogProgressBG(object):
 class ListItem(object):
     def __init__(self, label="", path=""):
         self.label = label
+        self.label2 = ""
         self.path = path
         self.art = {}
         self.info = {}
@@ -121,6 +122,9 @@ class ListItem(object):
 
     def setLabel(self, label):
         self.label = label
+
+    def setLabel2(self, label):
+        self.label2 = label
 
 
 class _DialogModule(object):

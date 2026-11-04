@@ -212,6 +212,28 @@ def summary(details):
     )
 
 
+def year(details):
+    """Return the four-digit year from parsed details as an int, or 0.
+
+    ``details["date"]`` is display text ("26 Aug 1994", "1994", "10 Mar 1992"),
+    so this reads the first plausible year from it.  Unknown stays 0: Kodi's
+    music InfoTag wants an integer and 0 is its "not set" value.
+    """
+    if not isinstance(details, dict):
+        return 0
+    text = str(details.get("date") or "")
+    if not text:
+        return 0
+    match = _YEAR.search(text) or re.search(r"\b(\d{4})\b", text)
+    if not match:
+        return 0
+    try:
+        value = int(match.group(1))
+    except (TypeError, ValueError):
+        return 0
+    return value if 1900 <= value <= 2030 else 0
+
+
 def plot(base_plot, details):
     """Prefix ``base_plot`` with the parsed details, keeping the old text.
 

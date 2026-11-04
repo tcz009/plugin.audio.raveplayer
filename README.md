@@ -32,7 +32,9 @@ rebuilt in 2026 from the 2014 original.
   here" on a track, straight from the remote.
 - **Now playing** — the pack cover fills the Kodi artwork, and the plot shows
   the DJ, venue/event and date parsed from the Archive item title (best-effort;
-  unknown titles are left unchanged).
+  unknown titles are left unchanged). Since 3.9.44 the same parsed artist,
+  year and venue also fill the music InfoTags, so Estuary's song panel and the
+  OSD show `Artist`, `Album`, `Year`, `Genre` and `Track` instead of blanks.
 - **Settings that matter** — results per page, episodes per podcast feed,
   live-station limit, and hiding empty feeds.
 - **New archives (3.9.14)** — *Moxser Mixes* (direct MP3s from the Moxser
@@ -128,6 +130,33 @@ lowercase kebab-case and `test/test_naming.py` enforces it.
 **"Curated Gems" keeps that exact label** — the proposed Pirate & Rave Archives
 rename is rejected.
 
+## Look and feel (3.9.44)
+
+The first three wins from [`docs/LOOK-AND-FEEL-2026.md`](docs/LOOK-AND-FEEL-2026.md),
+all display-only — no routing or playback changes:
+
+- **Label2 on every row it helps.** The right-hand column Estuary already
+  draws now carries a plain fact of at most 16 characters: duration on tracks,
+  `48.0 MB · 31 Oct` on downloads, counts/spans on hubs (`106 shows`,
+  `1992–2004`, `5 feeds`) and the parsed venue or year where known. The label
+  is still one string, so breadcrumbs, the info dialog and the OSD are
+  untouched.
+- **Descriptions are visible.** Estuary resolves `ListItem.Plot` from the
+  *video* InfoTag on Kodi 22, so the add-on had been writing About, Downloads,
+  root and track copy to a music `comment` field the skin never reads. Every
+  described row now also carries a minimal video InfoTag with just the plot
+  (`comment`/music plot stay authoritative for the music dialog and OSD; Kodi
+  20–21 get both tags).
+- **Track InfoTags are no longer discarded.** Archive track rows and the
+  "Play all" playlist set `artist`, `album` (the real item title, not the
+  identifier slug), `year`, `genre` (Archive subject tags, or an explicit genre word in the title) and
+  `tracknumber`. Estuary's song panel and the OSD fill in.
+
+Full change list, file map and the Shield checklist:
+[`docs/LOOK-AND-FEEL-3.9.44.md`](docs/LOOK-AND-FEEL-3.9.44.md). The audit's
+remaining recommendations (art ratio, `setContent("songs")`, actionable empty
+states, About regrouping, context-menu order) are **not** in this build.
+
 ## Kodi-only hand-off policy (3.9.16)
 
 No row opens a browser or leaves Kodi. Sources that cannot be streamed
@@ -206,7 +235,7 @@ Warm root import+dispatch is ~0.08 s (was 0.78 s), the root route itself is
 ~0.0001 s, Latest cold is ~6 s / warm ~0.04 s, and cached pack open ~0.003 s.
 Full methodology, before/after table and residual risks:
 [`docs/PERF-3.9.20.md`](docs/PERF-3.9.20.md); reproduce with
-`python3 scripts/benchmark.py`. RTP egress + loopback playback bridge; 521 tests in 3.9.43.
+`python3 scripts/benchmark.py`. RTP egress + loopback playback bridge; 542 tests in 3.9.44.
 
 ## Why it was rebuilt rather than patched
 

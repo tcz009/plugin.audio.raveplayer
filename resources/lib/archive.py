@@ -27,6 +27,24 @@ MAX_ROWS = 500
 _CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
 _HOST_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$")
 
+# Archive items usually carry curated ``subject`` tags.  Map the scene genres
+# the add-on displays; anything unrecognised stays blank rather than guessing.
+_GENRE_RULES = (
+    ("Drum & Bass", re.compile(r"\b(?:drum\s*(?:&|and|n|'n')\s*bass|d\s*&\s*b|dnb)\b",
+                               re.IGNORECASE)),
+    ("Jungle", re.compile(r"\bjungle\b", re.IGNORECASE)),
+    ("Hardcore", re.compile(r"\bhard\s*core\b", re.IGNORECASE)),
+    ("House", re.compile(r"\bhouse\b", re.IGNORECASE)),
+    ("UK Garage", re.compile(r"\b(?:uk\s*garage|garage|2[-\s]?step|speed\s*garage)\b",
+                             re.IGNORECASE)),
+    ("Techno", re.compile(r"\btechno\b", re.IGNORECASE)),
+    ("Trance", re.compile(r"\btrance\b", re.IGNORECASE)),
+    ("Dubstep", re.compile(r"\bdubstep\b", re.IGNORECASE)),
+    ("Grime", re.compile(r"\bgrime\b", re.IGNORECASE)),
+    ("Old Skool", re.compile(r"\bold\s*skool\b|\bold\s*school\b", re.IGNORECASE)),
+    ("Rave", re.compile(r"\brave\b", re.IGNORECASE)),
+)
+
 
 def _quote(value):
     return urllib.parse.quote(str(value), safe="")
@@ -82,6 +100,17 @@ def _as_int(value):
         return int(value)
     except (TypeError, ValueError, OverflowError):
         return 0
+
+
+def _genre(value):
+    """Return a display genre from an item's Archive ``subject`` tags, or ""."""
+    text = as_text(value)
+    if not text:
+        return ""
+    for label, pattern in _GENRE_RULES:
+        if pattern.search(text):
+            return label
+    return ""
 
 
 def search(query, page=1, rows=50, sort="downloads desc"):
@@ -169,6 +198,9 @@ def audio_files(identifier):
     if not isinstance(metadata, dict):
         metadata = {}
     item_title = as_text(metadata.get("title"))
+    # Prefer the item's curated subject tags; fall back to an explicit genre
+    # word in the title ("Jungle", "Drum & Bass") and leave anything else blank.
+    genre = _genre(metadata.get("subject")) or _genre(item_title)
     base = _direct_base(data)
     tracks = []
     for _rank_value, _name, entry, relative in ordered:
@@ -177,6 +209,7 @@ def audio_files(identifier):
             "title": _track_title(entry, item_title),
             "size": _as_int(entry.get("size")),
             "duration": _duration(entry.get("length")),
+            "genre": genre,
             "url": (base + relative) if base
                    else DOWNLOAD_URL % (_quote(identifier), relative),
         })

@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """List item construction, kept tidy so routes read like a menu definition."""
 
+import datetime
+import re
+
 import xbmcgui
 import xbmcplugin
 
@@ -8,10 +11,21 @@ from . import handoff, kodi
 
 DEFAULT_FANART = kodi.FANART
 
+# Estuary draws ListItem.Label2 in a narrow right-hand column (and some skins
+# draw it inside the IconWall label plate).  The look-and-feel audit budgets it
+# at 16 characters so it can never wrap, collide with the status icon or carry
+# the row's primary identity.  Routes pass facts, never titles.
+MAX_LABEL2_CHARS = 16
+
 # Kodi display markup, e.g. [COLOR gray]...[/COLOR] or [I]...[/I].  Label text
 # may carry it; the media metadata title must not, or the OSD shows the tags.
 MAX_MARKUP_CHARS = 1024
 _MARKUP_RE = None
+
+_MONTH_ABBRS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+_CLOCK_RE = re.compile(r"^\d{1,2}(?::\d{1,2}){1,2}$")
+_ISO_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})")
 
 
 def _markup_re():
@@ -40,7 +54,93 @@ def plain(text):
     return _markup_re().sub("", text)
 
 
-def add_item(handle, url, label, is_folder=True, art=None, info=None, playable=False, context=None):
+def fact(value):
+    """Return a plain, single-line Label2 fact capped at 16 characters.
+
+    Label2 is a secondary column: digits, a separator and a short word at most.
+    Markup is stripped (a fact is not a label), whitespace is collapsed, and an
+    over-long value is clipped with an ellipsis instead of wrapping or pushing
+    the row's title out of shape.
+    """
+    text = " ".join(plain(value).split())
+    if len(text) <= MAX_LABEL2_CHARS:
+        return text
+    return text[:MAX_LABEL2_CHARS - 1].rstrip() + "…"
+
+
+def duration_fact(value):
+    """Format a track duration for Label2 ("43:57", "1:02:03"), or "".
+
+    Accepts the Archive's seconds (int/float/digit string) and already
+    formatted clock strings from feeds.  Anything else is left blank so a row
+    never shows a made-up fact.
+    """
+    if value is None or value == "":
+        return ""
+    text = str(value).strip()
+    if _CLOCK_RE.match(text):
+        return fact(text)
+    try:
+        total = int(float(text))
+    except (TypeError, ValueError, OverflowError):
+        return ""
+    if total <= 0:
+        return ""
+    hours, remainder = divmod(total, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return fact("%d:%02d:%02d" % (hours, minutes, seconds))
+    return fact("%d:%02d" % (minutes, seconds))
+
+
+def count_fact(value):
+    """Format an item count for Label2 ("1,204"), or "" when unknown."""
+    try:
+        number = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return ""
+    if number < 0:
+        return ""
+    return fact("{:,}".format(number))
+
+
+def short_date(value):
+    """Return a compact "31 Oct" from an ISO timestamp/date, or "".
+
+    Used by Label2 facts where a full date would blow the 16-character budget.
+    Unknown or malformed dates are blank rather than a guess.
+    """
+    match = _ISO_DATE_RE.match(str(value or "").strip())
+    if not match:
+        return ""
+    try:
+        month = int(match.group(2))
+        day = int(match.group(3))
+        datetime.date(int(match.group(1)), month, day)
+    except (TypeError, ValueError, OverflowError):
+        return ""
+    if not 1 <= month <= 12:
+        return ""
+    return "%d %s" % (day, _MONTH_ABBRS[month - 1])
+
+
+def size_date_fact(size_text, added):
+    """Join a size and a short date within the Label2 budget.
+
+    "48.0 MB · 31 Oct" is exactly the 16-character layout the audit measured;
+    when both halves do not fit, the date is dropped and the size kept.
+    """
+    size_text = " ".join(plain(size_text).split())
+    date_text = short_date(added)
+    if size_text and date_text:
+        combined = "%s · %s" % (size_text, date_text)
+        if len(combined) <= MAX_LABEL2_CHARS:
+            return combined
+    return fact(size_text or date_text)
+
+
+def add_item(handle, url, label, is_folder=True, art=None, info=None, playable=False,
+             context=None, label2=None, plot=None):
     # Final safety choke point: no raw platform page may ever become a Kodi
     # list-item URL (Android would hand it to Downloader). Routes hide these
     # rows or emit plugin:// hand-offs; this guard catches any missed path.
@@ -48,12 +148,21 @@ def add_item(handle, url, label, is_folder=True, art=None, info=None, playable=F
         kodi.log("ui: refusing raw platform URL for %r" % str(label)[:80], level=30)
         return None
     item = xbmcgui.ListItem(label=label)
+    if label2:
+        item.setLabel2(fact(label2))
     if context:
         item.addContextMenuItems(context)
     if art:
         item.setArt(art)
     if info:
         item.setInfo("music", info)
+    # Estuary's ListBoxInfoVar and the poster/info panels read ListItem.Plot,
+    # which Kodi 22 resolves from the *video* InfoTag only (VideoGUIInfo.cpp,
+    # case LISTITEM_PLOT).  The music comment stays authoritative for the
+    # music dialog/OSD; this minimal video tag is display-only and never
+    # touches a resolved playback item.
+    if plot:
+        item.setInfo("video", kodi.video_info(plain(plot)))
     if playable:
         item.setProperty("IsPlayable", "true")
         item.setProperty("IsInternetStream", "true")
@@ -61,7 +170,8 @@ def add_item(handle, url, label, is_folder=True, art=None, info=None, playable=F
     return item
 
 
-def menu_item(handle, url, label, icon=None, fanart=None, plot=None, context=None, title=None):
+def menu_item(handle, url, label, icon=None, fanart=None, plot=None, context=None, title=None,
+              label2=None):
     art = {
         "icon": icon or kodi.ICON,
         "thumb": icon or kodi.ICON,
@@ -70,10 +180,11 @@ def menu_item(handle, url, label, icon=None, fanart=None, plot=None, context=Non
     }
     info = kodi.music_info(plain(title or label), plot or plain(label),
                            mediatype="music")
-    return add_item(handle, url, label, is_folder=True, art=art, info=info, context=context)
+    return add_item(handle, url, label, is_folder=True, art=art, info=info,
+                    context=context, label2=label2, plot=plot)
 
 
-def info_item(handle, label, plot=None, icon=None):
+def info_item(handle, label, plot=None, icon=None, label2=None):
     """A read-only information row (credits/sources) that cannot leave Kodi."""
     item = xbmcgui.ListItem(label=label)
     item.setArt({
@@ -83,6 +194,10 @@ def info_item(handle, label, plot=None, icon=None):
     })
     item.setInfo("music", kodi.music_info(plain(label), plot or plain(label),
                                          mediatype="music"))
+    if label2:
+        item.setLabel2(fact(label2))
+    if plot:
+        item.setInfo("video", kodi.video_info(plain(plot)))
     item.setProperty("IsPlayable", "false")
     xbmcplugin.addDirectoryItem(handle=handle, url="", listitem=item, isFolder=False)
     return item
@@ -102,20 +217,24 @@ def end_marker(handle, label="End of list", plot=None):
     })
     item.setInfo("music", kodi.music_info(plain(label), plot or plain(label),
                                          mediatype="music"))
+    if plot:
+        item.setInfo("video", kodi.video_info(plain(plot)))
     item.setProperty("IsPlayable", "false")
     xbmcplugin.addDirectoryItem(handle=handle, url="", listitem=item, isFolder=False)
     return item
 
 
 def track_item(handle, url, label, thumb=None, fanart=None, plot=None, artist=None, album=None,
-               duration=None, context=None, title=None):
+               duration=None, context=None, title=None, label2=None, year=None, genre=None,
+               tracknumber=None):
     art = {
         "icon": thumb or kodi.ICON,
         "thumb": thumb or kodi.ICON,
         "fanart": fanart or DEFAULT_FANART,
     }
     # Kodi 22 rejects the music "plot" key; kodi.music_info keeps "comment"
-    # (the music-dialog display field) and only adds plot on Kodi < 22.
+    # (the music-dialog display field) and only adds plot on Kodi < 22.  The
+    # visible plot is set on the video tag by add_item().
     info = kodi.music_info(plain(title or label), plot or "",
                            mediatype="music")
     if artist:
@@ -124,4 +243,23 @@ def track_item(handle, url, label, thumb=None, fanart=None, plot=None, artist=No
         info["album"] = plain(album)
     if duration:
         info["duration"] = duration
-    return add_item(handle, url, label, is_folder=False, art=art, info=info, playable=True, context=context)
+    if year:
+        try:
+            info["year"] = int(year)
+        except (TypeError, ValueError):
+            pass
+    if genre:
+        info["genre"] = plain(genre)
+    if tracknumber:
+        try:
+            info["tracknumber"] = int(tracknumber)
+        except (TypeError, ValueError):
+            pass
+    if label2 is None:
+        # Duration is the best fact for a track; a known year is the fallback
+        # when the source does not publish a length.
+        label2 = duration_fact(duration)
+        if not label2 and "year" in info:
+            label2 = fact(str(info["year"]))
+    return add_item(handle, url, label, is_folder=False, art=art, info=info,
+                    playable=True, context=context, label2=label2, plot=plot)

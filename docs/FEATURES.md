@@ -74,6 +74,13 @@ parsed details through to the resolved item. Existing base plots like
 "From archive.org item <id>" are kept and only prefixed, and unknown titles are
 left untouched.
 
+**3.9.44:** the parsed details no longer stop at a plot string. Archive track
+rows and the "Play all" playlist set the music InfoTags (`artist`, real
+`album`, `year`, `genre`, `tracknumber`) so the Estuary song panel and the OSD
+show them, and the plot itself is mirrored onto a minimal video InfoTag because
+Estuary resolves `ListItem.Plot` from the video tag on Kodi 22. See
+`docs/LOOK-AND-FEEL-3.9.44.md`.
+
 ### 10. Downloads
 **Deferred in 3.9.5 — needs a Kodi device and a product decision.** The
 investigation found no Python or context-menu download hook to use:

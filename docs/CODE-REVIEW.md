@@ -52,7 +52,12 @@ No third-party dependencies; stdlib only.
 - **archive.org URL construction.** Identifiers/filenames are validated and quoted, storage nodes are restricted to `archive.org`, and playback URLs pass the same public-host guard; check for any new metadata shape that bypasses it.
 - **Cache key safety.** `cache.py` hashes URL+headers into filenames; header values are JSON-encoded into the key (injective), entries age out and are capped; review migration/cleanup behaviour.
 - **Timeouts/retries.** Centralised in `http.py`; check that every source has a bounded timeout and that failures degrade to an empty list, not a crash.
-- **Kodi 22 warnings (known, accepted).** `setInfo("music", {"plot": …})` logs “Unknown Music Info Key” on Kodi 22; the value is kept for backwards compatibility but `comment` is the supported field. Removing it would break older consumers, so it is documented rather than changed.
+- **Kodi 22 plot handling (settled in 3.9.44).** `kodi.music_info()` keeps
+  `comment` and only adds the music `plot` key on Kodi < 22, so Kodi 22 no
+  longer logs “Unknown Music Info Key”. Because Estuary resolves
+  `ListItem.Plot` from the **video** InfoTag, directory items also carry a
+  minimal `setInfo("video", {"plot": …})`; the resolved playback item does not,
+  so media handling/OSD are unchanged.
 - **Mixcloud/YouTube need their official Kodi add-ons (known).** Kodi cannot embed Mixcloud's widget or play its HLS streams; this add-on hands off to `plugin.audio.mixcloud` / `plugin.video.youtube` and hides the row when an add-on is missing. No browser/OS intent is used. SoundCloud is not part of the Kodi build (web-version-only credit).
 - **Third-party page headers (known).** Hardscore's WordPress "Bad Behavior" filter 403s a bare urllib UA; the adapter sends a browser UA + RSS Accept header. Moxser is rate-limited to one request/second and caches for 6 h.
 - **DNS in the play route (known residual).** The public-host guard resolves the stream host synchronously (per-route memoised); a pathological resolver could delay one play attempt. The guard is required for the private-IP protection.

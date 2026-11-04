@@ -9,8 +9,8 @@ SUCCEEDED = []
 
 
 def addDirectoryItem(handle, url, listitem, isFolder=True):
-    ITEMS.append({"url": url, "label": listitem.label, "isFolder": isFolder,
-                  "art": listitem.art, "info": listitem.info,
+    ITEMS.append({"url": url, "label": listitem.label, "label2": listitem.label2,
+                  "isFolder": isFolder, "art": listitem.art, "info": listitem.info,
                   "properties": dict(listitem.properties),
                   "context": list(listitem.context)})
     return True

@@ -58,6 +58,19 @@ def plain_text(value):
     return str(value or "")
 
 
+def video_info(plot):
+    """Build the minimal video InfoTag that makes ``ListItem.Plot`` resolve.
+
+    Estuary's info and poster panels read ``ListItem.Plot``, and Kodi maps that
+    label to the **video** InfoTag (``VideoGUIInfo.cpp``) — the music
+    ``comment`` field (Kodi 22's portable display field) never reaches it.
+    Only ``plot`` is set: no title, no media type, so nothing can override the
+    music tag that still drives the song panel and the OSD.
+    """
+    text = str(plot or "").strip()
+    return {"plot": text} if text else {}
+
+
 def log(message, level=xbmc.LOGDEBUG):
     xbmc.log("[%s] %s" % (ADDON_ID, message), level)
 
