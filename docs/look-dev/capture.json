@@ -1,0 +1,1378 @@
+{
+  "root": [
+    {
+      "label": "Latest",
+      "label_plain": "Latest",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=latest",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/rave.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/rave.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-latest.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/rave.png"
+      },
+      "info": {
+        "title": "Latest",
+        "comment": "Newest packs, shows and radio rips \u2014 start here.",
+        "plot": "Newest packs, shows and radio rips \u2014 start here.",
+        "mediatype": "music"
+      },
+      "comment": "Newest packs, shows and radio rips \u2014 start here.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Surprise Me",
+      "label_plain": "Surprise Me",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=surprise",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/surprise.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/surprise.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-surprise.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/surprise.png"
+      },
+      "info": {
+        "title": "Surprise Me",
+        "comment": "Plays a random tape pack.",
+        "plot": "Plays a random tape pack.",
+        "mediatype": "music"
+      },
+      "comment": "Plays a random tape pack.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Tape Packs",
+      "label_plain": "Tape Packs",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=packs_menu",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-tapepacks.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png"
+      },
+      "info": {
+        "title": "Tape Packs",
+        "comment": "The ravetapes archive: by genre, by year, by series, by rave.",
+        "plot": "The ravetapes archive: by genre, by year, by series, by rave.",
+        "mediatype": "music"
+      },
+      "comment": "The ravetapes archive: by genre, by year, by series, by rave.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Mixes & Shows",
+      "label_plain": "Mixes & Shows",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=shows_menu",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/mixes.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/mixes.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-mixes.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/mixes.png"
+      },
+      "info": {
+        "title": "Mixes & Shows",
+        "comment": "Podcasts, DNB Radio, Moxser, Hardscore and GetDarker.",
+        "plot": "Podcasts, DNB Radio, Moxser, Hardscore and GetDarker.",
+        "mediatype": "music"
+      },
+      "comment": "Podcasts, DNB Radio, Moxser, Hardscore and GetDarker.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Live Radio",
+      "label_plain": "Live Radio",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=radio_menu",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/radio.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/radio.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-live.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/radio.png"
+      },
+      "info": {
+        "title": "Live Radio",
+        "comment": "Stations streaming now: Kool, Rinse and every genre tag.",
+        "plot": "Stations streaming now: Kool, Rinse and every genre tag.",
+        "mediatype": "music"
+      },
+      "comment": "Stations streaming now: Kool, Rinse and every genre tag.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Curated Gems",
+      "label_plain": "Curated Gems",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=curated_menu",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/curated.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/curated.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-curated.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/curated.png"
+      },
+      "info": {
+        "title": "Curated Gems",
+        "comment": "Pirate recordings, Rave Archive UK, the 2014 survivors.",
+        "plot": "Pirate recordings, Rave Archive UK, the 2014 survivors.",
+        "mediatype": "music"
+      },
+      "comment": "Pirate recordings, Rave Archive UK, the 2014 survivors.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Favourites",
+      "label_plain": "Favourites",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=fav_list",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/favourites.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/favourites.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-favourites.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/favourites.png"
+      },
+      "info": {
+        "title": "Favourites",
+        "comment": "The packs and shows you saved.",
+        "plot": "The packs and shows you saved.",
+        "mediatype": "music"
+      },
+      "comment": "The packs and shows you saved.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Search the Archive",
+      "label_plain": "Search the Archive",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=search",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/search.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/search.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-search.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/search.png"
+      },
+      "info": {
+        "title": "Search the Archive",
+        "comment": "Search every tape pack on archive.org.",
+        "plot": "Search every tape pack on archive.org.",
+        "mediatype": "music"
+      },
+      "comment": "Search every tape pack on archive.org.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "About & Sources",
+      "label_plain": "About & Sources",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=about",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/about.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/about.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-about.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/about.png"
+      },
+      "info": {
+        "title": "About & Sources",
+        "comment": "Version, credits and every source used.",
+        "plot": "Version, credits and every source used.",
+        "mediatype": "music"
+      },
+      "comment": "Version, credits and every source used.",
+      "context": [],
+      "content": "files"
+    }
+  ],
+  "hub": [
+    {
+      "label": "Rave Tape Packs",
+      "label_plain": "Rave Tape Packs",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=archive_list&key=rave&page=1",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/rave.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/rave.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-hub-packs.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/rave.png"
+      },
+      "info": {
+        "title": "Rave Tape Packs",
+        "comment": "The Rave Tapes \u2014 a curated 1990s cassette collection.",
+        "plot": "The Rave Tapes \u2014 a curated 1990s cassette collection.",
+        "mediatype": "music"
+      },
+      "comment": "The Rave Tapes \u2014 a curated 1990s cassette collection.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Jungle / Drum & Bass",
+      "label_plain": "Jungle / Drum & Bass",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=archive_list&key=jungle&page=1",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/jungle.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/jungle.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-hub-packs.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/jungle.png"
+      },
+      "info": {
+        "title": "Jungle / Drum & Bass",
+        "comment": "Jungle and drum & bass sets from the rave tapes collection.",
+        "plot": "Jungle and drum & bass sets from the rave tapes collection.",
+        "mediatype": "music"
+      },
+      "comment": "Jungle and drum & bass sets from the rave tapes collection.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Hardcore",
+      "label_plain": "Hardcore",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=archive_list&key=hardcore&page=1",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/hardcore.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/hardcore.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-hub-packs.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/hardcore.png"
+      },
+      "info": {
+        "title": "Hardcore",
+        "comment": "Hardcore and happy hardcore sets.",
+        "plot": "Hardcore and happy hardcore sets.",
+        "mediatype": "music"
+      },
+      "comment": "Hardcore and happy hardcore sets.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "House",
+      "label_plain": "House",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=archive_list&key=house&page=1",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/house.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/house.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-hub-packs.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/house.png"
+      },
+      "info": {
+        "title": "House",
+        "comment": "House sets from the archive.",
+        "plot": "House sets from the archive.",
+        "mediatype": "music"
+      },
+      "comment": "House sets from the archive.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "UK Garage",
+      "label_plain": "UK Garage",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=archive_list&key=garage&page=1",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/garage.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/garage.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-hub-packs.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/garage.png"
+      },
+      "info": {
+        "title": "UK Garage",
+        "comment": "UK garage, 90s to now.",
+        "plot": "UK garage, 90s to now.",
+        "mediatype": "music"
+      },
+      "comment": "UK garage, 90s to now.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Pirate Stations",
+      "label_plain": "Pirate Stations",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=archive_list&key=pirate&page=1",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/pirate.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/pirate.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-hub-packs.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/pirate.png"
+      },
+      "info": {
+        "title": "Pirate Stations",
+        "comment": "Kool FM, Centreforce and Don FM sets from the archive.",
+        "plot": "Kool FM, Centreforce and Don FM sets from the archive.",
+        "mediatype": "music"
+      },
+      "comment": "Kool FM, Centreforce and Don FM sets from the archive.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "All Tape Packs",
+      "label_plain": "All Tape Packs",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=archive_list&key=tapepacks&page=1",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-hub-packs.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png"
+      },
+      "info": {
+        "title": "All Tape Packs",
+        "comment": "Everything the Archive tags as a tape pack.",
+        "plot": "Everything the Archive tags as a tape pack.",
+        "mediatype": "music"
+      },
+      "comment": "Everything the Archive tags as a tape pack.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "By Year",
+      "label_plain": "By Year",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=years",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-hub-packs.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png"
+      },
+      "info": {
+        "title": "By Year",
+        "comment": "Browse the ravetapes collection one year at a time.",
+        "plot": "Browse the ravetapes collection one year at a time.",
+        "mediatype": "music"
+      },
+      "comment": "Browse the ravetapes collection one year at a time.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Classic Pack Series",
+      "label_plain": "Classic Pack Series",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=filters_menu",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-hub-packs.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png"
+      },
+      "info": {
+        "title": "Classic Pack Series",
+        "comment": "Dreamscape, Fantazia, Telepathy and the other classic pack series.",
+        "plot": "Dreamscape, Fantazia, Telepathy and the other classic pack series.",
+        "mediatype": "music"
+      },
+      "comment": "Dreamscape, Fantazia, Telepathy and the other classic pack series.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "By Rave & Venue",
+      "label_plain": "By Rave & Venue",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=rave_nights",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/rave.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/rave.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/fanart-hub-packs.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/rave.png"
+      },
+      "info": {
+        "title": "By Rave & Venue",
+        "comment": "Promotions, venues and pirate stations from the research catalogue.",
+        "plot": "Promotions, venues and pirate stations from the research catalogue.",
+        "mediatype": "music"
+      },
+      "comment": "Promotions, venues and pirate stations from the research catalogue.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Back",
+      "label_plain": "Back",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=root",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/icon.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/icon.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/icon.png"
+      },
+      "info": {
+        "title": "Back",
+        "comment": "Back",
+        "plot": "Back",
+        "mediatype": "music"
+      },
+      "comment": "Back",
+      "context": [],
+      "content": "files"
+    }
+  ],
+  "tracks": [
+    {
+      "label": "TAPE 1 (A) - VINYLGROOVER",
+      "label_plain": "TAPE 1 (A) - VINYLGROOVER",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+1+%28A%29+-+VINYLGROOVER&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 1 (A) - VINYLGROOVER",
+        "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2637
+      },
+      "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=0)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+1+%28A%29+-+VINYLGROOVER&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+1+%28A%29+-+VINYLGROOVER&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 1 (B) - SEDUCTION",
+      "label_plain": "TAPE 1 (B) - SEDUCTION",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+1+%28B%29+-+SEDUCTION&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=Seduction+%C2%B7+The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 1 (B) - SEDUCTION",
+        "comment": "Seduction \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "Seduction \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2663
+      },
+      "comment": "Seduction \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=1)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+1+%28B%29+-+SEDUCTION&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+1+%28B%29+-+SEDUCTION&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 2 (A) - VIBES",
+      "label_plain": "TAPE 2 (A) - VIBES",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+2+%28A%29+-+VIBES&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=Vibes+%C2%B7+The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 2 (A) - VIBES",
+        "comment": "Vibes \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "Vibes \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2683
+      },
+      "comment": "Vibes \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=2)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+2+%28A%29+-+VIBES&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+2+%28A%29+-+VIBES&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 2 (B) - CLARKEE",
+      "label_plain": "TAPE 2 (B) - CLARKEE",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+2+%28B%29+-+CLARKEE&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 2 (B) - CLARKEE",
+        "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2689
+      },
+      "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=3)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+2+%28B%29+-+CLARKEE&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+2+%28B%29+-+CLARKEE&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 3 (A) - HYPE",
+      "label_plain": "TAPE 3 (A) - HYPE",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+3+%28A%29+-+HYPE&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=Hype+%C2%B7+The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 3 (A) - HYPE",
+        "comment": "Hype \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "Hype \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2633
+      },
+      "comment": "Hype \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=4)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+3+%28A%29+-+HYPE&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+3+%28A%29+-+HYPE&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 3 (B) - DOUGAL",
+      "label_plain": "TAPE 3 (B) - DOUGAL",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+3+%28B%29+-+DOUGAL&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 3 (B) - DOUGAL",
+        "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2662
+      },
+      "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=5)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+3+%28B%29+-+DOUGAL&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+3+%28B%29+-+DOUGAL&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 4 (A) - SLIPMATT",
+      "label_plain": "TAPE 4 (A) - SLIPMATT",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+4+%28A%29+-+SLIPMATT&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=Slipmatt+%C2%B7+The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 4 (A) - SLIPMATT",
+        "comment": "Slipmatt \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "Slipmatt \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2683
+      },
+      "comment": "Slipmatt \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=6)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+4+%28A%29+-+SLIPMATT&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+4+%28A%29+-+SLIPMATT&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 4 (B) - SWAN'E",
+      "label_plain": "TAPE 4 (B) - SWAN'E",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+4+%28B%29+-+SWAN%27E&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 4 (B) - SWAN'E",
+        "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2647
+      },
+      "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=7)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+4+%28B%29+-+SWAN%27E&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+4+%28B%29+-+SWAN%27E&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 5 - SY",
+      "label_plain": "TAPE 5 - SY",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+5+-+SY&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 5 - SY",
+        "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 5080
+      },
+      "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=8)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+5+-+SY&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+5+-+SY&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 6 (A) - RAY KEITH",
+      "label_plain": "TAPE 6 (A) - RAY KEITH",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+6+%28A%29+-+RAY+KEITH&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=Ray+Keith+%C2%B7+The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 6 (A) - RAY KEITH",
+        "comment": "Ray Keith \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "Ray Keith \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2683
+      },
+      "comment": "Ray Keith \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=9)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+6+%28A%29+-+RAY+KEITH&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+6+%28A%29+-+RAY+KEITH&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 6 (B) - MASTERVIBE",
+      "label_plain": "TAPE 6 (B) - MASTERVIBE",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+6+%28B%29+-+MASTERVIBE&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 6 (B) - MASTERVIBE",
+        "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2683
+      },
+      "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=10)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+6+%28B%29+-+MASTERVIBE&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+6+%28B%29+-+MASTERVIBE&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 7 (A) - LTJ BUKEM",
+      "label_plain": "TAPE 7 (A) - LTJ BUKEM",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+7+%28A%29+-+LTJ+BUKEM&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=LTJ+Bukem+%C2%B7+The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 7 (A) - LTJ BUKEM",
+        "comment": "LTJ Bukem \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "LTJ Bukem \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2658
+      },
+      "comment": "LTJ Bukem \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=11)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+7+%28A%29+-+LTJ+BUKEM&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+7+%28A%29+-+LTJ+BUKEM&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 7 (B) - RAMOS",
+      "label_plain": "TAPE 7 (B) - RAMOS",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+7+%28B%29+-+RAMOS&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 7 (B) - RAMOS",
+        "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2667
+      },
+      "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=12)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+7+%28B%29+-+RAMOS&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+7+%28B%29+-+RAMOS&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 8 (A) - KENNY KEN",
+      "label_plain": "TAPE 8 (A) - KENNY KEN",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+8+%28A%29+-+KENNY+KEN&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=Kenny+Ken+%C2%B7+The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 8 (A) - KENNY KEN",
+        "comment": "Kenny Ken \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "Kenny Ken \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2685
+      },
+      "comment": "Kenny Ken \u00b7 The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=13)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+8+%28A%29+-+KENNY+KEN&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+8+%28A%29+-+KENNY+KEN&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    },
+    {
+      "label": "TAPE 8 (B) - TREVOR ROCKCLIFFE",
+      "label_plain": "TAPE 8 (B) - TREVOR ROCKCLIFFE",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=play&url=https%3A%2F%2Farchive.org%2Fx.mp3&label=TAPE+8+%28B%29+-+TREVOR+ROCKCLIFFE&thumb=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&fanart=%2FUsers%2Ftheyid%2FDocuments%2Fdeepseek-harness%2Fdefault-workspace%2Fraveplayer%2Fdocs%2Flook-dev%2Fassets%2Fcover-dreamscape12-front.jpg&plot=The+Sanctuary+%C2%B7+26+Aug+1994+%E2%80%94+From+archive.org+item+dreamscape-12-august-bank-holiday-showcase-1994",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/docs/look-dev/assets/cover-dreamscape12-front.jpg"
+      },
+      "info": {
+        "title": "TAPE 8 (B) - TREVOR ROCKCLIFFE",
+        "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "plot": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+        "mediatype": "music",
+        "album": "dreamscape 12 august bank holiday showcase 1994",
+        "duration": 2663
+      },
+      "comment": "The Sanctuary \u00b7 26 Aug 1994 \u2014 From archive.org item dreamscape-12-august-bank-holiday-showcase-1994",
+      "context": [
+        [
+          "Play all from here",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=play_all&id=dreamscape-12-august-bank-holiday-showcase-1994&start=14)"
+        ],
+        [
+          "Add to favourites",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=fav_add&kind=stream&target=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+8+%28B%29+-+TREVOR+ROCKCLIFFE&source=Archive.org)"
+        ],
+        [
+          "Download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_start&url=https%3A%2F%2Farchive.org%2Fx.mp3&title=TAPE+8+%28B%29+-+TREVOR+ROCKCLIFFE&source=Archive.org)"
+        ]
+      ],
+      "content": "songs"
+    }
+  ],
+  "downloads": [
+    {
+      "label": "Dreamscape 19 \u2014 Toil & Trouble  [COLOR gray](48.0 MB)[/COLOR]",
+      "label_plain": "Dreamscape 19 \u2014 Toil & Trouble  (48.0 MB)",
+      "url": "/var/folders/lf/99_b50gd5nl8k1lxgyqjz0440000gn/T/rave-look-downloads-ww6_9852/dreamscape-19-toil-and-trouble-1995-a1b2c3d4.mp3",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Dreamscape 19 \u2014 Toil & Trouble",
+        "comment": "Downloaded \u00b7 Archive.org \u00b7 2026-10-31",
+        "plot": "Downloaded \u00b7 Archive.org \u00b7 2026-10-31",
+        "mediatype": "music",
+        "album": "Downloads"
+      },
+      "comment": "Downloaded \u00b7 Archive.org \u00b7 2026-10-31",
+      "context": [
+        [
+          "Delete download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_delete&key=a1b2c3d4)"
+        ]
+      ],
+      "content": "files"
+    },
+    {
+      "label": "Kool FM 94.2 \u2014 1994  [COLOR gray](27.0 MB)[/COLOR]",
+      "label_plain": "Kool FM 94.2 \u2014 1994  (27.0 MB)",
+      "url": "/var/folders/lf/99_b50gd5nl8k1lxgyqjz0440000gn/T/rave-look-downloads-ww6_9852/kool-fm-94-2-1994-e5f6a7b8.mp3",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Kool FM 94.2 \u2014 1994",
+        "comment": "Downloaded \u00b7 Pirate Radio Archives \u00b7 2026-10-30",
+        "plot": "Downloaded \u00b7 Pirate Radio Archives \u00b7 2026-10-30",
+        "mediatype": "music",
+        "album": "Downloads"
+      },
+      "comment": "Downloaded \u00b7 Pirate Radio Archives \u00b7 2026-10-30",
+      "context": [
+        [
+          "Delete download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_delete&key=e5f6a7b8)"
+        ]
+      ],
+      "content": "files"
+    },
+    {
+      "label": "Missing pack \u2014 delete me  [COLOR gray](missing)[/COLOR]",
+      "label_plain": "Missing pack \u2014 delete me  (missing)",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=downloads_menu",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png"
+      },
+      "info": {
+        "title": "Missing pack \u2014 delete me  (missing)",
+        "comment": "The file is missing \u2014 delete the entry or download it again.",
+        "plot": "The file is missing \u2014 delete the entry or download it again.",
+        "mediatype": "music"
+      },
+      "comment": "The file is missing \u2014 delete the entry or download it again.",
+      "context": [
+        [
+          "Delete download",
+          "RunPlugin(docs/look-dev/tools/make-look-shots.py?mode=download_delete&key=missingc)"
+        ]
+      ],
+      "content": "files"
+    },
+    {
+      "label": "Back",
+      "label_plain": "Back",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=fav_list",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/icon.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/icon.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/icon.png"
+      },
+      "info": {
+        "title": "Back",
+        "comment": "Back",
+        "plot": "Back",
+        "mediatype": "music"
+      },
+      "comment": "Back",
+      "context": [],
+      "content": "files"
+    }
+  ],
+  "about": [
+    {
+      "label": "Rave Player 3.9.36 \u2014 GPL-3.0",
+      "label_plain": "Rave Player 3.9.36 \u2014 GPL-3.0",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/about.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/about.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Rave Player 3.9.36 \u2014 GPL-3.0",
+        "comment": "Version 3.9.36 \u00b7 GNU General Public License v3.0 \u00b7 github.com/tcz009/plugin.audio.raveplayer.",
+        "plot": "Version 3.9.36 \u00b7 GNU General Public License v3.0 \u00b7 github.com/tcz009/plugin.audio.raveplayer.",
+        "mediatype": "music"
+      },
+      "comment": "Version 3.9.36 \u00b7 GNU General Public License v3.0 \u00b7 github.com/tcz009/plugin.audio.raveplayer.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Source: Internet Archive (archive.org)",
+      "label_plain": "Source: Internet Archive (archive.org)",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/rave.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/rave.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Source: Internet Archive (archive.org)",
+        "comment": "Tape packs, rave tapes and audio collections.",
+        "plot": "Tape packs, rave tapes and audio collections.",
+        "mediatype": "music"
+      },
+      "comment": "Tape packs, rave tapes and audio collections.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Source: Mixcloud",
+      "label_plain": "Source: Mixcloud",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/radio.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/radio.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Source: Mixcloud",
+        "comment": "Rave Archive UK and GetDarker cloudcasts \u2014 via the Kodi Mixcloud add-on.",
+        "plot": "Rave Archive UK and GetDarker cloudcasts \u2014 via the Kodi Mixcloud add-on.",
+        "mediatype": "music"
+      },
+      "comment": "Rave Archive UK and GetDarker cloudcasts \u2014 via the Kodi Mixcloud add-on.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Source: SoundCloud",
+      "label_plain": "Source: SoundCloud",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/radio.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/radio.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Source: SoundCloud",
+        "comment": "Web version only \u2014 SoundCloud is not part of the Kodi build; there is no Kodi source row or hand-off.",
+        "plot": "Web version only \u2014 SoundCloud is not part of the Kodi build; there is no Kodi source row or hand-off.",
+        "mediatype": "music"
+      },
+      "comment": "Web version only \u2014 SoundCloud is not part of the Kodi build; there is no Kodi source row or hand-off.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Source: radio-browser.info",
+      "label_plain": "Source: radio-browser.info",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/radio.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/radio.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Source: radio-browser.info",
+        "comment": "Live radio station directory.",
+        "plot": "Live radio station directory.",
+        "mediatype": "music"
+      },
+      "comment": "Live radio station directory.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Source: Moxser.com",
+      "label_plain": "Source: Moxser.com",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/rave.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/rave.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Source: Moxser.com",
+        "comment": "Curated dance-music mix archive and direct MP3s.",
+        "plot": "Curated dance-music mix archive and direct MP3s.",
+        "mediatype": "music"
+      },
+      "comment": "Curated dance-music mix archive and direct MP3s.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Source: Hardscore.com",
+      "label_plain": "Source: Hardscore.com",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/hardcore.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/hardcore.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Source: Hardscore.com",
+        "comment": "Oldskool hardcore/jungle archive and direct MP3s.",
+        "plot": "Oldskool hardcore/jungle archive and direct MP3s.",
+        "mediatype": "music"
+      },
+      "comment": "Oldskool hardcore/jungle archive and direct MP3s.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Source: DNB Radio",
+      "label_plain": "Source: DNB Radio",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/hardcore.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/hardcore.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Source: DNB Radio",
+        "comment": "Jungle and drum & bass shows and direct MP3s from dnbradio.com.",
+        "plot": "Jungle and drum & bass shows and direct MP3s from dnbradio.com.",
+        "mediatype": "music"
+      },
+      "comment": "Jungle and drum & bass shows and direct MP3s from dnbradio.com.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Source: GetDarker.com",
+      "label_plain": "Source: GetDarker.com",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/jungle.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/jungle.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Source: GetDarker.com",
+        "comment": "Dubstep/garage/underground sets (Kodi Mixcloud add-on).",
+        "plot": "Dubstep/garage/underground sets (Kodi Mixcloud add-on).",
+        "mediatype": "music"
+      },
+      "comment": "Dubstep/garage/underground sets (Kodi Mixcloud add-on).",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Source: Podcast & mix RSS feeds",
+      "label_plain": "Source: Podcast & mix RSS feeds",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/radio.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/radio.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Source: Podcast & mix RSS feeds",
+        "comment": "Jungle Lab, Viper, Toro and the other podcast feeds.",
+        "plot": "Jungle Lab, Viper, Toro and the other podcast feeds.",
+        "mediatype": "music"
+      },
+      "comment": "Jungle Lab, Viper, Toro and the other podcast feeds.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Source: Pirate Radio Archives",
+      "label_plain": "Source: Pirate Radio Archives",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/pirate-archive.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/pirate-archive.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Source: Pirate Radio Archives",
+        "comment": "Curated Risk FM, Weekend Rush and Flava FM recordings; credits are shown on each recording.",
+        "plot": "Curated Risk FM, Weekend Rush and Flava FM recordings; credits are shown on each recording.",
+        "mediatype": "music"
+      },
+      "comment": "Curated Risk FM, Weekend Rush and Flava FM recordings; credits are shown on each recording.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Live radio: Kool FM & Rinse FM",
+      "label_plain": "Live radio: Kool FM & Rinse FM",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/radio.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/radio.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Live radio: Kool FM & Rinse FM",
+        "comment": "Kool London and Rinse FM live streams (via admin.stream.rinse.fm).",
+        "plot": "Kool London and Rinse FM live streams (via admin.stream.rinse.fm).",
+        "mediatype": "music"
+      },
+      "comment": "Kool London and Rinse FM live streams (via admin.stream.rinse.fm).",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Source: RaveTapePacks.com",
+      "label_plain": "Source: RaveTapePacks.com",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/tapepacks.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Source: RaveTapePacks.com",
+        "comment": "Full tape packs; playback URLs carry the required Referer header.",
+        "plot": "Full tape packs; playback URLs carry the required Referer header.",
+        "mediatype": "music"
+      },
+      "comment": "Full tape packs; playback URLs carry the required Referer header.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Source: JungleTapes.com",
+      "label_plain": "Source: JungleTapes.com",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/jungle.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/jungle.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Source: JungleTapes.com",
+        "comment": "Toronto jungle/drum & bass radio shows from the site sitemap.",
+        "plot": "Toronto jungle/drum & bass radio shows from the site sitemap.",
+        "mediatype": "music"
+      },
+      "comment": "Toronto jungle/drum & bass radio shows from the site sitemap.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Source: Toronto Rave Mixtape Archive",
+      "label_plain": "Source: Toronto Rave Mixtape Archive",
+      "url": "",
+      "isFolder": false,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/toronto.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/resources/art/toronto.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg"
+      },
+      "info": {
+        "title": "Source: Toronto Rave Mixtape Archive",
+        "comment": "1990s Toronto rave mixtapes by genre (jungle, house, studio, X-Static) \u2014 direct MP3s.",
+        "plot": "1990s Toronto rave mixtapes by genre (jungle, house, studio, X-Static) \u2014 direct MP3s.",
+        "mediatype": "music"
+      },
+      "comment": "1990s Toronto rave mixtapes by genre (jungle, house, studio, X-Static) \u2014 direct MP3s.",
+      "context": [],
+      "content": "files"
+    },
+    {
+      "label": "Back",
+      "label_plain": "Back",
+      "url": "docs/look-dev/tools/make-look-shots.py?mode=root",
+      "isFolder": true,
+      "art": {
+        "icon": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/icon.png",
+        "thumb": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/icon.png",
+        "fanart": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/fanart.jpg",
+        "poster": "/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer/icon.png"
+      },
+      "info": {
+        "title": "Back",
+        "comment": "Back",
+        "plot": "Back",
+        "mediatype": "music"
+      },
+      "comment": "Back",
+      "context": [],
+      "content": "files"
+    }
+  ],
+  "empty": []
+}
