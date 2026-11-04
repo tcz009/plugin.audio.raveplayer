@@ -73,6 +73,23 @@ class HardscoreTests(unittest.TestCase):
         self.assertIn("https://www.mixcloud.com/Hardscore/force-of-one/",
                       details["links"])
 
+    def test_media_url_with_literal_entity_is_decoded_once(self):
+        # The filename on the server is literally "A_&amp;_B.mp3", so the RSS
+        # carries "&amp;amp;". The URL must keep the literal "&amp;".
+        rows = hardscore.parse_feed(RSS.replace(
+            "1993-06.mp3", "A_&amp;amp;_B.mp3"))
+        self.assertEqual(rows[0]["media_urls"],
+                         ["https://hardscore.com/mixes/Radio/WeekendRush/A_&amp;_B.mp3"])
+
+    def test_media_urls_drop_non_http_and_dedupe(self):
+        rows = hardscore.parse_feed(RSS.replace(
+            "1993-06.mp3", "A.mp3"))
+        self.assertEqual(len(rows[0]["media_urls"]), 1)
+        self.assertEqual(hardscore._media_urls(
+            "file:///tmp/x.mp3 javascript:x https://hardscore.com/a.mp3 "
+            "https://hardscore.com/a.mp3 https://hardscore.com/b.mp3"),
+            ["https://hardscore.com/a.mp3", "https://hardscore.com/b.mp3"])
+
     def test_page_rejects_non_hardscore_hosts(self):
         with mock.patch.object(hardscore.http, "fetch") as download:
             self.assertEqual(hardscore.page("https://evil.example/x"), {})

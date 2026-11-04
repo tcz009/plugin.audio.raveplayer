@@ -127,6 +127,21 @@ class RouteHelperTests(unittest.TestCase):
             routes.legacy_jt_show(1, {})
         self.assertFalse(tracks.called)
 
+    def test_legacy_pack_emits_the_referer_suffix_to_kodi(self):
+        tracks = [{"name": "Tape 1",
+                   "url": "https://www.ravetapepacks.com/music/Pack/Tape_1.mp3"}]
+        del xbmcplugin.ITEMS[:]
+        with mock.patch.object(routes.legacy, "packs", return_value=[
+                {"key": "Pack", "name": "Pack", "tracks": tracks}]), \
+                mock.patch.object(routes.kodi, "end_directory"):
+            routes.legacy_pack(1, {"pack": "Pack"})
+        item = next(entry for entry in xbmcplugin.ITEMS
+                    if entry["label"] == "Tape 1")
+        params = routes.params_from_argv(
+            ["plugin://plugin.audio.raveplayer/", "1", item["url"].split("?", 1)[1]])
+        self.assertEqual(params["mode"], "play")
+        self.assertTrue(params["url"].endswith(routes.legacy.REFERER_SUFFIX))
+
     def test_archive_item_without_id_notifies(self):
         with mock.patch.object(routes.archive, "audio_files") as audio, \
                 mock.patch.object(routes.kodi, "notify") as notify, \

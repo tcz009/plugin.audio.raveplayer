@@ -91,11 +91,19 @@ def _date(value):
     return ""
 
 
-def _media_urls(text):
-    """Extract public direct-media URLs from arbitrary post HTML."""
+def _media_urls(text, decode=True):
+    """Extract public direct-media URLs from arbitrary post HTML.
+
+    Decode exactly once: a title may need the bounded loop in :func:`_decode`,
+    but a URL filename that literally contains ``&amp;`` arrives as
+    ``&amp;amp;`` in HTML and decoding twice would point at a different file.
+    ``decode=False`` is for an RSS ``<enclosure url>``: XML parsing has already
+    decoded the attribute, so unescaping it again would corrupt a literal
+    ``&amp;`` filename.
+    """
     urls = []
     for candidate in _MEDIA_RE.findall(str(text or "")):
-        candidate = _decode(candidate).strip()
+        candidate = html.unescape(candidate).strip() if decode else str(candidate).strip()
         safe = http.safe_stream_url(candidate)
         if safe and safe not in urls:
             urls.append(safe)
@@ -124,10 +132,11 @@ def parse_feed(xml_text, limit=60):
         description = item.findtext("description") or ""
         content = item.findtext(CONTENT + "encoded") or ""
         enclosure = item.find("enclosure")
-        media_text = description + "\n" + content
+        media = _media_urls(description + "\n" + content)
         if enclosure is not None:
-            media_text += "\n" + (enclosure.get("url") or "")
-        media = _media_urls(media_text)
+            for url in _media_urls(enclosure.get("url") or "", decode=False):
+                if url not in media:
+                    media.append(url)
         if not page_url:
             page_url = (item.findtext("guid") or "").strip()
         if not page_url and not media:

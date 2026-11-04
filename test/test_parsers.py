@@ -186,6 +186,52 @@ class LegacyTests(unittest.TestCase):
         self.assertEqual(len(packs[0]["tracks"]), 2)
         self.assertIn("Tape%201%20%28Side%20A%29", packs[0]["tracks"][0]["url"])
 
+    def test_packs_normalises_relative_http_entity_and_json_shapes(self):
+        page = os.path.join(HERE, "fixtures", "ravetapepacks-broken.html")
+        with open(page, encoding="utf-8") as handle:
+            body = handle.read()
+        with mock.patch.object(legacy.http, "fetch", return_value=body):
+            packs = legacy.packs()
+        urls = set(track["url"] for pack in packs for track in pack["tracks"])
+        self.assertIn(
+            "https://www.ravetapepacks.com/music/Pack%20One/"
+            "Tape%201%20%28Side%20A%29%20-%20Swan-E.mp3", urls)
+        self.assertIn(
+            "https://www.ravetapepacks.com/music/PackTwo/"
+            "DJ_SS_%26_Twisted_Individual.mp3", urls)
+        # &amp;amp; is a literal "&amp;" in the filename: decode once, not twice.
+        self.assertIn(
+            "https://www.ravetapepacks.com/music/PackThree/"
+            "Literal_%26amp%3B_Name.mp3", urls)
+        self.assertIn(
+            "https://www.ravetapepacks.com/music/PackFour/Protocol.mp3", urls)
+        self.assertIn(
+            "https://www.ravetapepacks.com/music/PackFive/Relative.mp3", urls)
+        self.assertIn(
+            "https://www.ravetapepacks.com/music/PackSix/"
+            "JS_Escaped_%26_Raw.mp3", urls)
+        self.assertEqual(len(urls), 6)
+        self.assertTrue(all(url.startswith("https://www.ravetapepacks.com/")
+                            for url in urls))
+
+    def test_packs_rejects_foreign_hosts_bad_schemes_and_traversal(self):
+        page = os.path.join(HERE, "fixtures", "ravetapepacks-broken.html")
+        with open(page, encoding="utf-8") as handle:
+            body = handle.read()
+        with mock.patch.object(legacy.http, "fetch", return_value=body):
+            packs = legacy.packs()
+        urls = [track["url"] for pack in packs for track in pack["tracks"]]
+        self.assertFalse(any("evil.example" in url for url in urls))
+        self.assertFalse(any(url.startswith("file:") for url in urls))
+        self.assertFalse(any("passwd" in url for url in urls))
+        self.assertFalse(any("/other/" in url for url in urls))
+
+    def test_playable_referer_matches_the_url_origin(self):
+        local = legacy.playable("http://127.0.0.1:8765/music/Pack/Tape.mp3")
+        self.assertIn("|Referer=http://127.0.0.1:8765/&User-Agent=Mozilla/5.0", local)
+        site = legacy.playable("https://www.ravetapepacks.com/music/Pack/Tape.mp3")
+        self.assertTrue(site.endswith(legacy.REFERER_SUFFIX))
+
     def test_jungle_shows_uses_sitemap_and_dedupes(self):
         sitemap = (
             "<urlset><url><loc>https://jungletapes.com/show/alpha</loc></url>"

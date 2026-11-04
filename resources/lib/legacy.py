@@ -15,13 +15,30 @@ import urllib.parse
 from . import http
 
 BASE = "https://www.ravetapepacks.com/"
-REFERER_SUFFIX = "|Referer=https://www.ravetapepacks.com/&User-Agent=Mozilla/5.0"
+BROWSER_UA = "Mozilla/5.0"
+REFERER_SUFFIX = "|Referer=https://www.ravetapepacks.com/&User-Agent=" + BROWSER_UA
+# The site 403s Python's default urllib UA; a browser UA also keeps the page
+# fetch (and the category pages) out of its bot filter.
+PAGE_HEADERS = {"User-Agent": BROWSER_UA,
+                "Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 
 PACKS_TTL = 6 * 60 * 60
 SITEMAP_TTL = 24 * 60 * 60
 SHOW_TTL = 6 * 60 * 60
 TORONTO_TTL = 6 * 60 * 60
 
+# The site mixes three shapes: <audio src> with absolute or relative URLs,
+# ordinary <a href> links on category pages, and a JSON playlist whose slashes
+# are escaped (``https:\/\/...``).  Match all three; the resolver below is the
+# only thing that turns them into a URL, so an entity is decoded exactly once.
+MP3_ATTR_RE = re.compile(
+    r'<(?:audio|source)\b[^>]*\bsrc\s*=\s*["\']([^"\']+)["\']', re.IGNORECASE)
+MP3_HREF_RE = re.compile(
+    r'<a\b[^>]*\bhref\s*=\s*["\']([^"\']+\.mp3(?:\?[^"\']*)?)["\']', re.IGNORECASE)
+MP3_JS_RE = re.compile(
+    r'https?:\\?/\\?/[^"\'<>\s]+?\.mp3(?:\?[^"\'<> ]*)?', re.IGNORECASE)
+
+# Kept for callers/tests that want the old capture groups.
 MUSIC_RE = re.compile(
     r"(?:https?://(?:www\.)?ravetapepacks\.com)?/music/([^/\"'<>]+)/([^\"'<>]+?\.mp3)",
     re.IGNORECASE,
@@ -62,23 +79,100 @@ def _pack_name(raw):
     return _space_words(raw) or str(raw)
 
 
+def _decode_url(value):
+    """Decode HTML entities (and JSON ``\\/`` escapes) **once**.
+
+    Scraped attributes are HTML source.  ``&amp;`` means ``&`` in the real
+    filename, while a filename that really contains ``&amp;`` is written
+    ``&amp;amp;`` in the page.  Decoding here and never again is what keeps
+    those two cases apart; the old ``packs()`` + ``_url_path()`` pair unescaped
+    twice and turned a literal ``&amp;`` filename into ``&`` (404).
+    """
+    text = html.unescape(str(value or "")).strip()
+    return text.replace("\\/", "/")
+
+
+def _allowed_host(host, base):
+    host = (host or "").lower().rstrip(".")
+    if host == "ravetapepacks.com" or host.endswith(".ravetapepacks.com"):
+        return True
+    try:
+        base_host = (urllib.parse.urlsplit(base).hostname or "").lower().rstrip(".")
+    except ValueError:
+        base_host = ""
+    return bool(host and base_host and host == base_host)
+
+
+def _music_url(raw, base=None):
+    """Resolve one scraped MP3 reference to ``(pack, filename, url)``.
+
+    Handles absolute, protocol-relative and page-relative URLs, an ``http://``
+    link on an ``https`` page, spaces/unicode and HTML entities.  The path is
+    unquoted once, checked for traversal, then quoted once; the host must be
+    RaveTapePacks (or the page's own host when tests point ``BASE`` at a local
+    server).  Returns ``None`` for anything that is not a two-segment
+    ``/music/<pack>/<file>.mp3`` path.
+    """
+    base = BASE if base is None else base
+    text = _decode_url(raw)
+    if not text:
+        return None
+    if text.startswith("//"):
+        text = "https:" + text
+    try:
+        joined = urllib.parse.urljoin(base, text)
+        split = urllib.parse.urlsplit(joined)
+    except ValueError:
+        return None
+    if split.scheme.lower() not in ("http", "https") or not split.hostname:
+        return None
+    host = split.hostname.lower().rstrip(".")
+    if split.username is not None or split.password is not None:
+        return None
+    if not _allowed_host(host, base):
+        return None
+    # The page is served over TLS and many of its own links still say
+    # http://; use TLS for this host so a browser never sees mixed content and
+    # Kodi never has to follow a per-stream redirect.
+    scheme = "https" if host.endswith("ravetapepacks.com") else split.scheme.lower()
+    netloc = split.netloc.lower()
+    if host == "ravetapepacks.com":
+        netloc = "www.ravetapepacks.com"
+    path = urllib.parse.unquote(split.path)
+    segments = path.split("/")
+    if len(segments) != 4 or segments[1].lower() != "music":
+        return None
+    pack, filename = segments[2], segments[3]
+    if any(part in ("", ".", "..") for part in segments[1:]):
+        return None
+    if not filename.lower().endswith(".mp3"):
+        return None
+    quoted = urllib.parse.quote(path, safe="/")
+    url = urllib.parse.urlunsplit((scheme, netloc, quoted, split.query, ""))
+    return pack, filename, url
+
+
+def _music_refs(page):
+    """Yield ``(pack, filename, url)`` for every MP3 reference, de-duplicated."""
+    seen = set()
+    for regex in (MP3_ATTR_RE, MP3_HREF_RE, MP3_JS_RE):
+        for raw in regex.findall(page or ""):
+            item = _music_url(raw)
+            if not item:
+                continue
+            if item[2] in seen:
+                continue
+            seen.add(item[2])
+            yield item
+
+
 def packs():
     """Return [{'key': folder, 'name': label, 'tracks': [...]}, ...] sorted by name."""
-    page = http.fetch(BASE, timeout=25, ttl=PACKS_TTL)
+    page = http.fetch(BASE, timeout=25, ttl=PACKS_TTL, headers=PAGE_HEADERS)
     if not page:
         return []
     grouped = {}
-    seen = set()
-    for pack, filename in MUSIC_RE.findall(page):
-        pack = html.unescape(pack)
-        filename = html.unescape(filename)
-        pack_path, file_path = _url_path(pack), _url_path(filename)
-        if not pack_path or not file_path:
-            continue
-        url = BASE + "music/" + pack_path + "/" + file_path
-        if url in seen:
-            continue
-        seen.add(url)
+    for pack, filename, url in _music_refs(page):
         entry = grouped.setdefault(pack, {"key": pack, "name": _pack_name(pack), "tracks": []})
         entry["tracks"].append({"name": _pretty(filename.rsplit(".", 1)[0]), "url": url})
     result = []
@@ -90,19 +184,35 @@ def packs():
 
 
 def playable(url):
-    """Kodi header syntax: appends Referer so the hotlink check passes."""
+    """Kodi header syntax: append the Referer/UA the hotlink check requires.
+
+    The origin is derived from the URL so a mirror host, a saved favourite or
+    the local fixture server gets a Referer that matches its own request.  A
+    URL that already carries a header suffix is returned untouched.
+    """
     text = str(url)
     if "|" in text:
         # Already has a header suffix (e.g. a saved favourite); never double it.
         return text
-    return text + REFERER_SUFFIX
+    origin = "https://www.ravetapepacks.com/"
+    try:
+        split = urllib.parse.urlsplit(text)
+        host = (split.hostname or "").lower()
+    except ValueError:
+        host = ""
+        split = None
+    if host and not (host == "ravetapepacks.com" or host.endswith(".ravetapepacks.com")):
+        netloc = split.netloc or host
+        origin = "%s://%s/" % ((split.scheme or "https") if split else "https", netloc)
+    return text + "|Referer=" + origin + "&User-Agent=" + BROWSER_UA
 
 
 # --------------------------------------------------------------------------- jungletapes.com
 
 JT_BASE = "https://jungletapes.com"
 JT_SHOW_RE = re.compile(r'href="/show/([^"]+)"[^>]*>.*?</a>', re.IGNORECASE | re.DOTALL)
-JT_MP3_RE = re.compile(r'href="([^"]+\.mp3)"', re.IGNORECASE)
+JT_MP3_RE = re.compile(
+    r'href="([^"]+\.mp3(?:\?[^"]*)?)"', re.IGNORECASE)
 
 
 def jungle_shows():
@@ -150,7 +260,10 @@ def jungle_tracks(slug):
         return []
     tracks, seen = [], set()
     for url in JT_MP3_RE.findall(page):
-        url = html.unescape(url)
+        # Decode exactly once: the href may contain ``&amp;`` (a real ``&`` in
+        # the filename) or a JSON ``\/`` escape, and re-decoding later would
+        # corrupt a filename that legitimately contains an entity.
+        url = _decode_url(url)
         if url.startswith("//"):
             url = "https:" + url
         url = urllib.parse.urljoin(JT_BASE + "/", url)

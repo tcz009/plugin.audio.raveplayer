@@ -567,9 +567,9 @@ def open_media(url, timeout=DEFAULT_TIMEOUT):
     effective = _effective_timeout(timeout)
     if effective <= 0:
         raise ValueError("network budget exhausted")
-    import urllib.request
+    import urllib.request as urllib_request
 
-    request = urllib.request.Request(base, headers=headers)
+    request = urllib_request.Request(base, headers=headers)
     response = _OPENER.open(request, timeout=effective)
     try:
         yield response
@@ -589,25 +589,35 @@ def probe_media(url, timeout=DEFAULT_TIMEOUT):
     import http.client
     import socket
     import urllib.error
-    import urllib.request
+    import urllib.request as urllib_request
 
-    base = text.split("|", 1)[0]
+    base, separator, suffix = text.partition("|")
+    headers = {"User-Agent": USER_AGENT}
+    if separator:
+        # A RaveTapePacks-style suffix carries the Referer/UA the hotlink
+        # guard needs; a bare HEAD was a guaranteed 403 for those sources.
+        for pair in suffix.split("&"):
+            key, _sep, value = pair.partition("=")
+            key = key.strip()
+            if key:
+                headers[key] = urllib.parse.unquote(value)
     effective = _effective_timeout(timeout)
     if effective <= 0:
         return {}
     try:
-        request = urllib.request.Request(base, method="HEAD",
-                                         headers={"User-Agent": USER_AGENT})
+        request = urllib_request.Request(base, method="HEAD", headers=headers)
         with _OPENER.open(request, timeout=effective) as response:
             final = response.geturl()
             if not is_public_http_url(final):
                 return {}
-            headers = response.headers
+            response_headers = response.headers
             try:
-                size = int((headers.get("Content-Length") if headers else 0) or 0)
+                size = int((response_headers.get("Content-Length")
+                            if response_headers else 0) or 0)
             except (TypeError, ValueError):
                 size = 0
-            content_type = str((headers.get("Content-Type") if headers else "") or "")
+            content_type = str((response_headers.get("Content-Type")
+                                if response_headers else "") or "")
             return {
                 "size": max(0, size),
                 "content_type": content_type.split(";", 1)[0].strip().lower(),
