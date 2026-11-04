@@ -1,0 +1,259 @@
+{
+  "cache_dir": "<temporary>",
+  "ids": {
+    "archive_id": "World_Dance_-_April_2nd__1994",
+    "jt_show": "rinse-out_ckln_881-fm_2000-02-26-000000",
+    "moxser_page_url": "https://moxser.com/mixes/loraine-james-resident-advisor-1062-26-october-2026",
+    "rtp_cat_id": null,
+    "rtp_cat_kind": "events",
+    "rtp_cat_pack_key": null,
+    "rtp_pack_key": "AmazonVol1DigitallyRemastered",
+    "rtp_pack_name": "Amazon Vol 1 Digitally Remastered",
+    "toronto_genre": "jungle"
+  },
+  "latency_ms": 350.0,
+  "platform": "kodi",
+  "replay": "auto",
+  "results": [
+    {
+      "cold": {
+        "bytes": 0,
+        "cache_ms": {
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0
+        },
+        "errors": [],
+        "fetch_calls": 1,
+        "items": 18,
+        "parse_ms": {
+          "mean": 32.54,
+          "p50": 31.71,
+          "p95": 34.26
+        },
+        "samples": 3,
+        "status": 200,
+        "total_ms": {
+          "mean": 393.42,
+          "p50": 395.0,
+          "p95": 395.29
+        },
+        "upstream_ms": {
+          "mean": 360.89,
+          "p50": 363.61,
+          "p95": 363.64
+        }
+      },
+      "mode": "replay/live",
+      "name": "rtp_index",
+      "warm": {
+        "bytes": 0,
+        "cache_ms": {
+          "mean": 0.8,
+          "p50": 0.84,
+          "p95": 0.86
+        },
+        "errors": [],
+        "fetch_calls": 1,
+        "items": 18,
+        "parse_ms": {
+          "mean": 2.14,
+          "p50": 2.08,
+          "p95": 2.42
+        },
+        "samples": 5,
+        "status": 200,
+        "total_ms": {
+          "mean": 2.95,
+          "p50": 2.91,
+          "p95": 3.29
+        },
+        "upstream_ms": {
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0
+        }
+      }
+    },
+    {
+      "cold": {
+        "bytes": 0,
+        "cache_ms": {
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0
+        },
+        "errors": [],
+        "fetch_calls": 1,
+        "items": 17,
+        "parse_ms": {
+          "mean": 31.87,
+          "p50": 32.12,
+          "p95": 32.24
+        },
+        "samples": 3,
+        "status": 200,
+        "total_ms": {
+          "mean": 394.7,
+          "p50": 394.67,
+          "p95": 396.2
+        },
+        "upstream_ms": {
+          "mean": 362.83,
+          "p50": 363.44,
+          "p95": 364.17
+        }
+      },
+      "mode": "replay/live",
+      "name": "rtp_all",
+      "warm": {
+        "bytes": 0,
+        "cache_ms": {
+          "mean": 0.8,
+          "p50": 0.84,
+          "p95": 0.86
+        },
+        "errors": [],
+        "fetch_calls": 1,
+        "items": 17,
+        "parse_ms": {
+          "mean": 2.12,
+          "p50": 2.08,
+          "p95": 2.4
+        },
+        "samples": 5,
+        "status": 200,
+        "total_ms": {
+          "mean": 2.92,
+          "p50": 2.92,
+          "p95": 3.26
+        },
+        "upstream_ms": {
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0
+        }
+      }
+    },
+    {
+      "cold": {
+        "bytes": 0,
+        "cache_ms": {
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0
+        },
+        "errors": [],
+        "fetch_calls": 1,
+        "items": 1,
+        "parse_ms": {
+          "mean": 36.77,
+          "p50": 33.11,
+          "p95": 43.44
+        },
+        "samples": 3,
+        "status": 200,
+        "total_ms": {
+          "mean": 397.79,
+          "p50": 396.42,
+          "p95": 406.73
+        },
+        "upstream_ms": {
+          "mean": 361.01,
+          "p50": 363.29,
+          "p95": 363.76
+        }
+      },
+      "mode": "replay/live",
+      "name": "rtp_pack",
+      "warm": {
+        "bytes": 0,
+        "cache_ms": {
+          "mean": 0.85,
+          "p50": 0.85,
+          "p95": 0.86
+        },
+        "errors": [],
+        "fetch_calls": 1,
+        "items": 1,
+        "parse_ms": {
+          "mean": 3.07,
+          "p50": 3.1,
+          "p95": 3.18
+        },
+        "samples": 5,
+        "status": 200,
+        "total_ms": {
+          "mean": 3.92,
+          "p50": 3.97,
+          "p95": 4.02
+        },
+        "upstream_ms": {
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0
+        }
+      }
+    },
+    {
+      "cold": {
+        "bytes": 157,
+        "cache_ms": {
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0
+        },
+        "errors": [],
+        "fetch_calls": 1,
+        "items": 1,
+        "parse_ms": {
+          "mean": 30.93,
+          "p50": 31.22,
+          "p95": 31.33
+        },
+        "samples": 3,
+        "status": 200,
+        "total_ms": {
+          "mean": 394.4,
+          "p50": 394.61,
+          "p95": 394.82
+        },
+        "upstream_ms": {
+          "mean": 363.47,
+          "p50": 363.5,
+          "p95": 363.53
+        }
+      },
+      "mode": "replay/live",
+      "name": "rtp_first_track",
+      "warm": {
+        "bytes": 157,
+        "cache_ms": {
+          "mean": 0.81,
+          "p50": 0.83,
+          "p95": 0.85
+        },
+        "errors": [],
+        "fetch_calls": 1,
+        "items": 1,
+        "parse_ms": {
+          "mean": 1.43,
+          "p50": 1.46,
+          "p95": 1.56
+        },
+        "samples": 5,
+        "status": 200,
+        "total_ms": {
+          "mean": 2.25,
+          "p50": 2.29,
+          "p95": 2.41
+        },
+        "upstream_ms": {
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0
+        }
+      }
+    }
+  ]
+}
