@@ -165,7 +165,7 @@ class LegacyTests(unittest.TestCase):
         with mock.patch.object(legacy.http, "fetch", return_value=page):
             tracks = legacy.jungle_tracks("show")
         self.assertEqual(len(tracks), 1)
-        self.assertTrue(tracks[0]["url"].startswith("https://www.jungletapes.com/"))
+        self.assertTrue(tracks[0]["url"].startswith("https://jungletapes.com/"))
 
     def test_jungle_label_cleans_slug(self):
         label = legacy._jt_label("tapes/20030211-rough-tough-side-b__mix")

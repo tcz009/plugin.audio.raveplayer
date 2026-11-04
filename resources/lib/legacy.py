@@ -267,11 +267,17 @@ def jungle_tracks(slug):
         if url.startswith("//"):
             url = "https:" + url
         url = urllib.parse.urljoin(JT_BASE + "/", url)
-        # The site emits absolute http:// links for its own host; use TLS and
-        # avoid a redirect for every stream on the Shield.
+        # The site emits absolute http:// links for its own host and
+        # www.jungletapes.com 302s to the apex for every file.  Canonicalise
+        # both here so the Shield does not follow a redirect per stream.
         split = urllib.parse.urlsplit(url)
-        if split.scheme == "http" and split.hostname and split.hostname.endswith("jungletapes.com"):
-            url = urllib.parse.urlunsplit(("https",) + tuple(split[1:]))
+        host = (split.hostname or "").lower()
+        if host.endswith("jungletapes.com"):
+            canonical = "jungletapes.com" if host == "www.jungletapes.com" else host
+            if split.scheme.lower() != "https" or host == "www.jungletapes.com":
+                url = urllib.parse.urlunsplit(
+                    ("https", canonical, split.path, split.query, ""))
+                split = urllib.parse.urlsplit(url)
         # Never pass a scraped file:/javascript:/data: URL to Kodi.
         if split.scheme.lower() not in ("http", "https") or not split.netloc:
             continue

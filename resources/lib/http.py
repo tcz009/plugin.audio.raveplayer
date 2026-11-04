@@ -564,13 +564,30 @@ def open_media(url, timeout=DEFAULT_TIMEOUT):
             key, _sep, value = pair.partition("=")
             if key:
                 headers[key] = urllib.parse.unquote(value)
-    effective = _effective_timeout(timeout)
-    if effective <= 0:
-        raise ValueError("network budget exhausted")
+    import urllib.error as urllib_error
     import urllib.request as urllib_request
 
-    request = urllib_request.Request(base, headers=headers)
-    response = _OPENER.open(request, timeout=effective)
+    current = base
+    response = None
+    for hop in range(MAX_REDIRECTS + 1):
+        effective = _effective_timeout(timeout)
+        if effective <= 0:
+            raise ValueError("network budget exhausted")
+        request = urllib_request.Request(current, headers=headers)
+        try:
+            response = _OPENER.open(request, timeout=effective)
+            break
+        except urllib_error.HTTPError as exc:
+            location = exc.headers.get("Location") if exc.headers else None
+            if exc.code not in _REDIRECT_CODES or not location \
+                    or hop >= MAX_REDIRECTS:
+                raise
+            target = urllib.parse.urljoin(current, location)
+            if not is_public_http_url(target):
+                raise ValueError("redirect is not a public http(s) URL")
+            current = target
+    if response is None:  # pragma: no cover - loop always returns or raises
+        raise ValueError("could not open media URL")
     try:
         yield response
     finally:
@@ -588,7 +605,7 @@ def probe_media(url, timeout=DEFAULT_TIMEOUT):
         return {}
     import http.client
     import socket
-    import urllib.error
+    import urllib.error as urllib_error
     import urllib.request as urllib_request
 
     base, separator, suffix = text.partition("|")
@@ -601,31 +618,43 @@ def probe_media(url, timeout=DEFAULT_TIMEOUT):
             key = key.strip()
             if key:
                 headers[key] = urllib.parse.unquote(value)
-    effective = _effective_timeout(timeout)
-    if effective <= 0:
-        return {}
-    try:
-        request = urllib_request.Request(base, method="HEAD", headers=headers)
-        with _OPENER.open(request, timeout=effective) as response:
-            final = response.geturl()
-            if not is_public_http_url(final):
+    current = base
+    for hop in range(MAX_REDIRECTS + 1):
+        effective = _effective_timeout(timeout)
+        if effective <= 0:
+            return {}
+        try:
+            request = urllib_request.Request(current, method="HEAD", headers=headers)
+            with _OPENER.open(request, timeout=effective) as response:
+                final = response.geturl()
+                if not is_public_http_url(final):
+                    return {}
+                response_headers = response.headers
+                try:
+                    size = int((response_headers.get("Content-Length")
+                                if response_headers else 0) or 0)
+                except (TypeError, ValueError):
+                    size = 0
+                content_type = str((response_headers.get("Content-Type")
+                                    if response_headers else "") or "")
+                return {
+                    "size": max(0, size),
+                    "content_type": content_type.split(";", 1)[0].strip().lower(),
+                    "final_url": final,
+                }
+        except urllib_error.HTTPError as exc:
+            location = exc.headers.get("Location") if exc.headers else None
+            if exc.code not in _REDIRECT_CODES or not location \
+                    or hop >= MAX_REDIRECTS:
                 return {}
-            response_headers = response.headers
-            try:
-                size = int((response_headers.get("Content-Length")
-                            if response_headers else 0) or 0)
-            except (TypeError, ValueError):
-                size = 0
-            content_type = str((response_headers.get("Content-Type")
-                                if response_headers else "") or "")
-            return {
-                "size": max(0, size),
-                "content_type": content_type.split(";", 1)[0].strip().lower(),
-                "final_url": final,
-            }
-    except (ValueError, TypeError, urllib.error.URLError, http.client.HTTPException,
-            socket.timeout, OSError):
-        return {}
+            target = urllib.parse.urljoin(current, location)
+            if not is_public_http_url(target):
+                return {}
+            current = target
+        except (ValueError, TypeError, urllib_error.URLError,
+                http.client.HTTPException, socket.timeout, OSError):
+            return {}
+    return {}
 
 
 def quote(value):

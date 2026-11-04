@@ -284,6 +284,34 @@ class ReadBoundTests(unittest.TestCase):
         self.assertLess(elapsed, 0.8, elapsed)
 
 
+class MediaRedirectTests(unittest.TestCase):
+    """open_media follows the same validated public redirects as fetch()."""
+
+    infos = [(2, 1, 6, "", ("93.184.216.34", 443))]
+
+    def test_open_media_follows_a_public_redirect(self):
+        opener = mock.Mock()
+        opener.open.side_effect = [
+            _redirect_error("https://next.example/y"),
+            FakeResponse(b"ID3", Message()),
+        ]
+        with mock.patch.object(http, "_OPENER", opener), \
+                mock.patch.object(http.socket, "getaddrinfo", return_value=self.infos):
+            with http.open_media("https://start.example/a.mp3", timeout=5) as response:
+                self.assertEqual(response.read(3), b"ID3")
+        self.assertEqual(opener.open.call_count, 2)
+
+    def test_open_media_refuses_a_redirect_to_loopback(self):
+        opener = mock.Mock()
+        opener.open.side_effect = [_redirect_error("http://127.0.0.1/secret")]
+        with mock.patch.object(http, "_OPENER", opener), \
+                mock.patch.object(http.socket, "getaddrinfo", return_value=self.infos):
+            with self.assertRaises(ValueError):
+                with http.open_media("https://start.example/a.mp3", timeout=5):
+                    pass
+        self.assertEqual(opener.open.call_count, 1)
+
+
 class RedirectHardeningTests(unittest.TestCase):
     """A2: redirects are public-http(s), validated per hop and budgeted."""
 
