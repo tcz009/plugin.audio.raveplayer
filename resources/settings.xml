@@ -8,5 +8,6 @@
         <setting id="spinner_overlay" type="bool" label="Spinning-head download window (prototype)" default="false"/>
         <setting id="spinner_tuning" type="bool" label="Show spinner while tuning streams" default="true"/>
         <setting id="surprise_animate" type="bool" label="Animate Surprise Me" default="true"/>
+        <setting id="rtp_egress_proxy" type="text" label="RaveTapePacks egress proxy (host:port, blank = direct)" default=""/>
     </category>
 </settings>

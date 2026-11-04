@@ -16,6 +16,7 @@ import codecs
 import contextlib
 import io
 import json
+import os
 import re
 import threading
 import time
@@ -50,6 +51,90 @@ POLITE_HOSTS = {
     "ravetapepacks.com": 1.0,
 }
 _HOST_LOCKS = {}
+
+# ---------------------------------------------------------------- RTP egress
+# RaveTapePacks' edge firewall drops the home WAN address at TCP level, so its
+# pages are unreachable directly.  The add-on sends *only* RaveTapePacks
+# requests through the homelab VPN host's HTTP CONNECT proxy; every other
+# provider keeps the direct path.  Configure the proxy in the add-on settings
+# (General -> "RaveTapePacks egress proxy") or with RTP_EGRESS_PROXY.  A dead
+# proxy falls back to direct once, so a stale setting never bricks the source.
+EGRESS_PROXY_ENV = "RTP_EGRESS_PROXY"
+EGRESS_HOSTS_ENV = "RTP_EGRESS_HOSTS"
+EGRESS_FALLBACK_ENV = "RTP_EGRESS_FALLBACK"
+EGRESS_PROXY_SETTING = "rtp_egress_proxy"
+DEFAULT_EGRESS_HOSTS = ("ravetapepacks.com",)
+
+
+def _egress_hosts():
+    raw = os.environ.get(EGRESS_HOSTS_ENV, "")
+    hosts = tuple(
+        host.strip().lower().lstrip(".") for host in raw.split(",") if host.strip()
+    )
+    return hosts or DEFAULT_EGRESS_HOSTS
+
+
+def is_egress_host(value):
+    """True when ``value`` (URL or hostname) should use the RTP egress route."""
+    try:
+        text = str(value or "").strip()
+        if not text:
+            return False
+        if "://" in text:
+            host = urllib.parse.urlsplit(text).hostname or ""
+        else:
+            host = text
+        host = host.lower().rstrip(".")
+    except (ValueError, AttributeError):
+        return False
+    return any(host == suffix or host.endswith("." + suffix)
+               for suffix in _egress_hosts())
+
+
+def egress_proxy():
+    """Return the configured proxy URL, or ``""``.
+
+    The add-on setting wins over the environment only when the environment is
+    empty (env is the operator override for packaged/diagnostic runs).  An
+    invalid value is treated as "not configured" so a typo cannot break RTP.
+    """
+    raw = (os.environ.get(EGRESS_PROXY_ENV, "") or "").strip()
+    if not raw:
+        try:
+            raw = str(kodi.setting(EGRESS_PROXY_SETTING, "") or "").strip()
+        except Exception:  # noqa: BLE001 - settings must never break a fetch
+            raw = ""
+    if not raw:
+        return ""
+    if "://" not in raw:
+        raw = "http://" + raw
+    try:
+        parts = urllib.parse.urlsplit(raw)
+    except ValueError:
+        return ""
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        return ""
+    if parts.path not in ("", "/") or parts.query or parts.fragment:
+        return ""
+    try:
+        port = parts.port
+    except ValueError:
+        return ""
+    if port is not None and not 1 <= port <= 65535:
+        return ""
+    return urllib.parse.urlunsplit((parts.scheme, parts.netloc, "", "", ""))
+
+
+def egress_proxy_for(url):
+    """Proxy URL for ``url`` when it is an RTP host, else ``""``."""
+    if not is_egress_host(url):
+        return ""
+    return egress_proxy()
+
+
+def _egress_fallback_enabled():
+    value = (os.environ.get(EGRESS_FALLBACK_ENV, "1") or "1").strip().lower()
+    return value not in ("0", "false", "no", "off")
 _HOST_LAST_END = {}
 _HOST_META_LOCK = threading.Lock()
 
@@ -82,6 +167,22 @@ _REDIRECT_CODES = frozenset((301, 302, 303, 307, 308))
 _NoRedirectHandler = None
 
 
+def _build_opener(*extra_handlers):
+    """Build a no-auto-redirect opener, optionally with extra handlers."""
+    global _NoRedirectHandler
+    import urllib.request
+
+    if _NoRedirectHandler is None:
+        class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+            """Refuse automatic redirects; ``_request`` follows them
+            manually so every hop can be validated and budgeted."""
+
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+
+    return urllib.request.build_opener(_NoRedirectHandler, *extra_handlers)
+
+
 class _LazyOpener(object):
     """Build the urllib opener on first use (keeps root import light)."""
 
@@ -89,18 +190,8 @@ class _LazyOpener(object):
         self._real = None
 
     def _load(self):
-        global _NoRedirectHandler
         if self._real is None:
-            import urllib.request
-
-            class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
-                """Refuse automatic redirects; ``_request`` follows them
-                manually so every hop can be validated and budgeted."""
-
-                def redirect_request(self, req, fp, code, msg, headers, newurl):
-                    return None
-
-            self._real = urllib.request.build_opener(_NoRedirectHandler)
+            self._real = _build_opener()
         return self._real
 
     def __getattr__(self, name):
@@ -109,7 +200,25 @@ class _LazyOpener(object):
         return getattr(self._load(), name)
 
 
+class _LazyProxyOpener(object):
+    """One cached opener per proxy URL; only RTP hosts reach it."""
+
+    def __init__(self):
+        self._real = None
+        self._proxy = None
+
+    def for_proxy(self, proxy):
+        if self._real is None or proxy != self._proxy:
+            import urllib.request
+
+            self._real = _build_opener(
+                urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
+            self._proxy = proxy
+        return self._real
+
+
 _OPENER = _LazyOpener()
+_PROXY_OPENER = _LazyProxyOpener()
 
 
 class _LazyStdlib(object):
@@ -451,12 +560,59 @@ def _cache_key(kind, url, headers):
     return "http:%s:%s:%s" % (kind, url, header_part)
 
 
+def _build_request(url, headers, method=None):
+    import urllib.request
+
+    request = urllib.request.Request(
+        url, headers={"User-Agent": USER_AGENT}, method=method)
+    for key, value in (headers or {}).items():
+        request.add_header(str(key), str(value))
+    return request
+
+
+def _egress_open(url, headers, timeout, method=None):
+    """Open ``url`` on its per-host route, with a one-shot direct fallback.
+
+    Only RTP hosts take the proxy; a connection-level failure there retries
+    direct so a stopped proxy degrades instead of failing forever.  HTTP
+    statuses (403/407/redirects) are returned/raised untouched.
+    """
+    import http.client
+    import urllib.error
+    import urllib.request
+    import zlib
+
+    proxy = egress_proxy_for(url)
+    if proxy:
+        try:
+            return _PROXY_OPENER.for_proxy(proxy).open(
+                _build_request(url, headers, method), timeout=timeout)
+        except urllib.error.HTTPError:
+            raise
+        except (
+            urllib.error.URLError,
+            http.client.HTTPException,
+            OSError,
+            ValueError,
+            TypeError,
+            EOFError,
+            zlib.error,
+            UnicodeError,
+        ) as exc:
+            kodi.log("RTP egress proxy unavailable for %s (%s); retrying direct"
+                     % (url, type(exc).__name__), level=30)
+            if not _egress_fallback_enabled():
+                raise
+    return _OPENER.open(_build_request(url, headers, method), timeout=timeout)
+
+
 def _request(url, timeout, headers):
     """Perform one request and return the decoded body, or None on failure.
 
     Redirects are followed manually (max 3 hops): every hop is validated as a
     public http(s) URL, gets its own budget-clamped timeout, and never runs
-    urllib's unvalidated automatic redirect chain (A2).
+    urllib's unvalidated automatic redirect chain (A2).  RTP hosts use the
+    egress proxy on each hop; a redirect away from them goes direct.
     """
     import http.client
     import socket
@@ -475,11 +631,8 @@ def _request(url, timeout, headers):
             kodi.log("network budget exhausted; abandoning request to %s" % current, level=30)
             return None
         try:
-            request = urllib.request.Request(current, headers={"User-Agent": USER_AGENT})
-            for key, value in (headers or {}).items():
-                request.add_header(str(key), str(value))
             with _host_slot(current):
-                with _OPENER.open(request, timeout=hop_timeout) as response:
+                with _egress_open(current, headers, hop_timeout) as response:
                     return _decode(response, hop_timeout)
         except urllib.error.HTTPError as exc:
             location = None
@@ -624,9 +777,8 @@ def open_media(url, timeout=DEFAULT_TIMEOUT):
         effective = _effective_timeout(timeout)
         if effective <= 0:
             raise ValueError("network budget exhausted")
-        request = urllib_request.Request(current, headers=headers)
         try:
-            response = _OPENER.open(request, timeout=effective)
+            response = _egress_open(current, headers, effective)
             break
         except urllib_error.HTTPError as exc:
             location = exc.headers.get("Location") if exc.headers else None
@@ -675,8 +827,7 @@ def probe_media(url, timeout=DEFAULT_TIMEOUT):
         if effective <= 0:
             return {}
         try:
-            request = urllib_request.Request(current, method="HEAD", headers=headers)
-            with _OPENER.open(request, timeout=effective) as response:
+            with _egress_open(current, headers, effective, method="HEAD") as response:
                 final = response.geturl()
                 if not is_public_http_url(final):
                     return {}
