@@ -524,6 +524,9 @@ def _failed_route(handle, mode):
 
 
 def dispatch(argv):
+    import time as _time
+
+    started = _time.monotonic()
     try:
         handle = int(argv[1])
     except (IndexError, TypeError, ValueError):
@@ -548,6 +551,10 @@ def dispatch(argv):
             kodi.notify("Some sources were slow — showing partial results.")
     finally:
         http.end_route()
+        # Wall-clock per directory is what the user feels; the cache/parse
+        # split is in scripts/bench_sources.py.  Debug-level so normal Kodi
+        # logs stay quiet.
+        kodi.log("route %s took %.0f ms" % (mode, (_time.monotonic() - started) * 1000.0))
 
 
 def root(handle, params):
@@ -1361,7 +1368,7 @@ def legacy_pack(handle, params):
         kodi.notify("That pack is no longer listed.")
         kodi.end_directory(handle, "songs")
         return
-    entry = next((item for item in legacy.packs() if item["key"] == key), None)
+    entry = legacy.pack(key)
     if not entry:
         kodi.notify("That pack is no longer listed.")
         kodi.end_directory(handle, "songs")

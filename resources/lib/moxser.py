@@ -63,8 +63,11 @@ def _throttle():
 
 
 def _fetch(url, ttl, timeout=25):
-    _throttle()
-    return http.fetch(url, timeout=timeout, headers={"User-Agent": BROWSER_UA}, ttl=ttl)
+    headers = {"User-Agent": BROWSER_UA}
+    # Don't pay the <=1/s gap for a page that is already cached.
+    if not http.is_cached(url, ttl, headers):
+        _throttle()
+    return http.fetch(url, timeout=timeout, headers=headers, ttl=ttl)
 
 
 def _decode(value):

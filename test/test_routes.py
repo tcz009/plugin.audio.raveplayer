@@ -131,8 +131,8 @@ class RouteHelperTests(unittest.TestCase):
         tracks = [{"name": "Tape 1",
                    "url": "https://www.ravetapepacks.com/music/Pack/Tape_1.mp3"}]
         del xbmcplugin.ITEMS[:]
-        with mock.patch.object(routes.legacy, "packs", return_value=[
-                {"key": "Pack", "name": "Pack", "tracks": tracks}]), \
+        with mock.patch.object(routes.legacy, "pack", return_value={
+                "key": "Pack", "name": "Pack", "tracks": tracks}), \
                 mock.patch.object(routes.kodi, "end_directory"):
             routes.legacy_pack(1, {"pack": "Pack"})
         item = next(entry for entry in xbmcplugin.ITEMS

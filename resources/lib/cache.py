@@ -134,6 +134,17 @@ def get(key, ttl, now=None):
     return value
 
 
+def has(key, ttl, now=None):
+    """True when :func:`get` would return a value (no deep copy / no return)."""
+    result = _read(key)
+    if result is MISSING:
+        return False
+    timestamp, _value = result
+    now = time.time() if now is None else now
+    age = now - timestamp
+    return not (ttl is not None and (ttl <= 0 or age < 0 or age > ttl))
+
+
 def _maybe_maintain():
     if _writes_since_maintenance % CLEANUP_EVERY:
         return
@@ -143,8 +154,12 @@ def _maybe_maintain():
         _log("maintenance failed (%s)" % exc)
 
 
-def put(key, value):
-    """Store a JSON-serialisable value.  Returns True on success."""
+def put(key, value, sync=True):
+    """Store a JSON-serialisable value.  Returns True on success.
+
+    ``sync=False`` skips ``fsync`` for derived/recomputable entries (parsed
+    pages): the rename is still atomic, and a lost entry just re-parses.
+    """
     global _writes_since_maintenance
     if value is None:
         return False
@@ -162,7 +177,8 @@ def put(key, value):
                 handle, ensure_ascii=False, separators=(",", ":"),
             )
             handle.flush()
-            os.fsync(handle.fileno())
+            if sync:
+                os.fsync(handle.fileno())
         os.replace(temporary, path)
         with _write_lock:
             _writes_since_maintenance += 1

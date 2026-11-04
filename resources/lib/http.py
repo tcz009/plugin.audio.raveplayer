@@ -40,6 +40,42 @@ READ_CHUNK_BYTES = 64 * 1024
 ROUTE_BUDGET_SECONDS = 20.0
 MAX_REDIRECTS = 3
 
+# One page at a time per polite host, with a minimum gap.  Only a cache miss
+# reaches ``_request``, and the slot is held for the whole request so two
+# threads can never open two pages to the same source.  RaveTapePacks blocked
+# this client's IP after a burst; the add-on stays deliberately single-flight
+# there.
+POLITE_HOSTS = {
+    "www.ravetapepacks.com": 1.0,
+    "ravetapepacks.com": 1.0,
+}
+_HOST_LOCKS = {}
+_HOST_LAST_END = {}
+_HOST_META_LOCK = threading.Lock()
+
+
+@contextlib.contextmanager
+def _host_slot(url):
+    """Serialise requests to a polite host and keep ``gap`` seconds between."""
+    try:
+        host = (urllib.parse.urlsplit(str(url)).hostname or "").lower()
+    except ValueError:
+        host = ""
+    gap = POLITE_HOSTS.get(host)
+    if not gap:
+        yield
+        return
+    with _HOST_META_LOCK:
+        lock = _HOST_LOCKS.setdefault(host, threading.Lock())
+    with lock:
+        wait = gap - (time.monotonic() - _HOST_LAST_END.get(host, 0.0))
+        if wait > 0:
+            time.sleep(wait)
+        try:
+            yield
+        finally:
+            _HOST_LAST_END[host] = time.monotonic()
+
 _REDIRECT_CODES = frozenset((301, 302, 303, 307, 308))
 
 
@@ -442,8 +478,9 @@ def _request(url, timeout, headers):
             request = urllib.request.Request(current, headers={"User-Agent": USER_AGENT})
             for key, value in (headers or {}).items():
                 request.add_header(str(key), str(value))
-            with _OPENER.open(request, timeout=hop_timeout) as response:
-                return _decode(response, hop_timeout)
+            with _host_slot(current):
+                with _OPENER.open(request, timeout=hop_timeout) as response:
+                    return _decode(response, hop_timeout)
         except urllib.error.HTTPError as exc:
             location = None
             try:
@@ -523,6 +560,20 @@ def fetch(url, timeout=DEFAULT_TIMEOUT, headers=None, ttl=0):
         kodi.log("network budget exhausted; skipping fetch of %s" % url, level=30)
         return None
     return cache.remember(key, ttl, lambda: _fetch_for_cache(url, effective, headers))
+
+
+def is_cached(url, ttl, headers=None):
+    """True when ``fetch(url, ..., ttl=ttl)`` would be served from cache.
+
+    Providers with a <=1 request/second courtesy gap use this so a warm page
+    does not still sleep for it.
+    """
+    if not ttl:
+        return False
+    try:
+        return cache.has(_cache_key("text", url, headers), ttl)
+    except Exception:  # noqa: BLE001 - a cache hiccup must not break the fetch
+        return False
 
 
 def _parse_json(url, body):

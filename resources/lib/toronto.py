@@ -93,15 +93,16 @@ def _clean(value):
 def _fetch(url, ttl=PAGE_TTL):
     """Fetch one page with the archive's serialised request gap and cache TTL."""
     global _last_fetch_at
-    now = time.monotonic()
-    wait = MIN_PAGE_GAP - (now - _last_fetch_at)
-    if wait > 0:
-        time.sleep(wait)
-    _last_fetch_at = time.monotonic()
-    return http.fetch(
-        url, timeout=25, ttl=ttl,
-        headers={"User-Agent": BROWSER_UA, "Accept": "text/html,*/*;q=0.8"},
-    )
+    headers = {"User-Agent": BROWSER_UA, "Accept": "text/html,*/*;q=0.8"}
+    # The courtesy gap is for upstream requests only; a warm page is a disk
+    # cache read and used to still sleep here on every directory refresh.
+    if not http.is_cached(url, ttl, headers):
+        now = time.monotonic()
+        wait = MIN_PAGE_GAP - (now - _last_fetch_at)
+        if wait > 0:
+            time.sleep(wait)
+        _last_fetch_at = time.monotonic()
+    return http.fetch(url, timeout=25, ttl=ttl, headers=headers)
 
 
 def _safe_mp3_url(path):

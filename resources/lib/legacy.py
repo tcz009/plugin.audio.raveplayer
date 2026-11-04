@@ -8,10 +8,12 @@ RaveTapePacks.com's MP3s are hotlink-protected — a bare GET returns 403 — so
 playback URLs carry a Referer suffix that Kodi turns into a real header.
 """
 
+import hashlib
 import html
 import re
 import urllib.parse
 
+from . import cache
 from . import http
 
 BASE = "https://www.ravetapepacks.com/"
@@ -26,6 +28,13 @@ PACKS_TTL = 6 * 60 * 60
 SITEMAP_TTL = 24 * 60 * 60
 SHOW_TTL = 6 * 60 * 60
 TORONTO_TTL = 6 * 60 * 60
+
+# Parsed page object persisted beside the raw body.  Kodi launches a new Python
+# process for every directory refresh, so an in-process cache cannot help: the
+# disk entry is what stops a refresh re-running the regex pass.  The body is
+# still read and fingerprinted so a fixture/mock that changes the page cannot
+# be served a stale parse.
+RTP_PACKS_KEY = "legacy:rtp:packs:v1"
 
 # The site mixes three shapes: <audio src> with absolute or relative URLs,
 # ordinary <a href> links on category pages, and a JSON playlist whose slashes
@@ -45,14 +54,18 @@ MUSIC_RE = re.compile(
 )
 
 
-def _space_words(value):
-    """Unquote, unescape and split camelCase/letter-digit joins."""
-    text = html.unescape(urllib.parse.unquote(str(value or "")))
-    text = text.replace("_", " ")
+def _words(text):
+    """Space out camelCase/letter-digit joins in already-decoded text."""
+    text = str(text or "").replace("_", " ")
     text = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", text)
     text = re.sub(r"(?<=[0-9])(?=[A-Z])", " ", text)
     text = re.sub(r"(?<=[A-Za-z])(?=[0-9])", " ", text)
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _space_words(value):
+    """Unquote, unescape and split camelCase/letter-digit joins."""
+    return _words(html.unescape(urllib.parse.unquote(str(value or ""))))
 
 
 def _url_path(value):
@@ -71,12 +84,18 @@ def _url_path(value):
 
 
 def _pretty(text):
+    """Raw-input helper (kept for callers/tests); parsing uses :func:`_display`."""
     return _space_words(text)
 
 
 def _pack_name(raw):
     """Folder names are camel-cased and run words together; space them out."""
     return _space_words(raw) or str(raw)
+
+
+def _display(value):
+    """Name for a value the URL resolver already decoded exactly once."""
+    return _words(value)
 
 
 def _decode_url(value):
@@ -166,21 +185,63 @@ def _music_refs(page):
             yield item
 
 
-def packs():
-    """Return [{'key': folder, 'name': label, 'tracks': [...]}, ...] sorted by name."""
-    page = http.fetch(BASE, timeout=25, ttl=PACKS_TTL, headers=PAGE_HEADERS)
-    if not page:
-        return []
+def _packs_from_html(page):
     grouped = {}
     for pack, filename, url in _music_refs(page):
-        entry = grouped.setdefault(pack, {"key": pack, "name": _pack_name(pack), "tracks": []})
-        entry["tracks"].append({"name": _pretty(filename.rsplit(".", 1)[0]), "url": url})
+        entry = grouped.setdefault(
+            pack, {"key": pack, "name": _display(pack) or str(pack), "tracks": []})
+        # ``filename`` is already decoded once by the resolver; decoding again
+        # would turn a literal ``&amp;``/``%20`` in a filename into ``&``/space.
+        entry["tracks"].append(
+            {"name": _display(filename.rsplit(".", 1)[0]), "url": url})
     result = []
     for entry in grouped.values():
         entry["tracks"].sort(key=lambda track: track["name"])
         result.append(entry)
     result.sort(key=lambda entry: entry["name"].lower())
     return result
+
+
+def _fingerprint(page):
+    """Stable (cross-process) fingerprint of the exact page text."""
+    return hashlib.blake2b(page.encode("utf-8", "replace"), digest_size=8).hexdigest()
+
+
+def _cached_parse(key, ttl, page, parser):
+    """Return the parsed page for this exact body, re-parsing only on change.
+
+    Kodi starts a fresh process per directory, so the parse is persisted in the
+    normal disk cache.  Reading the body back and fingerprinting it is still
+    cheaper than the three regex passes and keeps mocks/fixtures correct.
+    """
+    if page is None:
+        return None
+    fingerprint = _fingerprint(page)
+    record = cache.get(key, ttl)
+    if isinstance(record, dict) and record.get("fingerprint") == fingerprint:
+        value = record.get("value")
+        if isinstance(value, (list, dict)):
+            return value
+    value = parser(page)
+    cache.put(key, {"fingerprint": fingerprint, "value": value}, sync=False)
+    return value
+
+
+def packs():
+    """Return [{'key': folder, 'name': label, 'tracks': [...]}, ...] sorted by name."""
+    page = http.fetch(BASE, timeout=25, ttl=PACKS_TTL, headers=PAGE_HEADERS)
+    return _cached_parse(RTP_PACKS_KEY, PACKS_TTL, page, _packs_from_html) or []
+
+
+def pack(key):
+    """Resolve one pack key from the cached index (no full re-parse per view)."""
+    key = str(key or "")
+    if not key:
+        return None
+    for entry in packs():
+        if isinstance(entry, dict) and entry.get("key") == key:
+            return entry
+    return None
 
 
 def playable(url):
@@ -285,7 +346,7 @@ def jungle_tracks(slug):
             continue
         seen.add(url)
         filename = urllib.parse.unquote(url.rsplit("/", 1)[-1]).rsplit(".", 1)[0]
-        tracks.append({"name": _pretty(filename), "url": url})
+        tracks.append({"name": _display(filename), "url": url})
     return tracks
 
 
@@ -310,5 +371,5 @@ def toronto_tracks():
             continue
         seen.add(url)
         filename = html.unescape(urllib.parse.unquote(path.rsplit("/", 1)[-1])).rsplit(".", 1)[0]
-        tracks.append({"name": _pretty(filename), "url": url})
+        tracks.append({"name": _display(filename), "url": url})
     return tracks

@@ -37,6 +37,13 @@ class CacheTests(unittest.TestCase):
         self.assertTrue(cache.put("round-trip", value))
         self.assertEqual(cache.get("round-trip", 60), value)
 
+    def test_has_matches_get_for_fresh_and_stale_entries(self):
+        self.assertFalse(cache.has("has-key", 60))
+        self.assertTrue(cache.put("has-key", {"value": 1}))
+        self.assertTrue(cache.has("has-key", 60))
+        self.assertFalse(cache.has("has-key", 1, now=cache.time.time() + 10))
+
+
     def test_path_lives_under_configured_directory(self):
         path = cache.path_for("where")
         self.assertEqual(os.path.dirname(path), self.directory)
