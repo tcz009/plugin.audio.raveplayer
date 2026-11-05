@@ -6,7 +6,10 @@
 **Add-ons at start:** `plugin.audio.raveplayer` 3.9.46, `script.raveplayer.ui` 3.9.47,
 `service.raveplayer.ui` 3.9.46
 **Scope:** diagnosis only. No plugin route/version change, no push, tag or release.
-The Shield was returned to its original add-on state at the end.
+The script add-on was restored to the clean 3.9.47 artifact at the end. The
+plugin add-on did **not** stay at the starting version: during the session it
+changed to **3.9.48** (not by this diagnosis — see §7.1), which also has no
+`mode=screen` route.
 
 ---
 
@@ -341,10 +344,33 @@ Consequences:
   mismatch produces no visible error — just a missing row and an unmet
   dependency.
 - After installing plugin 3.9.47, the row appears and the route works. I did
-  that for the route tests and then restored 3.9.46.
+  that for the route tests.
 
 This needs to be resolved as part of the release: bump the plugin (and install
 both), or relax the script's dependency. Do not ship 3.9.46 + 3.9.47 as a pair.
+
+### 7.1 During the session the plugin became 3.9.48 — also without the route
+
+After I restored 3.9.46, the installed plugin directory was replaced again at
+`02:03` with **3.9.48** (timestamp and `addon.xml`), without any Kodi
+add-on-update log line. That was not done by this diagnosis; a concurrent
+install/push from another process is the likely source. Whatever the cause, the
+result matters:
+
+- `plugin.audio.raveplayer` 3.9.48 is installed and enabled right now.
+- Its `resources/lib/routes.py` has **no `screen` route and no Rave Screen row**
+  (`grep -c "Rave Screen"` = 0).
+- `script.raveplayer.ui` 3.9.47 remains installed and enabled; its dependency
+  `>= 3.9.47` is satisfied by 3.9.48, so Kodi sees nothing wrong. The row is
+  simply gone.
+- Therefore the feature is invisible on the currently-installed plugin pair,
+  and any 3.9.48-based build that does not merge the Rave Screen route will
+  erase it for users. The 3.9.47 screen work is on `feat/rave-screen-3.9.47`,
+  not on `fix/rtp-category-nav-3.9.48` as far as this checkout shows.
+
+This is probably more important than the window bug for “the row does nothing”:
+with 3.9.46 or 3.9.48 installed there is no route to run. The window bug is
+what happens *after* a 3.9.47 plugin is installed and the row is used.
 
 ---
 
@@ -387,8 +413,9 @@ cold start, and a launch while a directory is loading).
 - The diagnostic build (boot log + retry/fail-fast) is on scratch branch
   `diag/rave-screen-activation`, commit `f909918`, and is **not** part of the
   feature branch or the installed add-on.
-- The Shield was restored to plugin 3.9.46 + script 3.9.47 (clean artifact),
-  debug logging off, Kodi on Home.
+- Final state: `script.raveplayer.ui` 3.9.47 (clean artifact), debug logging
+  off, Kodi on Home. The plugin is **3.9.48** (see §7.1), not the 3.9.46 the
+  session started with; 3.9.48 has no screen route.
 
 ---
 
