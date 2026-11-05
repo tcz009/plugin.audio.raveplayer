@@ -32,15 +32,22 @@ class RaveCatalogueTests(unittest.TestCase):
                 # and the loader filters them out, so no query is expected.
                 self.assertIn(entry.get("archive_query"), (None, ""), entry["name"])
 
-    def test_catalogue_loader_filters_empty_entries(self):
+    def test_catalogue_loader_matches_the_web_registry(self):
         from resources.lib import routes
         entries = routes._rave_catalog()
-        self.assertTrue(entries, "loader should return archive entries")
-        self.assertTrue(all(entry["count"] > 0 for entry in entries))
-        self.assertTrue(all(entry["query"] for entry in entries))
+        self.assertTrue(entries, "loader should return catalogue entries")
+        # Archive-only rows carry a query; Mixcloud-only rows carry the
+        # Mixcloud query.  Nothing without either should be listed.
+        for entry in entries:
+            self.assertTrue(entry["count"] or entry["mixcloud_count"], entry["name"])
+            if entry["count"]:
+                self.assertTrue(entry["query"], entry["name"])
+            if entry["mixcloud_count"]:
+                self.assertTrue(entry["mixcloud_query"], entry["name"])
         self.assertEqual(
-            entries, sorted(entries, key=lambda item: item["count"], reverse=True)
+            entries, sorted(entries, key=lambda item: item["name"].lower())
         )
+        self.assertEqual(len(entries), len(self.data))
 
 
 if __name__ == "__main__":

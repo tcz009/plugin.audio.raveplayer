@@ -38,11 +38,15 @@ class PirateDataTests(unittest.TestCase):
             self.assertTrue(entry["source_url"].startswith("https://www.hardscore.com/"))
             self.assertTrue(entry["stream_url"].startswith("https://hardscore.com/"))
 
-    def test_unconfirmed_pages_have_a_note_and_no_url(self):
-        risk = pirate.station("Risk FM 107.1")["entries"][0]
-        self.assertEqual(risk["source_url"], "")
-        self.assertEqual(risk["stream_url"], "")
-        self.assertTrue(risk["note"])
+    def test_confirmed_and_unconfirmed_pages_are_kept_apart(self):
+        risk = pirate.station("Risk FM 107.1")["entries"]
+        confirmed = [entry for entry in risk if entry["stream_url"]]
+        self.assertEqual(len(confirmed), 1)
+        self.assertTrue(confirmed[0]["stream_url"].endswith("risk_fm_107_1.mp3"))
+        pending = [entry for entry in risk if not entry["stream_url"]]
+        self.assertEqual(len(pending), 1)
+        self.assertTrue(pending[0]["source_url"])
+        self.assertTrue(pending[0]["note"])
         flava = pirate.station("Flava FM")["entries"][0]
         self.assertEqual(flava["source_url"], "")
         self.assertIsNone(flava["year"])

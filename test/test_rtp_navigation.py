@@ -281,7 +281,8 @@ class LegacyNavigationRouteTests(unittest.TestCase):
     def test_category_lists_packs_with_post_links(self):
         posts = [{"id": "899", "name": "Dreamscape 7"},
                  {"id": "879", "name": "Dreamscape 6"}]
-        with mock.patch.object(routes.legacy, "category", return_value=posts):
+        with mock.patch.object(routes.legacy, "category_page",
+                               return_value=(posts, "")):
             routes.legacy_category(1, {"kind": "dj", "cat": "106", "label": "Brockie"})
         self.assertEqual([item["label"] for item in xbmcplugin.ITEMS],
                          ["Dreamscape 7", "Dreamscape 6", "Back"])
@@ -299,7 +300,7 @@ class LegacyNavigationRouteTests(unittest.TestCase):
         self.assertEqual(back["kind"], "dj")
 
     def test_category_rejects_bad_ids_without_fetching(self):
-        with mock.patch.object(routes.legacy, "category") as category, \
+        with mock.patch.object(routes.legacy, "category_page") as category, \
                 mock.patch.object(routes.kodi, "end_directory") as end:
             routes.legacy_category(1, {"kind": "nope", "cat": "5"})
             routes.legacy_category(1, {"kind": "dj", "cat": "../../x"})
@@ -329,13 +330,94 @@ class LegacyNavigationRouteTests(unittest.TestCase):
             routes.legacy_post(1, {})
         self.assertFalse(post.called)
 
-    def test_post_unknown_ends_quietly(self):
+    def test_post_unknown_reports_instead_of_a_silent_empty_folder(self):
         with mock.patch.object(routes.legacy, "post", return_value=None), \
                 mock.patch.object(routes.kodi, "notify") as notify, \
                 mock.patch.object(routes.kodi, "end_directory"):
             routes.legacy_post(1, {"post": "404"})
-        self.assertFalse(notify.called)
+        self.assertTrue(notify.called)
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NewPaginationTests(_CacheIsolation):
+    def test_all_packs_reads_the_paginated_blog_archive(self):
+        page = _fixture("ravetapepacks-all-packs.html")
+        with mock.patch.object(legacy.http, "fetch", return_value=page):
+            posts, nxt = legacy.all_packs(1)
+
+        self.assertEqual([post["id"] for post in posts],
+                         ["2687", "2669", "2666"])
+        self.assertEqual(posts[0]["name"], "The Best Of British – The Jubilee Jam")
+        self.assertEqual(nxt, legacy.BASE + "?cat=0&paged=2")
+
+    def test_category_page_returns_one_page_and_its_next_link(self):
+        pages = {
+            legacy.BASE + "?cat=5": _fixture("ravetapepacks-category-paged.html"),
+            legacy.BASE + "?cat=5&paged=2": _fixture(
+                "ravetapepacks-category-paged-2.html"),
+        }
+
+        def fake_fetch(url, timeout=None, headers=None, ttl=0):
+            return pages.get(url)
+
+        with mock.patch.object(legacy.http, "fetch", side_effect=fake_fetch):
+            first, nxt = legacy.category_page("5", 1)
+            second, last = legacy.category_page("5", 2)
+
+        self.assertEqual(len(first), 8)
+        self.assertTrue(nxt.endswith("?cat=5&paged=2"))
+        self.assertEqual(len(second), 2)
+        self.assertEqual(last, "")
+
+    def test_show_page_uses_the_stream_field_once_per_side(self):
+        page = _fixture("jungletapes-show.html")
+        with mock.patch.object(legacy.http, "fetch", return_value=page):
+            tracks = legacy.jungle_tracks(
+                "assignment-earth_chry_1055_2000-10-23-000000")
+
+        self.assertEqual(len(tracks), 2)
+        self.assertTrue(all("jungle_tapes_uploaded_audio_files" in track["url"]
+                            for track in tracks))
+        self.assertNotIn("Tapes/2000.10.23", " ".join(t["url"] for t in tracks))
+
+    def test_jt_show_list_is_paginated(self):
+        shows = [{"key": "show-%03d" % index, "name": "Show %03d" % index}
+                 for index in range(120)]
+        with mock.patch.object(routes.legacy, "jungle_shows", return_value=shows), \
+                mock.patch.object(routes.kodi, "end_directory"):
+            routes.legacy_jt(1, {})
+        urls = [item["url"] for item in xbmcplugin.ITEMS]
+        self.assertEqual(len([url for url in urls if "mode=legacy_jt_show" in url]), 50)
+        self.assertTrue(any("mode=legacy_jt&page=2" in url for url in urls))
+
+    def test_category_route_offers_the_next_page(self):
+        posts = [{"id": "899", "name": "Dreamscape 7"}]
+        with mock.patch.object(routes.legacy, "category_page",
+                               return_value=(posts, "more")), \
+                mock.patch.object(routes.kodi, "end_directory"):
+            routes.legacy_category(1, {"kind": "dj", "cat": "106",
+                                       "label": "Brockie"})
+        urls = [item["url"] for item in xbmcplugin.ITEMS]
+        self.assertTrue(any("mode=legacy_category" in url and "page=2" in url
+                            for url in urls))
+
+    def test_search_widens_with_a_title_and_scene_scope(self):
+        calls = []
+
+        def fake_search(query, page=1, rows=50, sort="downloads desc"):
+            calls.append(query)
+            if query.startswith("title:(dreamscape)"):
+                return [{"identifier": "wide", "title": "Dreamscape 19"}], 20
+            return [{"identifier": "one", "title": "Dreamscape 3"}], 2
+
+        with mock.patch.object(routes.archive, "search", side_effect=fake_search), \
+                mock.patch.object(routes.kodi, "end_directory"):
+            routes.search(1, {"q": "dreamscape"})
+
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(calls[0].startswith("dreamscape AND collection:ravetapes"))
+        self.assertTrue(calls[1].startswith("title:(dreamscape) AND mediatype:audio"))
+        self.assertIn("subject:(rave OR jungle OR hardcore", calls[1])

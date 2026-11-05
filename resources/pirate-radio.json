@@ -2,18 +2,36 @@
   {
     "station": "Risk FM 107.1",
     "year": 1996,
-    "title": "Beat Sanctuary — Andy Campbell, Daniel James, Fat Daddy Zak & David Morris (December 1996)",
-    "djs": ["Andy Campbell", "Daniel James", "Fat Daddy Zak", "David Morris"],
-    "source_url": "",
+    "title": "BBC/Beat Sanctuary tape – Andy Campbell, Daniel James & Fat Daddy Zak",
+    "djs": [
+      "Andy Campbell",
+      "Daniel James",
+      "Fat Daddy Zak"
+    ],
+    "source_url": "https://www.thebeatsanctuary.co.uk/risk-fm-1071",
+    "stream_url": "https://www.smartdigitalsolutions.co.uk/mp3/risk_fm_107_1.mp3",
+    "credit": "The Beat Sanctuary – riskfm 107.1 archive page",
+    "note": ""
+  },
+  {
+    "station": "Risk FM 107.1",
+    "year": 1996,
+    "title": "Risk FM 107.1 – David Morris, December 1996",
+    "djs": [
+      "David Morris"
+    ],
+    "source_url": "https://soundcloud.com/bigdaves-tape-collection/dj-david-morris-risk-fm-december-1996",
     "stream_url": "",
-    "credit": "Beat Sanctuary / SoundCloud",
-    "note": "The Beat Sanctuary page and the SoundCloud link to David Morris (December 1996) could not be confirmed; metadata is from the archive research. The closest confirmed Risk FM 107.1 recording found is David Morris, 29 July 1995 on Mixcloud (david-morris12)."
+    "credit": "Big Dave's Tape Collection (SoundCloud) – link only, no direct MP3",
+    "note": "Big Dave's Tape Collection (SoundCloud) – link only, no direct MP3"
   },
   {
     "station": "Weekend Rush 92.3",
     "year": 1993,
-    "title": "Force of One Crew — June 1993",
-    "djs": ["Force of One Crew"],
+    "title": "Weekend Rush 92.3 FM – Force of One Crew, June 1993",
+    "djs": [
+      "Force of One Crew"
+    ],
     "source_url": "https://www.hardscore.com/?p=11680",
     "stream_url": "https://hardscore.com/mixes/Radio/WeekendRush/1993-06%20Force%20of%20One%20Crew%20Weekend%20Rush%2092.3%20FM.mp3",
     "credit": "Hardscore.com",
@@ -22,8 +40,13 @@
   {
     "station": "Weekend Rush 92.3",
     "year": 1995,
-    "title": "DJ Infinity & DJ Freedom with MCs Trojan & Concrete — 25 June 1995",
-    "djs": ["DJ Infinity", "DJ Freedom", "MC Trojan", "MC Concrete"],
+    "title": "Weekend Rush 92.3 FM – DJ Infinity & DJ Freedom with MCs Trojan & Concrete, 25 June 1995",
+    "djs": [
+      "DJ Infinity",
+      "DJ Freedom",
+      "MC Trojan",
+      "MC Concrete"
+    ],
     "source_url": "https://www.hardscore.com/?p=11917",
     "stream_url": "https://hardscore.com/mixes/Radio/WeekendRush/1995-06-25%20DJ%20Infinity%2C%20DJ%20Freedom%2C%20MC's%20Trojan%20%26%20Concrete%20-%20Weekend%20Rush%2092.3%20FM.mp3",
     "credit": "Hardscore.com",
@@ -32,11 +55,13 @@
   {
     "station": "Flava FM",
     "year": null,
-    "title": "A-Team — old-school Mixcloud playlist",
-    "djs": ["A-Team"],
+    "title": "Flava FM – A-Team old-school archive",
+    "djs": [
+      "A-Team"
+    ],
     "source_url": "",
     "stream_url": "",
-    "credit": "A-Team / Mixcloud",
-    "note": "The original MegaUpload links are dead and a stable Mixcloud playlist/page URL for the A-Team old-school set could not be confirmed; year also unconfirmed."
+    "credit": "A-Team (Flava FM) – original MegaUpload link is dead; no confirmed mirror re-upped yet",
+    "note": "A-Team (Flava FM) – original MegaUpload link is dead; no confirmed mirror re-upped yet"
   }
 ]

@@ -56,6 +56,18 @@
     "plot": "Slammin' Vinyl tape packs."
   },
   {
+    "id": "dj-ez",
+    "name": "DJ EZ",
+    "query": "title:(\"dj ez\") AND mediatype:audio",
+    "plot": "DJ EZ sets in the archive."
+  },
+  {
+    "id": "garage-nation",
+    "name": "Garage Nation",
+    "query": "title:(\"garage nation\") AND mediatype:audio",
+    "plot": "Garage Nation packs and sets."
+  },
+  {
     "id": "one-in-the-jungle",
     "name": "One In The Jungle",
     "query": "title:(\"one in the jungle\") AND mediatype:audio",
@@ -84,17 +96,5 @@
     "name": "World Dance",
     "query": "collection:ravetapes AND \"World Dance\"",
     "plot": "World Dance packs and sets."
-  },
-  {
-    "id": "dj-ez",
-    "name": "DJ EZ",
-    "query": "title:(\"dj ez\") AND mediatype:audio",
-    "plot": "DJ EZ sets in the archive."
-  },
-  {
-    "id": "garage-nation",
-    "name": "Garage Nation",
-    "query": "title:(\"garage nation\") AND mediatype:audio",
-    "plot": "Garage Nation packs and sets."
   }
 ]

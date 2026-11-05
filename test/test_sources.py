@@ -139,6 +139,7 @@ class NewSourceRouteTests(unittest.TestCase):
     def test_pirate_menu_only_shows_direct_file_stations(self):
         routes.pirate_menu(1, {})
         self.assertEqual(self._labels(), [
+            "Risk FM 107.1  [COLOR gray](1 recording)[/COLOR]",
             "Weekend Rush 92.3  [COLOR gray](2 recordings)[/COLOR]", "Back",
         ])
         del xbmcplugin.ITEMS[:]
@@ -146,10 +147,14 @@ class NewSourceRouteTests(unittest.TestCase):
         urls = self._urls()
         self.assertEqual(len(urls), 3)  # two recordings + Back
         self.assertTrue(any("mode=play" in url and "hardscore.com" in url for url in urls))
+        del xbmcplugin.ITEMS[:]
+        routes.pirate_station(1, {"station": "Risk FM 107.1"})
+        self.assertTrue(any("mode=play" in url and "risk_fm_107_1.mp3" in url
+                            for url in self._urls()))
 
     def test_metadata_only_pirate_station_is_hidden(self):
         with mock.patch.object(routes.kodi, "notify") as notify:
-            routes.pirate_station(1, {"station": "Risk FM 107.1"})
+            routes.pirate_station(1, {"station": "Flava FM"})
         self.assertEqual(xbmcplugin.ITEMS, [])
         self.assertTrue(notify.called)
 

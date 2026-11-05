@@ -1,3 +1,18 @@
+Rave Player 3.9.49
+- Sources overhaul. JungleTapes no longer lists every tape side twice (the
+  page's stream and download fields pointed at the same recordings); shows page
+  at 50. RaveTapePacks "All Packs" now walks the complete blog archive
+  (?cat=0) instead of the homepage's rotating RANDOM SELECTION, category views
+  fetch one WordPress page at a time with a Next page row (no silent truncation
+  at the 20 s budget), and stable post ids are used for favourites. Archive
+  search is scoped to the rave collection with a title+scene widen instead of
+  every audio item. Pirate Radio data merges Risk FM/Weekend Rush/Flava FM from
+  both builds; Classic Pack Series lists all 16 (including Kool/Rinse) in the
+  web order; Rave Nights lists all 55 researched rows alphabetically with
+  Mixcloud hand-offs. Blocked/empty RTP browses now say so instead of showing an
+  empty folder. Offline fixtures cover the new pages. Full suite 651 OK.
+  See docs/SOURCES-OVERHAUL.md.
+
 Rave Player 3.9.48
 - Rave Screen (`script.raveplayer.ui` 3.9.48) visual parity pass: the
   WindowXML is rebuilt to docs/rave-screen (1280x720 bed/grain, hero poster

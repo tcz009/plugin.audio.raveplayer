@@ -62,10 +62,14 @@ class BridgeRouteTests(unittest.TestCase):
         self.assertEqual(item.path, TARGET)
         notify.assert_not_called()
 
-    def test_rtp_browse_failures_are_quiet(self):
-        with mock.patch.object(routes.legacy, "packs", return_value=[]), \
+    def test_rtp_browse_failures_explain_the_empty_folder(self):
+        # RTP playback failures stay quiet, but a blocked *browse* must not
+        # look like an empty category.  (See docs/SOURCES-OVERHAUL.md.)
+        with mock.patch.object(routes.legacy, "all_packs",
+                               return_value=(None, "")), \
                 mock.patch.object(routes.legacy, "categories", return_value={}), \
-                mock.patch.object(routes.legacy, "category", return_value=[]), \
+                mock.patch.object(routes.legacy, "category_page",
+                                  return_value=(None, "")), \
                 mock.patch.object(routes.legacy, "pack", return_value=None), \
                 mock.patch.object(routes.kodi, "notify") as notify, \
                 mock.patch.object(routes.kodi, "end_directory") as end:
@@ -73,7 +77,7 @@ class BridgeRouteTests(unittest.TestCase):
             routes.legacy_index(1, {"kind": "dj"})
             routes.legacy_category(1, {"kind": "dj", "cat": "106"})
             routes.legacy_pack(1, {"pack": "missing"})
-        notify.assert_not_called()
+        self.assertGreaterEqual(notify.call_count, 3)
         self.assertEqual(end.call_count, 4)
 
     def test_unplayable_rtp_resolve_is_quiet(self):

@@ -132,7 +132,7 @@ class RouteLabel2Tests(unittest.TestCase):
                 self.assertTrue(item["label2"], item["label"])
                 self._assert_budget(item)
         facts = dict((item["label"], item["label2"]) for item in rows)
-        self.assertEqual(facts["JungleTapes.com"], "106 shows")
+        self.assertEqual(facts["JungleTapes.com"], "300+ shows")
         self.assertEqual(facts["RaveTapePacks.com"], "1992–2004")
 
     def test_track_rows_carry_duration_and_downloads_carry_size_date(self):

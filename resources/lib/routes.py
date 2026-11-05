@@ -6,6 +6,7 @@ adding a source is a one-line change rather than another 40-line scraper.
 """
 
 import os
+import re
 import sys
 import time
 import urllib.parse
@@ -80,6 +81,9 @@ toronto_source = _lazy("toronto")
 
 ROWS_PER_PAGE = 50
 MAX_ROWS_PER_PAGE = 200
+# JungleTapes has 300+ sitemap shows; page the directory instead of sending one
+# 310-row list (and keep the page size aligned with the web build).
+JT_SHOWS_PER_PAGE = 50
 # Default to all entries a feed carries; the setting can cap deliberately.
 EPISODES_PER_FEED = 5000
 MAX_EPISODES_PER_FEED = 5000
@@ -256,7 +260,18 @@ def _filters():
     ]
 
 
+def _rave_slug(name):
+    """Stable id for a rave, identical to the web build's slug."""
+    return re.sub(r"[^a-z0-9]+", "-", str(name or "").lower()).strip("-")
+
+
 def _rave_catalog():
+    """Every researched rave with Archive packs and/or Mixcloud sets.
+
+    Mirrors the web catalogue: alphabetical order, mixcloud-only rows
+    included, and a stable slug as the route id (names still resolve, for old
+    links).
+    """
     import json
     path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rave-catalog.json")
     try:
@@ -269,16 +284,32 @@ def _rave_catalog():
         if not isinstance(entry, dict) or not entry.get("name"):
             continue
         try:
-            count = int(entry.get("archive_count") or 0)
+            archive_count = int(entry.get("archive_count") or 0)
         except (TypeError, ValueError):
-            count = 0
-        if count > 0 and entry.get("archive_query"):
-            entries.append({
-                "name": str(entry["name"]),
-                "query": entry["archive_query"],
-                "count": count,
-            })
-    entries.sort(key=lambda item: item["count"], reverse=True)
+            archive_count = 0
+        try:
+            mixcloud_count = int(entry.get("mixcloud_count") or 0)
+        except (TypeError, ValueError):
+            mixcloud_count = 0
+        archive_query = entry.get("archive_query") or ""
+        mixcloud_query = entry.get("mixcloud_query") or ""
+        if archive_count > 0 and not archive_query:
+            archive_count = 0
+        if mixcloud_count > 0 and not mixcloud_query:
+            mixcloud_count = 0
+        if not archive_count and not mixcloud_count:
+            continue
+        name = str(entry["name"])
+        entries.append({
+            "name": name,
+            "slug": _rave_slug(name),
+            "query": archive_query,
+            "archive_query": archive_query,
+            "mixcloud_query": mixcloud_query,
+            "count": archive_count,
+            "mixcloud_count": mixcloud_count,
+        })
+    entries.sort(key=lambda item: item["name"].lower())
     return entries
 
 
@@ -658,15 +689,14 @@ def packs_menu(handle, params):
          "Toronto rave tapes, 1990–2014. 2,600+ recordings.", "2,600+"),
         ("JungleTapes.com", url_for(mode="legacy_jt"),
          MENU_ART["pack_jungletapes"],
-         "Toronto jungle radio from cassette, 1996–2000. 106 shows.", "106 shows"),
+         "Toronto jungle radio from cassette, 1996–2000. 300+ shows.", "300+ shows"),
         ("RaveTapePacks.com", url_for(mode="legacy_menu"),
          MENU_ART["pack_ravetapepacks"],
          "UK tape packs, 1992–2004, by event, DJ, MC and year.", "1992–2004"),
         ("Classic Pack Series", url_for(mode="filters_menu"),
          MENU_ART["pack_series"],
          "The UK pack canon: Dreamscape, Helter Skelter, One Nation, Fantazia.",
-         ui.fact("%d series" % len([entry for entry in _filters()
-                                    if entry["id"] not in ("kool", "rinse")]))),
+         ui.fact("%d series" % len(_filters()))),
         ("By Rave, Venue & Promoter", url_for(mode="rave_nights"),
          MENU_ART["pack_raves"],
          "Sanctuary, Bagleys, Bowlers, Que Club, Biology and more.",
@@ -872,6 +902,11 @@ def fav_list(handle, params):
                          icon=art(MENU_ART["pack_ravetapepacks"]),
                          plot="RaveTapePacks.com pack", label2="RaveTapePacks",
                          context=context)
+        elif entry["kind"] == "legacy_post":
+            ui.menu_item(handle, url_for(mode="legacy_post", post=entry["target"]), title,
+                         icon=art(MENU_ART["pack_ravetapepacks"]),
+                         plot="RaveTapePacks.com pack", label2="RaveTapePacks",
+                         context=context)
         elif entry["kind"] == "legacy_jt":
             ui.menu_item(handle, url_for(mode="legacy_jt_show", key=entry["target"]), title,
                          icon=art(MENU_ART["pack_jungletapes"]),
@@ -938,17 +973,25 @@ def rave_nights(handle, params):
         kodi.notify("The rave catalogue is missing from the add-on.")
     for entry in entries:
         name = ui.plain(entry["name"])
-        ui.menu_item(handle, url_for(mode="rave_list", key=entry["name"]),
-                     "%s  [COLOR gray](%d items)[/COLOR]" % (name, entry["count"]),
+        bits = []
+        if entry.get("count"):
+            bits.append("%d packs" % entry["count"])
+        if entry.get("mixcloud_count"):
+            bits.append("%d sets" % entry["mixcloud_count"])
+        ui.menu_item(handle,
+                     url_for(mode="rave_list", key=entry.get("slug") or entry["name"]),
+                     "%s  [COLOR gray](%s)[/COLOR]" % (
+                         name, " · ".join(bits) or "content"),
                      icon=art(MENU_ART["pack_raves"]),
-                     plot="Archive packs and sets for %s" % name)
+                     plot="Archive packs and Mixcloud sets for %s" % name)
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
 
 def rave_list(handle, params):
-    name = params.get("key", "")
-    entry = next((item for item in _rave_catalog() if item["name"] == name), None)
+    key = params.get("key", "")
+    entry = next((item for item in _rave_catalog()
+                  if key in (item.get("slug"), item["name"])), None)
     if not entry:
         kodi.notify("That rave is no longer in the catalogue.")
         kodi.end_directory(handle, "files")
@@ -958,11 +1001,24 @@ def rave_list(handle, params):
     except (TypeError, ValueError):
         page = 1
     rows = _rows_per_page()
-    docs, total = archive.search(entry["query"], page=page, rows=rows)
-    _archive_items(handle, docs)
-    if total > page * rows:
-        ui.menu_item(handle, url_for(mode="rave_list", key=name, page=page + 1),
-                     "Next page  >", plot="More %s" % ui.plain(name))
+    if entry.get("query") and entry.get("count"):
+        docs, total = archive.search(entry["query"], page=page, rows=rows)
+        _archive_items(handle, docs)
+        if total > page * rows:
+            ui.menu_item(handle, url_for(mode="rave_list",
+                                         key=entry.get("slug") or entry["name"],
+                                         page=page + 1),
+                         "Next page  ›", plot="More %s" % ui.plain(entry["name"]))
+    elif entry.get("mixcloud_query") and entry.get("mixcloud_count"):
+        kodi.notify("No Archive packs for that rave — open its Mixcloud sets.")
+    if entry.get("mixcloud_query") and entry.get("mixcloud_count"):
+        if handoff.available("mixcloud"):
+            ui.menu_item(handle,
+                         handoff.mixcloud_search(entry["mixcloud_query"]),
+                         "Open %s sets in the Kodi Mixcloud add-on" % entry["name"],
+                         icon=art(MENU_ART["pack_raves"]),
+                         plot="%d Mixcloud sets for %s." % (
+                             entry["mixcloud_count"], entry["name"]))
     kodi.end_directory(handle, "files")
 
 
@@ -971,8 +1027,6 @@ def filters_menu(handle, params):
     if not filters:
         kodi.notify("No quick filters are configured.")
     for entry in filters:
-        if entry["id"] in ("kool", "rinse"):
-            continue
         ui.menu_item(handle, url_for(mode="filter_list", key=entry["id"]), entry["name"],
                      icon=art(FILTER_ART.get(entry["id"], MENU_ART["pack_series"])),
                      plot=entry.get("plot") or entry["name"])
@@ -1323,7 +1377,10 @@ def legacy_index(handle, params):
         kodi.notify("That RaveTapePacks index is not available.")
         kodi.end_directory(handle, "files")
         return
-    for entry in legacy.categories().get(group, []):
+    entries = legacy.categories().get(group, [])
+    if not entries:
+        kodi.notify("RaveTapePacks did not return that index — try again later.")
+    for entry in entries:
         name = ui.plain(entry["name"])
         ui.menu_item(
             handle,
@@ -1339,14 +1396,23 @@ def legacy_index(handle, params):
 
 
 def legacy_category(handle, params):
-    """List the packs (WordPress posts) inside one RaveTapePacks category."""
+    """One page of packs (WordPress posts) inside a RaveTapePacks category."""
     kind = params.get("kind", "")
     cat_id = params.get("cat", "")
     label = params.get("label", "")
     if kind not in RTP_INDEX_KINDS or not str(cat_id).isdigit():
+        kodi.notify("That RaveTapePacks category is not available.")
         kodi.end_directory(handle, "files")
         return
-    for entry in legacy.category(cat_id):
+    page = _page_number(params)
+    posts, next_url = legacy.category_page(cat_id, page)
+    if posts is None:
+        kodi.notify("RaveTapePacks did not answer — try again later.")
+        kodi.end_directory(handle, "files")
+        return
+    if not posts and page == 1:
+        kodi.notify("No packs in that RaveTapePacks category.")
+    for entry in posts:
         name = ui.plain(entry["name"])
         ui.menu_item(
             handle,
@@ -1357,7 +1423,12 @@ def legacy_category(handle, params):
             plot="RaveTapePacks.com · %s" % (ui.plain(label) or RTP_INDEX_LABELS[kind]),
             title=name,
             label2=RTP_INDEX_LABELS[kind],
+            context=[_favourite("legacy_post", entry["id"], name, "RaveTapePacks.com")],
         )
+    if next_url:
+        ui.menu_item(handle, url_for(mode="legacy_category", kind=kind, cat=cat_id,
+                                     label=label, page=page + 1),
+                     "Next page  ›", plot="More packs in this category")
     ui.menu_item(handle, url_for(mode="legacy_index", kind=kind), "Back")
     kodi.end_directory(handle, "files")
 
@@ -1377,9 +1448,12 @@ def legacy_post(handle, params):
         return
     entry = legacy.post(post_id)
     if not entry:
+        kodi.notify("RaveTapePacks did not answer — try again later.")
         kodi.end_directory(handle, "songs")
         return
     album = ui.plain(entry["name"])
+    if not entry["tracks"]:
+        kodi.notify("No tracks on that RaveTapePacks pack.")
     for track in entry["tracks"]:
         url = _playable_url(legacy.playable(track["url"]))
         if not url:
@@ -1402,7 +1476,10 @@ def legacy_jt(handle, params):
     shows = legacy.jungle_shows()
     if not shows:
         kodi.notify("Jungle Tapes did not answer — try again later.")
-    for show in shows:
+    page = _page_number(params)
+    start = (page - 1) * JT_SHOWS_PER_PAGE
+    window = shows[start:start + JT_SHOWS_PER_PAGE]
+    for show in window:
         name = ui.plain(show["name"])
         ui.menu_item(
             handle,
@@ -1412,6 +1489,10 @@ def legacy_jt(handle, params):
             plot="JungleTapes.com · Toronto jungle radio",
             context=[_favourite("legacy_jt", show["key"], name, "JungleTapes.com")],
         )
+    if start + JT_SHOWS_PER_PAGE < len(shows):
+        ui.menu_item(handle, url_for(mode="legacy_jt", page=page + 1),
+                     "Next page  ›", plot=_page_plot(len(shows), page + 1,
+                                                     JT_SHOWS_PER_PAGE))
     ui.menu_item(handle, url_for(mode="packs_menu"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -1493,19 +1574,29 @@ def toronto_genre(handle, params):
 
 
 def legacy_packs(handle, params):
-    entries = legacy.packs()
-    for entry in entries:
+    """Every RaveTapePacks post, from the paginated blog archive (?cat=0)."""
+    page = _page_number(params)
+    posts, next_url = legacy.all_packs(page)
+    if posts is None:
+        kodi.notify("RaveTapePacks did not answer — try again later.")
+        kodi.end_directory(handle, "files")
+        return
+    if not posts and page == 1:
+        kodi.notify("No packs in the RaveTapePacks archive.")
+    for entry in posts:
         name = ui.plain(entry["name"])
         ui.menu_item(
             handle,
-            url_for(mode="legacy_pack", pack=entry["key"]),
-            "%s  [COLOR gray](%d tape%s)[/COLOR]"
-            % (name, len(entry["tracks"]), "" if len(entry["tracks"]) == 1 else "s"),
+            url_for(mode="legacy_post", post=entry["id"], label=name),
+            name,
             icon=art(MENU_ART["pack_ravetapepacks"]),
-            plot="RaveTapePacks.com · %d tapes" % len(entry["tracks"]),
+            plot="RaveTapePacks.com · tape pack",
             title=name,
-            context=[_favourite("legacy_pack", entry["key"], name, "RaveTapePacks.com")],
+            context=[_favourite("legacy_post", entry["id"], name, "RaveTapePacks.com")],
         )
+    if next_url:
+        ui.menu_item(handle, url_for(mode="legacy_packs", page=page + 1),
+                     "Next page  ›", plot="More RaveTapePacks packs")
     kodi.end_directory(handle, "files")
 
 
@@ -2009,7 +2100,23 @@ def search(handle, params):
         return
     page = _page_number(params)
     rows = _rows_per_page()
-    docs, total = archive.search(query, page=page, rows=rows)
+    # Scope the full-text query to the curated collection, exactly as the web
+    # build does.  An unscoped search for "dreamscape" used to return YouTube
+    # rips, audiobooks and sound-effect records before any actual rave tape.
+    docs, total = archive.search("%s AND %s" % (query, latest.RAVE_COLLECTION),
+                                 page=page, rows=rows)
+    if page == 1 and total < 10:
+        # Title-scoped widen: an unscoped mediatype:audio search returns
+        # audiobooks and sound effects before the rave tapes.
+        widen_query = (
+            'title:(%s) AND mediatype:audio AND '
+            '(collection:ravetapes OR collection:cassettetapes OR '
+            'subject:(rave OR jungle OR hardcore OR "drum and bass" OR '
+            '"old skool" OR garage))' % query)
+        wider, _ = archive.search(widen_query, rows=rows)
+        seen = {doc.get("identifier") for doc in docs if isinstance(doc, dict)}
+        docs += [doc for doc in wider
+                 if isinstance(doc, dict) and doc.get("identifier") not in seen]
     if not docs and page == 1:
         kodi.notify("No results for “%s”." % query)
     _archive_items(handle, docs)
