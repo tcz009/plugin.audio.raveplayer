@@ -601,30 +601,52 @@ def root(handle, params):
          "Version, credits and every source used.", kodi.ADDON_VERSION),
     ]
     for mode, label, icon, fan, plot, label2 in root_rows:
+        # The screen row is a *program* item, not a folder: Kodi's
+        # CGUIMediaWindow::OnClick routes a non-folder plugin item with no
+        # IsPlayable property through CPluginDirectory::RunScriptWithParams(),
+        # which runs this plugin without opening a directory window. That is
+        # what keeps Back on the root list and removes the DialogBusy that used
+        # to race the script's window activation (see docs/RAVE-SCREEN-DIAGNOSIS.md).
         menu_item(handle, url_for(mode=mode), label,
-                  icon=art(icon), fanart=art(fan), plot=plot, label2=label2)
+                  icon=art(icon), fanart=art(fan), plot=plot, label2=label2,
+                  is_folder=(mode != "screen"))
     kodi.end_directory(handle, "files")
 
+
+RAVE_SCREEN_ADDON = "script.raveplayer.ui"
+
+
+def _condition(builder, addon_id):
+    """Evaluate one Kodi info condition without letting an API change crash."""
+    try:
+        return bool(xbmc.getCondVisibility(builder % addon_id))
+    except Exception:
+        return False
 
 
 def rave_screen(handle, params):
-    """Launch the full-screen script add-on, never an overlay on this folder.
+    """Run the full-screen script add-on; never open a plugin directory.
 
-    The plugin directory is closed first so Kodi has a clean window stack. If
-    the optional Rave Screen add-on is missing, one notification explains it and
-    the normal root list is rebuilt instead of leaving a dead row.
+    The root row is a non-folder plugin item, so Kodi calls
+    ``CPluginDirectory::RunScriptWithParams``: no directory window (and no
+    DialogBusy) is created, and Back from the screen lands on the root list.
+    ``System.HasAddon`` is true for a *disabled* add-on, so the enabled state is
+    checked separately; otherwise the user is left on a row that does nothing.
     """
-    try:
-        installed = bool(xbmc.getCondVisibility("System.HasAddon(script.raveplayer.ui)"))
-    except Exception:
-        installed = False
-    if not installed:
-        kodi.notify("Rave Screen is not installed — install script.raveplayer.ui "
-                    "from the Rave Player repository. Showing the normal lists.")
-        root(handle, params)
+    enabled = _condition("System.AddonIsEnabled(%s)", RAVE_SCREEN_ADDON)
+    if not enabled:
+        if _condition("System.HasAddon(%s)", RAVE_SCREEN_ADDON):
+            kodi.notify("Rave Screen is installed but disabled — enable it in "
+                        "My add-ons, then select the row again.")
+        else:
+            kodi.notify("Rave Screen is not installed — install %s from the "
+                        "Rave Player repository." % RAVE_SCREEN_ADDON)
         return
-    kodi.end_directory(handle, "files")
-    xbmc.executebuiltin("RunScript(script.raveplayer.ui)")
+    # Only a folder invocation (a saved favourite/deep link) has a directory to
+    # end; the normal program-style invocation passes handle -1.
+    if handle is not None and handle >= 0:
+        kodi.end_directory(handle, "files")
+    xbmc.executebuiltin("RunScript(%s)" % RAVE_SCREEN_ADDON)
 
 
 def packs_menu(handle, params):

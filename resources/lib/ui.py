@@ -171,7 +171,7 @@ def add_item(handle, url, label, is_folder=True, art=None, info=None, playable=F
 
 
 def menu_item(handle, url, label, icon=None, fanart=None, plot=None, context=None, title=None,
-              label2=None):
+              label2=None, is_folder=True):
     art = {
         "icon": icon or kodi.ICON,
         "thumb": icon or kodi.ICON,
@@ -180,7 +180,7 @@ def menu_item(handle, url, label, icon=None, fanart=None, plot=None, context=Non
     }
     info = kodi.music_info(plain(title or label), plot or plain(label),
                            mediatype="music")
-    return add_item(handle, url, label, is_folder=True, art=art, info=info,
+    return add_item(handle, url, label, is_folder=is_folder, art=art, info=info,
                     context=context, label2=label2, plot=plot)
 
 
