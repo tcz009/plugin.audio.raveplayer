@@ -1,9 +1,19 @@
 Rave Player 3.9.48
+- Rave Screen (`script.raveplayer.ui` 3.9.48) visual parity pass: the
+  WindowXML is rebuilt to docs/rave-screen (1280x720 bed/grain, hero poster
+  frame/scrim/sticker, focus plate/bar/twin, 1152x64 footer with waveform and
+  progress, RP/FOCUS/ON AIR stickers, row facts and RP codes, restyled
+  Spinning Surprise), with the 59 design assets bundled under
+  resources/art/rave-screen. List stays control 50/defaultcontrol 50, no
+  setFocusId, only font13/12/10, absolute special:// textures. Plugin version
+  unchanged; behaviour (single-pick guard, playback handoff, fail-fast launch)
+  unchanged. No device run in this workspace.
 - Round-face fallback for Kodi’s player/Now Playing: playable tracks with no
   cover now use resources/art/icon.png instead of the generic eye; genuine
   cover art is preserved. Applied in play/playlist resolution, ui.track_item
   and RaveTapePacks/Toronto/Moxser track rows.
-- Tests: 524 OK. No playback/autoplay changes.
+- Tests: 634 OK (including the new Rave Screen XML/row tests). No
+  playback/autoplay changes.
 
 Rave Player 3.9.43
 - Merged feat/rtp-egress: per-host RaveTapePacks HTTP CONNECT proxy via

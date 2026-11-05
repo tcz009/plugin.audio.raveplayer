@@ -1,0 +1,474 @@
+[
+  {
+    "file": "screen-bed-1280x720.jpg",
+    "width": 1280,
+    "height": 720,
+    "mode": "RGB",
+    "use": "Print bed: ink wash, halftone sun, hazard edge, crop marks, scanlines and grain.",
+    "bytes": 173048
+  },
+  {
+    "file": "screen-bed-1920x1080.jpg",
+    "width": 1920,
+    "height": 1080,
+    "mode": "RGB",
+    "use": "Print bed: ink wash, halftone sun, hazard edge, crop marks, scanlines and grain.",
+    "bytes": 367061
+  },
+  {
+    "file": "noise-overlay-1280x720.png",
+    "width": 1280,
+    "height": 720,
+    "mode": "RGBA",
+    "use": "Full-frame grain + scanline overlay; place above the bed, below live type.",
+    "bytes": 642961
+  },
+  {
+    "file": "hero-frame-640x360.png",
+    "width": 640,
+    "height": 360,
+    "mode": "RGBA",
+    "use": "Transparent 640x360 hero frame: keyline, crop marks, code notch and drips.",
+    "bytes": 2857
+  },
+  {
+    "file": "hero-shadow-640x360.png",
+    "width": 640,
+    "height": 360,
+    "mode": "RGBA",
+    "use": "Hard magenta hero shadow, +12/+12, with cyan bottom sliver.",
+    "bytes": 1489
+  },
+  {
+    "file": "hero-sticker-shadow-140x140.png",
+    "width": 140,
+    "height": 140,
+    "mode": "RGBA",
+    "use": "Hard shadow for the 140x140 focused sticker inside the hero card.",
+    "bytes": 339
+  },
+  {
+    "file": "hero-scrim-640x360.png",
+    "width": 640,
+    "height": 360,
+    "mode": "RGBA",
+    "use": "Left-to-right ink scrim for hero type over any fanart.",
+    "bytes": 1545
+  },
+  {
+    "file": "hero-fallback-640x360.jpg",
+    "width": 640,
+    "height": 360,
+    "mode": "RGB",
+    "use": "Fallback hero art when a row has no fanart; 640x360 print plate.",
+    "bytes": 51749
+  },
+  {
+    "file": "focus-plate-474x40.png",
+    "width": 474,
+    "height": 40,
+    "mode": "RGBA",
+    "use": "Focused-row plate: ink fill, paper keyline, halftone tail; 474x40.",
+    "bytes": 422
+  },
+  {
+    "file": "focus-plate-shadow-474x40.png",
+    "width": 474,
+    "height": 40,
+    "mode": "RGBA",
+    "use": "Hard magenta focus-plate shadow, +6/+4, 474x40.",
+    "bytes": 245
+  },
+  {
+    "file": "focus-bar-6x34.png",
+    "width": 6,
+    "height": 34,
+    "mode": "RGBA",
+    "use": "6x34 acid focus bar with magenta misregistration edge.",
+    "bytes": 93
+  },
+  {
+    "file": "row-separator-480x1.png",
+    "width": 480,
+    "height": 1,
+    "mode": "RGBA",
+    "use": "480x1 row separator: paper gradient with an acid registration tick.",
+    "bytes": 101
+  },
+  {
+    "file": "rule-acid-1152x2.png",
+    "width": 1152,
+    "height": 2,
+    "mode": "RGBA",
+    "use": "Header rule, acid.",
+    "bytes": 96
+  },
+  {
+    "file": "rule-magenta-1152x2.png",
+    "width": 1152,
+    "height": 2,
+    "mode": "RGBA",
+    "use": "Header rule misregistration, magenta.",
+    "bytes": 96
+  },
+  {
+    "file": "footer-plate-1152x64.png",
+    "width": 1152,
+    "height": 64,
+    "mode": "RGBA",
+    "use": "1152x64 now-playing footer plate: ink, acid top rule, magenta misregister.",
+    "bytes": 680
+  },
+  {
+    "file": "surprise-caption-plate-640x168.png",
+    "width": 640,
+    "height": 168,
+    "mode": "RGBA",
+    "use": "640x144 torn-top ink band for the Surprise caption; acid tear, magenta misregister.",
+    "bytes": 1866
+  },
+  {
+    "file": "mark-shadow-48x48.png",
+    "width": 48,
+    "height": 48,
+    "mode": "RGBA",
+    "use": "Hard magenta shadow behind the 48px header mark.",
+    "bytes": 144
+  },
+  {
+    "file": "icon-shadow-36x36.png",
+    "width": 36,
+    "height": 36,
+    "mode": "RGBA",
+    "use": "Hard magenta shadow behind the focused row's 36px icon.",
+    "bytes": 129
+  },
+  {
+    "file": "button-focus-220x38.png",
+    "width": 220,
+    "height": 38,
+    "mode": "RGBA",
+    "use": "Acid outline focus plate for the Surprise CANCEL button.",
+    "bytes": 293
+  },
+  {
+    "file": "button-nofocus-220x38.png",
+    "width": 220,
+    "height": 38,
+    "mode": "RGBA",
+    "use": "Transparent no-focus texture for the Surprise CANCEL button.",
+    "bytes": 112
+  },
+  {
+    "file": "sticker-rp.png",
+    "width": 50,
+    "height": 35,
+    "mode": "RGBA",
+    "use": "Hero RP sticker; dynamic code sits beside it.",
+    "bytes": 3017
+  },
+  {
+    "file": "sticker-focus.png",
+    "width": 87,
+    "height": 40,
+    "mode": "RGBA",
+    "use": "Optional focus sticker / spec callout; acid field, ink type.",
+    "bytes": 4736
+  },
+  {
+    "file": "sticker-on-air.png",
+    "width": 67,
+    "height": 29,
+    "mode": "RGBA",
+    "use": "Now-playing status sticker; magenta field, paper type.",
+    "bytes": 3315
+  },
+  {
+    "file": "label-on-the-screen.png",
+    "width": 140,
+    "height": 20,
+    "mode": "RGBA",
+    "use": "Baked Impact kicker inside the hero card.",
+    "bytes": 2366
+  },
+  {
+    "file": "label-now-playing.png",
+    "width": 118,
+    "height": 18,
+    "mode": "RGBA",
+    "use": "Baked Impact kicker in the footer; skipped when idle.",
+    "bytes": 2292
+  },
+  {
+    "file": "label-surprise-me.png",
+    "width": 415,
+    "height": 69,
+    "mode": "RGBA",
+    "use": "Baked Impact Surprise title; magenta + cyan misregistration.",
+    "bytes": 6200
+  },
+  {
+    "file": "label-spinning-the-rack.png",
+    "width": 285,
+    "height": 14,
+    "mode": "RGBA",
+    "use": "Baked mono Surprise sub-caption, tracked.",
+    "bytes": 4153
+  },
+  {
+    "file": "label-the-rave-screen.png",
+    "width": 102,
+    "height": 13,
+    "mode": "RGBA",
+    "use": "Baked print subtitle for the header block.",
+    "bytes": 1855
+  },
+  {
+    "file": "label-rp-2026.png",
+    "width": 89,
+    "height": 12,
+    "mode": "RGBA",
+    "use": "Small print furniture for the grid sheet.",
+    "bytes": 1351
+  },
+  {
+    "file": "keycap-b.png",
+    "width": 32,
+    "height": 32,
+    "mode": "RGBA",
+    "use": "Footer/Back keycap; Back action is handled by Python onAction.",
+    "bytes": 495
+  },
+  {
+    "file": "keycap-ok.png",
+    "width": 40,
+    "height": 32,
+    "mode": "RGBA",
+    "use": "Footer/OK keycap; OK opens the focused row.",
+    "bytes": 887
+  },
+  {
+    "file": "np-wave-340x28.png",
+    "width": 340,
+    "height": 28,
+    "mode": "RGBA",
+    "use": "340x28 now-playing waveform bars; static texture, progress drawn separately.",
+    "bytes": 324
+  },
+  {
+    "file": "progress-track-340x3.png",
+    "width": 340,
+    "height": 3,
+    "mode": "RGBA",
+    "use": "Now-playing progress track.",
+    "bytes": 97
+  },
+  {
+    "file": "progress-fill-2x3.png",
+    "width": 2,
+    "height": 3,
+    "mode": "RGBA",
+    "use": "Now-playing progress fill; stretched by the progress control.",
+    "bytes": 79
+  },
+  {
+    "file": "surprise-burst-1280x720.jpg",
+    "width": 1280,
+    "height": 720,
+    "mode": "RGB",
+    "use": "Surprise full-bleed burst, 1280x720; magenta/acid/cyan beams, halftone, scanlines.",
+    "bytes": 386562
+  },
+  {
+    "file": "surprise-burst-1920x1080.jpg",
+    "width": 1920,
+    "height": 1080,
+    "mode": "RGB",
+    "use": "Surprise full-bleed burst, 1280x720; magenta/acid/cyan beams, halftone, scanlines.",
+    "bytes": 745326
+  },
+  {
+    "file": "surprise-burst-512.png",
+    "width": 512,
+    "height": 512,
+    "mode": "RGBA",
+    "use": "Surprise burst badge, transparent, 512px; use behind the 512 head.",
+    "bytes": 160210
+  },
+  {
+    "file": "surprise-burst-256.png",
+    "width": 256,
+    "height": 256,
+    "mode": "RGBA",
+    "use": "Surprise burst badge, transparent, 256px; use behind the 512 head.",
+    "bytes": 85843
+  },
+  {
+    "file": "surprise-ring-640x640.png",
+    "width": 640,
+    "height": 640,
+    "mode": "RGBA",
+    "use": "640x640 breakout ring: acid/magenta/cyan arcs, orbit dust, cardinal glitches.",
+    "bytes": 7709
+  },
+  {
+    "file": "head-512-00.png",
+    "width": 512,
+    "height": 512,
+    "mode": "RGBA",
+    "use": "Surprise/hero head frame 00, 512px, 36 degrees; derived only by rotation from icon.png.",
+    "bytes": 44688
+  },
+  {
+    "file": "head-256-00.png",
+    "width": 256,
+    "height": 256,
+    "mode": "RGBA",
+    "use": "Surprise head frame 00, 256px, 36 degrees; low-density fallback.",
+    "bytes": 29388
+  },
+  {
+    "file": "head-512-01.png",
+    "width": 512,
+    "height": 512,
+    "mode": "RGBA",
+    "use": "Surprise/hero head frame 01, 512px, 36 degrees; derived only by rotation from icon.png.",
+    "bytes": 88106
+  },
+  {
+    "file": "head-256-01.png",
+    "width": 256,
+    "height": 256,
+    "mode": "RGBA",
+    "use": "Surprise head frame 01, 256px, 36 degrees; low-density fallback.",
+    "bytes": 33545
+  },
+  {
+    "file": "head-512-02.png",
+    "width": 512,
+    "height": 512,
+    "mode": "RGBA",
+    "use": "Surprise/hero head frame 02, 512px, 36 degrees; derived only by rotation from icon.png.",
+    "bytes": 87338
+  },
+  {
+    "file": "head-256-02.png",
+    "width": 256,
+    "height": 256,
+    "mode": "RGBA",
+    "use": "Surprise head frame 02, 256px, 36 degrees; low-density fallback.",
+    "bytes": 33786
+  },
+  {
+    "file": "head-512-03.png",
+    "width": 512,
+    "height": 512,
+    "mode": "RGBA",
+    "use": "Surprise/hero head frame 03, 512px, 36 degrees; derived only by rotation from icon.png.",
+    "bytes": 86882
+  },
+  {
+    "file": "head-256-03.png",
+    "width": 256,
+    "height": 256,
+    "mode": "RGBA",
+    "use": "Surprise head frame 03, 256px, 36 degrees; low-density fallback.",
+    "bytes": 34119
+  },
+  {
+    "file": "head-512-04.png",
+    "width": 512,
+    "height": 512,
+    "mode": "RGBA",
+    "use": "Surprise/hero head frame 04, 512px, 36 degrees; derived only by rotation from icon.png.",
+    "bytes": 84585
+  },
+  {
+    "file": "head-256-04.png",
+    "width": 256,
+    "height": 256,
+    "mode": "RGBA",
+    "use": "Surprise head frame 04, 256px, 36 degrees; low-density fallback.",
+    "bytes": 33497
+  },
+  {
+    "file": "head-512-05.png",
+    "width": 512,
+    "height": 512,
+    "mode": "RGBA",
+    "use": "Surprise/hero head frame 05, 512px, 36 degrees; derived only by rotation from icon.png.",
+    "bytes": 44082
+  },
+  {
+    "file": "head-256-05.png",
+    "width": 256,
+    "height": 256,
+    "mode": "RGBA",
+    "use": "Surprise head frame 05, 256px, 36 degrees; low-density fallback.",
+    "bytes": 29209
+  },
+  {
+    "file": "head-512-06.png",
+    "width": 512,
+    "height": 512,
+    "mode": "RGBA",
+    "use": "Surprise/hero head frame 06, 512px, 36 degrees; derived only by rotation from icon.png.",
+    "bytes": 87663
+  },
+  {
+    "file": "head-256-06.png",
+    "width": 256,
+    "height": 256,
+    "mode": "RGBA",
+    "use": "Surprise head frame 06, 256px, 36 degrees; low-density fallback.",
+    "bytes": 33534
+  },
+  {
+    "file": "head-512-07.png",
+    "width": 512,
+    "height": 512,
+    "mode": "RGBA",
+    "use": "Surprise/hero head frame 07, 512px, 36 degrees; derived only by rotation from icon.png.",
+    "bytes": 87379
+  },
+  {
+    "file": "head-256-07.png",
+    "width": 256,
+    "height": 256,
+    "mode": "RGBA",
+    "use": "Surprise head frame 07, 256px, 36 degrees; low-density fallback.",
+    "bytes": 33769
+  },
+  {
+    "file": "head-512-08.png",
+    "width": 512,
+    "height": 512,
+    "mode": "RGBA",
+    "use": "Surprise/hero head frame 08, 512px, 36 degrees; derived only by rotation from icon.png.",
+    "bytes": 86824
+  },
+  {
+    "file": "head-256-08.png",
+    "width": 256,
+    "height": 256,
+    "mode": "RGBA",
+    "use": "Surprise head frame 08, 256px, 36 degrees; low-density fallback.",
+    "bytes": 34112
+  },
+  {
+    "file": "head-512-09.png",
+    "width": 512,
+    "height": 512,
+    "mode": "RGBA",
+    "use": "Surprise/hero head frame 09, 512px, 36 degrees; derived only by rotation from icon.png.",
+    "bytes": 84577
+  },
+  {
+    "file": "head-256-09.png",
+    "width": 256,
+    "height": 256,
+    "mode": "RGBA",
+    "use": "Surprise head frame 09, 256px, 36 degrees; low-density fallback.",
+    "bytes": 33613
+  }
+]

@@ -1,3 +1,33 @@
+# Rave Player 3.9.48
+
+- **Rave Screen visual parity** — `script-raveplayer-ui.xml` rebuilt to the
+  design specialist's `docs/rave-screen` control map: 1280×720 screen bed and
+  grain overlay, header mark/wordmark/baked subtitle, acid+magenta rules,
+  clock and room count, 640×360 hero poster (shadow, fanart, scrim, 140 px
+  sticker, RP sticker/code, frame, baked kicker), cyan/paper title twins,
+  fact+code meta and plot, 48 px rows with focus plate/shadow/bar/icon
+  shadow/twin/fact/chevron, and the 1152×64 footer with ON AIR, baked NOW
+  PLAYING, real `Player.*` title/artist/time/duration, waveform, 3 px progress
+  and OK/BACK keycaps. The list remains **control 50** with `defaultcontrol 50`
+  and no `setFocusId`; only `font13`/`font12`/`font10` are used.
+- **Row rendering** — `ListItem.Label2` now carries a short fact (newest,
+  1990–2014, cassette, 1992–2004, live, random, genre, show, tape count,
+  track duration, source), the RP code/index ride as `rp_code`/`rp_index`
+  item properties, the hero binds to `ListItem.Art(fanart)`/`Icon`, and the
+  footer shows the selected row when idle and `Player.*` while playing.
+- **Spinning Surprise** — restyled to the full-window burst/ring/head/caption
+  composition with the baked SURPRISE ME and SPINNING THE RACK labels, RP-02
+  code line and B CANCEL affordance. Behaviour is unchanged: one bounded pick,
+  one ≥1.2 s head spin, one playback handoff, Back/fail-fast guards intact.
+- **Art** — the 59 design assets are bundled under
+  `resources/art/rave-screen/` (plus the untouched Rave Player mark), and every
+  texture reference is an absolute `special://home/addons/script.raveplayer.ui`
+  path so the skin cannot shadow it.
+- **Tests** — new offline checks parse the XML, assert control 50/defaultcontrol
+  50/no setFocusId, resolve every referenced texture, verify 720p geometry and
+  64/36 safe margins for live type, and assert the focus/hero bindings and the
+  data facts. Full suite green (634 tests); no device run.
+
 # Rave Player 3.9.47
 
 - **New add-on `script.raveplayer.ui` ("Rave Screen")** — a proper full-screen

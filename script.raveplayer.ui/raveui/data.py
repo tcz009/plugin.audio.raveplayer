@@ -38,6 +38,9 @@ class Entry:
     target: str = ""
     track: object = None      # Track for playable rows
     hero: str = ""            # optional 1280x720 hero art; falls back to art
+    fact: str = ""            # Label2: duration / count / source, <= 16 chars
+    code: str = ""            # RP-xx print furniture, not a routing key
+    plot: str = ""             # hero description line
 
 
 def _text(value, fallback=""):
@@ -45,6 +48,37 @@ def _text(value, fallback=""):
         value = " ".join(str(part) for part in value)
     text = " ".join(str(value or "").split())
     return text or fallback
+
+
+MAX_FACT_CHARS = 16
+
+
+def _fact(value, fallback=""):
+    """Return a plain single-line Label2 fact capped at 16 characters."""
+    text = _text(value, fallback)
+    if len(text) <= MAX_FACT_CHARS:
+        return text
+    return text[:MAX_FACT_CHARS - 1].rstrip() + "…"
+
+
+def _duration_fact(value):
+    """Format a track duration for Label2 ("43:57", "1:02:03"), or ""."""
+    text = _text(value)
+    if not text:
+        return ""
+    if ":" in text and len(text) <= 8:
+        return _fact(text)
+    try:
+        total = int(float(text))
+    except (TypeError, ValueError, OverflowError):
+        return ""
+    if total <= 0:
+        return ""
+    hours, remainder = divmod(total, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return _fact("%d:%02d:%02d" % (hours, minutes, seconds))
+    return _fact("%d:%02d" % (minutes, seconds))
 
 
 class RaveData(object):
@@ -100,27 +134,39 @@ class RaveData(object):
             Entry("latest", "LATEST",
                   "Newest tape packs from the Internet Archive",
                   self._art("rave.png"), "section", source="latest",
-                  hero=self._art("fanart-latest.jpg")),
+                  hero=self._art("fanart-latest.jpg"),
+                  fact="newest", code="RP-01",
+                  plot="Newest packs, shows and radio rips — start here."),
             Entry("toronto", "TORONTO RAVE MIXTAPE ARCHIVE",
                   "1990–2014 · jungle, house and X-Static tapes",
                   self._art("toronto.png"), "section", source="toronto",
-                  hero=self._art("fanart-toronto.jpg")),
+                  hero=self._art("fanart-toronto.jpg"),
+                  fact="1990–2014", code="RP-19",
+                  plot="Toronto rave mixtapes, 1990–2014."),
             Entry("jungletapes", "JUNGLETAPES.COM",
                   "Toronto jungle radio digitised from cassette",
                   self._art("jungletapes.png"), "section", source="jungletapes",
-                  hero=self._art("fanart-hub-packs.jpg")),
+                  hero=self._art("fanart-hub-packs.jpg"),
+                  fact="cassette", code="RP-27",
+                  plot="Toronto jungle radio, digitised from cassette."),
             Entry("ravetapepacks", "RAVETAPEPACKS.COM",
                   "UK tape packs, 1992–2004",
                   self._art("ravetapepacks.png"), "section", source="ravetapepacks",
-                  hero=self._art("fanart-tapepacks.jpg")),
+                  hero=self._art("fanart-tapepacks.jpg"),
+                  fact="1992–2004", code="RP-03",
+                  plot="UK rave tape packs, 1992–2004."),
             Entry("live", "LIVE RADIO",
                   "Kool FM · Rinse FM · Centreforce and more",
                   self._art("radio.png"), "section", source="live",
-                  hero=self._art("fanart-live.jpg")),
+                  hero=self._art("fanart-live.jpg"),
+                  fact="live", code="RP-31",
+                  plot="Stations on air now: Kool, Rinse, Centreforce."),
             Entry("surprise", "SPINNING SURPRISE",
                   "One random pack + track · press OK",
                   self._art("surprise.png"), "surprise", source="surprise",
-                  hero=self._art("fanart-surprise.jpg")),
+                  hero=self._art("fanart-surprise.jpg"),
+                  fact="random", code="RP-02",
+                  plot="One random pack and track; one spin, no re-roll."),
         ]
 
     # -------------------------------------------------------------- sections
@@ -145,13 +191,18 @@ class RaveData(object):
             identifier = _text(row.get("identifier"))
             if not identifier:
                 continue
+            year = _text(row.get("year"))
             entries.append(Entry(
                 key=identifier,
                 label=_text(row.get("title"), identifier),
                 subtitle="Rave Tape Packs",
                 art=self._archive_thumb(identifier),
                 kind="pack", source="latest", target=identifier,
-                hero=self._art("fanart-latest.jpg")))
+                hero=self._art("fanart-latest.jpg"),
+                fact=_fact(year or "pack", "pack"),
+                code="RP-01",
+                plot="Tape pack from the Internet Archive" + (
+                    " · " + year if year else "")))
         return entries
 
     def _toronto_entries(self):
@@ -166,7 +217,9 @@ class RaveData(object):
                 subtitle="Toronto genre",
                 art=self._art("toronto.png"),
                 kind="genre", source="toronto", target=genre,
-                hero=self._art("fanart-toronto.jpg")))
+                hero=self._art("fanart-toronto.jpg"),
+                fact="genre", code="RP-19",
+                plot="Toronto rave mixtape genre"))
         return entries
 
     def _jungletapes_entries(self):
@@ -181,7 +234,9 @@ class RaveData(object):
                 subtitle="JungleTapes show",
                 art=self._art("jungletapes.png"),
                 kind="show", source="jungletapes", target=key,
-                hero=self._art("fanart-hub-packs.jpg")))
+                hero=self._art("fanart-hub-packs.jpg"),
+                fact="show", code="RP-27",
+                plot="Toronto jungle radio show on JungleTapes.com"))
         return entries
 
     def _ravetapepacks_entries(self):
@@ -191,13 +246,16 @@ class RaveData(object):
             if not key:
                 continue
             tapes = row.get("tracks") or []
+            count = "%d tape%s" % (len(tapes), "" if len(tapes) == 1 else "s")
             entries.append(Entry(
                 key=key,
                 label=_text(row.get("name"), key),
-                subtitle="%d tape%s" % (len(tapes), "" if len(tapes) == 1 else "s"),
+                subtitle=count,
                 art=self._art("ravetapepacks.png"),
                 kind="pack", source="ravetapepacks", target=key,
-                hero=self._art("fanart-tapepacks.jpg")))
+                hero=self._art("fanart-tapepacks.jpg"),
+                fact=_fact(count, "pack"), code="RP-03",
+                plot="UK rave tape pack on RaveTapePacks.com"))
         return entries
 
     def _live_entries(self):
@@ -228,7 +286,9 @@ class RaveData(object):
                 kind="station", source="live",
                 track=Track(name, "Live radio", url,
                             self._art("radio.png"), live=True),
-                hero=self._art("fanart-live.jpg")))
+                hero=self._art("fanart-live.jpg"),
+                fact="live", code="RP-31",
+                plot="Live radio · Kool FM, Rinse FM, Centreforce"))
         return entries
 
     # -------------------------------------------------------------- children
@@ -260,6 +320,7 @@ class RaveData(object):
     def _track_entries(self, tracks, parent, source):
         entries = []
         art = parent.art or self._art("rave.png")
+        fallback_fact = parent.fact or _fact(source, "track")
         for track in tracks or []:
             if not isinstance(track, dict):
                 continue
@@ -274,7 +335,10 @@ class RaveData(object):
                 art=art,
                 kind="track", source=source, target=url,
                 track=Track(title, parent.label, url, art),
-                hero=parent.hero or art))
+                hero=parent.hero or art,
+                fact=_duration_fact(track.get("duration")) or fallback_fact,
+                code=parent.code,
+                plot=parent.plot or parent.label))
         return entries
 
     def _archive_thumb(self, identifier):
@@ -312,11 +376,18 @@ class RaveData(object):
     def spinner_frames(self):
         frames = []
         # Prefer this add-on's bundled frames so opening the window never waits
-        # for the data add-on to import; fall back to the plugin copy.
-        for root in (self._script_root, self.root):
-            directory = os.path.join(root, "resources", "art", "spinner")
-            candidate = [os.path.join(directory, "head-%d-%02d.png" % (FRAME_SIZE, index))
-                         for index in range(FRAME_COUNT)]
-            if all(os.path.isfile(path) for path in candidate):
-                return candidate
+        # for the data add-on to import. The rave-screen copy is the design
+        # snapshot; resources/art/spinner is the pre-3.9.48 fallback.
+        roots = [self._script_root]
+        try:
+            roots.append(self.root)
+        except Exception:  # noqa: BLE001 - plugin missing; the script copy is enough
+            pass
+        for root in roots:
+            for directory in (os.path.join(root, "resources", "art", "rave-screen"),
+                              os.path.join(root, "resources", "art", "spinner")):
+                candidate = [os.path.join(directory, "head-%d-%02d.png" % (FRAME_SIZE, index))
+                             for index in range(FRAME_COUNT)]
+                if all(os.path.isfile(path) for path in candidate):
+                    return candidate
         return frames

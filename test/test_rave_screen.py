@@ -11,6 +11,7 @@ import os
 import sys
 import types
 import unittest
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from unittest import mock
 
@@ -555,6 +556,44 @@ class DataTests(unittest.TestCase):
         self.assertTrue(rows[0].hero.endswith("fanart-latest.jpg"))
         self.assertTrue(rows[-1].hero.endswith("fanart-surprise.jpg"))
 
+    def test_home_rows_carry_short_facts_codes_and_plots(self):
+        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+        rows = data.home_rows()
+        self.assertEqual([row.fact for row in rows],
+                         ["newest", "1990–2014", "cassette", "1992–2004",
+                          "live", "random"])
+        self.assertEqual([row.code for row in rows],
+                         ["RP-01", "RP-19", "RP-27", "RP-03", "RP-31", "RP-02"])
+        for row in rows:
+            with self.subTest(row=row.label):
+                self.assertLessEqual(len(row.fact), 16)
+                self.assertTrue(row.plot)
+                self.assertTrue(row.hero)
+
+    def test_section_rows_carry_duration_count_or_source_facts(self):
+        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+        self.assertEqual(data.section_entries("latest")[0].fact, "pack")
+        self.assertEqual(data.section_entries("toronto")[0].fact, "genre")
+        self.assertEqual(data.section_entries("jungletapes")[0].fact, "show")
+        self.assertEqual(data.section_entries("ravetapepacks")[0].fact, "1 tape")
+        self.assertEqual(data.section_entries("live")[0].fact, "live")
+        for key in ("latest", "toronto", "jungletapes", "ravetapepacks", "live"):
+            for row in data.section_entries(key):
+                self.assertLessEqual(len(row.fact), 16, (key, row.fact))
+                self.assertTrue(row.plot, (key, row.label))
+
+    def test_track_fact_prefers_the_duration_then_falls_back_to_the_source(self):
+        modules = fake_modules()
+        modules.archive.audio_files.return_value = [
+            {"title": "Tape 1", "url": "https://archive.test/1.mp3",
+             "duration": 2637}]
+        data = RaveData(modules=modules, root=ROOT, script_root=SCREEN)
+        parent = data.section_entries("latest")[0]
+        rows = data.entries_for(parent)
+        self.assertEqual(rows[0].fact, "43:57")
+        self.assertEqual(rows[0].code, "RP-01")
+        self.assertEqual(rows[0].plot, parent.plot)
+
     def test_latest_section_builds_pack_rows(self):
         data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
         rows = data.section_entries("latest")
@@ -647,35 +686,55 @@ class PluginBridgeTests(unittest.TestCase):
 
 
 # ------------------------------------------------------------------ packaging
+XML_PATH = os.path.join(SCREEN, "resources", "skins", "Default", "720p",
+                        ravewindow.XML_FILE)
+ART_ROOT = os.path.join(SCREEN, "resources", "art", "rave-screen")
+TEXTURE_ROOT = "special://home/addons/script.raveplayer.ui/"
+ALLOWED_FONTS = frozenset(("font13", "font12", "font10"))
+
+
+def xml_root():
+    return ET.parse(XML_PATH).getroot()
+
+
+def top_controls(root):
+    return root.findall("./controls/control")
+
+
+def by_id(root, control_id):
+    for control in root.iter("control"):
+        if control.get("id") == str(control_id):
+            return control
+    return None
+
+
+def box(control):
+    return tuple(int(control.findtext(tag)) for tag in
+                 ("posx", "posy", "width", "height"))
+
+
+def texture_values(root):
+    tags = ("texture", "texturebg", "texturemid", "texturefocus",
+            "texturenofocus", "textureleft", "textureright")
+    values = []
+    for element in root.iter():
+        if element.tag in tags and element.text:
+            values.append(element.text.strip())
+    return values
+
+
 class ManifestAndSkinTests(unittest.TestCase):
     def test_script_manifest_is_kodi_19_22_and_depends_on_the_plugin(self):
-        import xml.etree.ElementTree as ET
-
         root = ET.parse(os.path.join(SCREEN, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.raveplayer.ui")
-        self.assertEqual(root.get("version"), "3.9.47")
+        self.assertEqual(root.get("version"), "3.9.48")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
-        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.47")
+        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.48")
         extension = root.find("./extension[@point='xbmc.python.script']")
         self.assertIsNotNone(extension)
         self.assertEqual(extension.get("library"), "default.py")
-
-    def test_window_xml_is_full_screen_720p_with_animations(self):
-        path = os.path.join(SCREEN, "resources", "skins", "Default", "720p",
-                            ravewindow.XML_FILE)
-        self.assertTrue(os.path.isfile(path))
-        with open(path, encoding="utf-8") as handle:
-            markup = handle.read()
-        self.assertIn('type="window"', markup)
-        self.assertIn('id="15047"', markup)
-        self.assertIn("<width>1280</width>", markup)
-        self.assertIn("<height>720</height>", markup)
-        self.assertIn("<animation", markup)
-        self.assertIn("Focus", markup)
-        self.assertIn('id="61"', markup)
-        self.assertIn("SPINNING", markup)
 
     def test_skin_media_files_exist(self):
         media = os.path.join(SCREEN, "resources", "skins", "Default", "media")
@@ -692,6 +751,344 @@ class ManifestAndSkinTests(unittest.TestCase):
                 with open(path, encoding="utf-8") as handle:
                     ast.parse(handle.read(), filename=path,
                               feature_version=(3, 9))
+
+
+class RaveScreenXMLTests(unittest.TestCase):
+    """The XML is the design contract: parse it, do not grep a few strings."""
+
+    def setUp(self):
+        self.root = xml_root()
+        with open(XML_PATH, encoding="utf-8") as handle:
+            self.markup = handle.read()
+
+    def test_window_is_the_add_on_window_at_720p(self):
+        self.assertEqual(self.root.tag, "window")
+        self.assertEqual(self.root.get("type"), "window")
+        self.assertEqual(self.root.get("id"), "15047")
+        coordinates = self.root.find("./coordinates")
+        self.assertEqual(coordinates.findtext("system"), "1")
+        self.assertEqual(coordinates.findtext("posx"), "0")
+        self.assertEqual(coordinates.findtext("posy"), "0")
+
+    def test_defaultcontrol_is_50_and_no_setfocusid(self):
+        self.assertEqual(self.root.findtext("./defaultcontrol"), "50")
+        self.assertNotIn("setFocusId", self.markup)
+        self.assertNotIn("setfocusid", self.markup.lower())
+
+    def test_the_adapter_does_not_override_focus(self):
+        with open(os.path.join(SCREEN, "raveui", "window.py"),
+                  encoding="utf-8") as handle:
+            source = handle.read()
+        self.assertNotIn("setFocusId", source)
+
+    def test_bed_and_noise_are_full_bleed(self):
+        for control_id in (100, 101):
+            control = by_id(self.root, control_id)
+            self.assertIsNotNone(control)
+            self.assertEqual(box(control), (0, 0, 1280, 720))
+        self.assertIn("screen-bed-1280x720.jpg",
+                      by_id(self.root, 100).findtext("texture"))
+        self.assertIn("noise-overlay-1280x720.png",
+                      by_id(self.root, 101).findtext("texture"))
+
+    def test_row_list_is_control_50_not_500(self):
+        control = by_id(self.root, 50)
+        self.assertIsNotNone(control)
+        self.assertEqual(control.get("type"), "list")
+        self.assertEqual(box(control), (64, 148, 480, 432))
+        self.assertEqual(control.findtext("onup"), "50")
+        self.assertEqual(control.findtext("ondown"), "50")
+        self.assertEqual(control.findtext("onleft"), "50")
+        self.assertEqual(control.findtext("onright"), "50")
+        for layout, expected in (("itemlayout", (480, 48)),
+                                 ("focusedlayout", (480, 48))):
+            node = control.find(layout)
+            self.assertIsNotNone(node, layout)
+            self.assertEqual((int(node.get("width")), int(node.get("height"))),
+                             expected)
+        self.assertEqual(control.findtext("scrolltime"), "180")
+        self.assertNotIn('id="500"', self.markup)
+        self.assertNotIn("Container(500)", self.markup)
+
+    def test_every_referenced_texture_exists(self):
+        values = texture_values(self.root)
+        self.assertGreaterEqual(len(values), 25)
+        for value in values:
+            if value.startswith("$INFO["):
+                continue
+            with self.subTest(texture=value):
+                self.assertTrue(value.startswith(TEXTURE_ROOT), value)
+                relative = value[len(TEXTURE_ROOT):]
+                self.assertTrue(os.path.isfile(os.path.join(SCREEN, relative)),
+                                value)
+
+    def test_no_relative_texture_paths(self):
+        for value in texture_values(self.root):
+            if value.startswith("$INFO["):
+                continue
+            with self.subTest(texture=value):
+                self.assertTrue(value.startswith("special://"), value)
+
+    def test_all_59_design_assets_are_bundled(self):
+        pngs = [name for name in os.listdir(ART_ROOT)
+                if name.lower().endswith((".png", ".jpg", ".jpeg"))]
+        self.assertGreaterEqual(len(pngs), 60)  # 59 + the untouched mark
+        for name in ("screen-bed-1280x720.jpg", "noise-overlay-1280x720.png",
+                     "hero-frame-640x360.png", "hero-scrim-640x360.png",
+                     "hero-shadow-640x360.png", "hero-fallback-640x360.jpg",
+                     "focus-plate-474x40.png", "focus-plate-shadow-474x40.png",
+                     "focus-bar-6x34.png", "footer-plate-1152x64.png",
+                     "np-wave-340x28.png", "progress-track-340x3.png",
+                     "progress-fill-2x3.png", "sticker-rp.png",
+                     "sticker-focus.png", "sticker-on-air.png",
+                     "label-on-the-screen.png", "label-now-playing.png",
+                     "label-surprise-me.png", "label-spinning-the-rack.png",
+                     "label-the-rave-screen.png", "keycap-b.png",
+                     "keycap-ok.png", "surprise-ring-640x640.png",
+                     "surprise-caption-plate-640x168.png",
+                     "button-focus-220x38.png", "button-nofocus-220x38.png",
+                     "mark.png"):
+            with self.subTest(asset=name):
+                self.assertTrue(os.path.isfile(os.path.join(ART_ROOT, name)), name)
+
+    def test_only_font13_font12_and_font10_are_used(self):
+        fonts = {node.text.strip() for node in self.root.iter("font")
+                 if node.text and node.text.strip()}
+        self.assertTrue(fonts)
+        self.assertEqual(fonts - ALLOWED_FONTS, set())
+
+    def test_live_type_sits_inside_the_64_36_safe_frame(self):
+        for control in top_controls(self.root):
+            if control.get("type") != "label":
+                continue
+            x, y, width, height = box(control)
+            control_id = control.get("id")
+            with self.subTest(control=control_id):
+                self.assertGreaterEqual(x, 64)
+                self.assertGreaterEqual(y, 36)
+                self.assertLessEqual(x + width, 1216)
+                self.assertLessEqual(y + height, 684)
+
+    def test_720p_bands_match_the_design(self):
+        header_rule = by_id(self.root, 117)
+        self.assertEqual(box(header_rule), (64, 112, 1152, 2))
+        hero = by_id(self.root, 201)
+        self.assertEqual(box(hero), (576, 148, 640, 360))
+        self.assertEqual(640 / 360, 16 / 9)
+        self.assertEqual(148 + 360, 508)          # hero ends above the caption
+        self.assertEqual(box(by_id(self.root, 210))[1], 512)
+        self.assertEqual(box(by_id(self.root, 212))[1] + 36, 608)
+        footer = by_id(self.root, 600)
+        self.assertEqual(box(footer), (64, 620, 1152, 64))
+        self.assertEqual(64 + 1152, 1216)         # safe right
+        self.assertEqual(620 + 64, 684)           # safe bottom
+        self.assertEqual(148 + 9 * 48, 580)       # nine rows, no scroll
+
+    def test_hero_and_focus_bindings(self):
+        self.assertEqual(by_id(self.root, 201).findtext("texture"),
+                         "$INFO[Container(50).ListItem.Art(fanart)]")
+        self.assertEqual(by_id(self.root, 204).findtext("texture"),
+                         "$INFO[Container(50).ListItem.Icon]")
+        self.assertEqual(
+            by_id(self.root, 207).findtext("label"),
+            "$INFO[Container(50).ListItem.Property(rp_code)]")
+        self.assertIn("Container(50).ListItem.Label",
+                      by_id(self.root, 210).findtext("label"))
+        self.assertIn("UPPERCASE", by_id(self.root, 210).findtext("label"))
+        self.assertEqual(
+            by_id(self.root, 211).findtext("label"),
+            "$INFO[Container(50).ListItem.Property(rp_meta)]")
+        self.assertEqual(by_id(self.root, 212).findtext("label"),
+                         "$INFO[Container(50).ListItem.Plot]")
+        for control_id in (115, 116):
+            self.assertIn("Container(50).NumItems",
+                          by_id(self.root, control_id).findtext("label"))
+
+        list_control = by_id(self.root, 50)
+        item = list_control.find("itemlayout")
+        labels = [node.findtext("label") for node in item.findall("control")
+                  if node.get("type") == "label"]
+        self.assertIn("$INFO[ListItem.Label]", labels)
+        self.assertIn("$INFO[ListItem.Label2]", labels)
+        self.assertIn("$INFO[ListItem.Property(rp_index)]", labels)
+        focused = list_control.find("focusedlayout")
+        labels = [node.findtext("label") for node in focused.findall("control")
+                  if node.get("type") == "label"]
+        self.assertIn("[B]$INFO[ListItem.Label][/B]", labels)
+        self.assertIn("$INFO[ListItem.Label2]", labels)
+        self.assertIn("$INFO[ListItem.Property(rp_index)]", labels)
+        effects = {(node.get("effect"), node.get("time"))
+                   for node in focused.findall(".//animation")}
+        self.assertIn(("slide", "160"), effects)
+        self.assertIn(("fade", "120"), effects)
+        self.assertIn(("slide", "150"), effects)
+
+    def test_footer_uses_player_bindings_and_the_waveform(self):
+        self.assertEqual(by_id(self.root, 603).findtext("label"),
+                         "$INFO[Player.Title]")
+        self.assertEqual(by_id(self.root, 605).findtext("label"),
+                         "$INFO[Player.Time]")
+        self.assertEqual(by_id(self.root, 606).findtext("label"),
+                         "$INFO[Player.Duration]")
+        progress = by_id(self.root, 608)
+        self.assertEqual(progress.get("type"), "progress")
+        self.assertEqual(progress.findtext("info"), "progress")
+        self.assertIn("progress-track-340x3.png", progress.findtext("texturebg"))
+        self.assertIn("progress-fill-2x3.png", progress.findtext("texturemid"))
+        self.assertIn("sticker-on-air.png",
+                      by_id(self.root, 601).findtext("texture"))
+        self.assertIn("np-wave-340x28.png",
+                      by_id(self.root, 607).findtext("texture"))
+        self.assertIn("keycap-ok.png",
+                      by_id(self.root, 612).findtext("texture"))
+        self.assertIn("keycap-b.png",
+                      by_id(self.root, 614).findtext("texture"))
+        # Idle footer follows the focused row; playing footer follows Player.*.
+        self.assertIn("Container(50).ListItem.Label",
+                      by_id(self.root, 611).findtext("label"))
+        self.assertIn("Container(50).ListItem.Property(rp_meta)",
+                      by_id(self.root, 616).findtext("label"))
+
+    def test_surprise_state_matches_the_control_map(self):
+        self.assertEqual(box(by_id(self.root, 700)), (0, 0, 1280, 720))
+        self.assertEqual(box(by_id(self.root, 702)), (384, 36, 512, 512))
+        self.assertEqual(box(by_id(self.root, 707)), (560, 648, 220, 38))
+        self.assertEqual(by_id(self.root, 707).get("type"), "button")
+        self.assertIn("button-focus-220x38.png",
+                      by_id(self.root, 707).findtext("texturefocus"))
+        self.assertIn("button-nofocus-220x38.png",
+                      by_id(self.root, 707).findtext("texturenofocus"))
+        self.assertEqual(by_id(self.root, 707).findtext("onclick"),
+                         "Action(Back)")
+        self.assertEqual(by_id(self.root, 709).findtext("label"), "CANCEL")
+        self.assertIn("surprise-burst-1280x720.jpg",
+                      by_id(self.root, 700).findtext("texture"))
+        self.assertIn("label-surprise-me.png",
+                      by_id(self.root, 704).findtext("texture"))
+        self.assertIn("label-spinning-the-rack.png",
+                      by_id(self.root, 705).findtext("texture"))
+        for control_id in range(700, 714):
+            control = by_id(self.root, control_id)
+            self.assertIsNotNone(control, control_id)
+            self.assertEqual(control.findtext("visible"), "false", control_id)
+
+
+class _FakeControl(object):
+    def __init__(self):
+        self.items = []
+        self.selected = None
+        self.image = None
+        self.label = None
+        self.visible = None
+
+    def reset(self):
+        self.items = []
+
+    def addItem(self, item):
+        self.items.append(item)
+
+    def selectItem(self, index):
+        self.selected = index
+
+    def setImage(self, path):
+        self.image = path
+
+    def setLabel(self, text):
+        self.label = text
+
+    def setVisible(self, visible):
+        self.visible = bool(visible)
+
+
+class _FakeWindow(object):
+    def __init__(self):
+        self.controls = {}
+        self.props = {}
+
+    def getControl(self, control_id):
+        return self.controls.setdefault(control_id, _FakeControl())
+
+    def setProperty(self, key, value):
+        self.props[key] = value
+
+
+class RowViewTests(unittest.TestCase):
+    """KodiView is what actually builds the ListItems the hero binds to."""
+
+    def setUp(self):
+        self.window = _FakeWindow()
+        self.view = ravewindow.KodiView(self.window)
+
+    def test_rows_carry_label2_fact_art_properties_and_plot(self):
+        rows = [
+            Entry("latest", "LATEST", "long description",
+                  os.path.join(ROOT, "resources", "art", "rave.png"),
+                  "section", source="latest",
+                  hero=os.path.join(ROOT, "resources", "art", "fanart-latest.jpg"),
+                  fact="newest", code="RP-01", plot="Newest packs"),
+            Entry("live", "LIVE RADIO", "long description", "",
+                  "section", fact="live", code="RP-31"),
+        ]
+        self.view.set_rows(rows)
+        control = self.window.getControl(50)
+        self.assertEqual(len(control.items), 2)
+        self.assertEqual(control.selected, 0)
+        first, second = control.items
+        self.assertEqual(first.label2, "newest")
+        self.assertEqual(first.properties["rp_index"], "01")
+        self.assertEqual(first.properties["rp_code"], "RP-01")
+        self.assertEqual(first.properties["rp_meta"], "newest  ·  RP-01")
+        self.assertTrue(first.art["fanart"].endswith("fanart-latest.jpg"))
+        self.assertTrue(first.art["icon"].endswith("rave.png"))
+        self.assertEqual(first.info["video"]["plot"], "Newest packs")
+        self.assertEqual(second.properties["rp_index"], "02")
+        self.assertEqual(second.properties["rp_meta"], "live  ·  RP-31")
+        self.assertTrue(second.art["fanart"].endswith("hero-fallback-640x360.jpg"))
+
+    def test_set_hero_uses_fanart_and_falls_back_to_the_print_plate(self):
+        entry = Entry("latest", "LATEST", "desc", "",
+                      "section", hero=os.path.join(
+                          ROOT, "resources", "art", "fanart-latest.jpg"))
+        self.view.set_hero(entry)
+        self.assertTrue(self.window.getControl(201).image.endswith(
+            "fanart-latest.jpg"))
+        self.view.set_hero(None)
+        self.assertEqual(self.window.getControl(201).image,
+                         ravewindow.HERO_FALLBACK)
+
+    def test_title_subtitle_status_and_now_playing(self):
+        self.view.set_title("LATEST")
+        self.view.set_subtitle("Newest packs")
+        self.view.set_status("Loading…")
+        self.view.set_now_playing("Now playing: Tape — Pack")
+        self.assertEqual(self.window.getControl(119).label, "LATEST")
+        self.assertEqual(self.window.getControl(120).label, "Newest packs")
+        self.assertTrue(self.window.getControl(119).visible)
+        self.assertTrue(self.window.getControl(120).visible)
+        self.assertEqual(self.window.getControl(30).label, "Loading…")
+        self.assertEqual(self.window.props["rp_now"],
+                         "Now playing: Tape — Pack")
+
+    def test_home_hides_the_view_crumb(self):
+        self.view.set_title("RAVE SCREEN")
+        self.view.set_subtitle("OK opens a source")
+        self.assertFalse(self.window.getControl(119).visible)
+        self.assertFalse(self.window.getControl(120).visible)
+        self.view.set_title("LATEST")
+        self.view.set_subtitle("Newest packs")
+        self.assertTrue(self.window.getControl(119).visible)
+        self.assertTrue(self.window.getControl(120).visible)
+
+    def test_spinner_visibility_covers_the_whole_surprise_state(self):
+        self.view.set_spinner_visible(True)
+        for control_id in ravewindow.SPINNER_CONTROLS:
+            self.assertTrue(self.window.getControl(control_id).visible,
+                            control_id)
+        self.view.set_spinner_visible(False)
+        for control_id in ravewindow.SPINNER_CONTROLS:
+            self.assertFalse(self.window.getControl(control_id).visible,
+                             control_id)
+        self.assertEqual(len(ravewindow.SPINNER_CONTROLS), 14)
 
 
 class PluginIntegrationTests(unittest.TestCase):
@@ -739,9 +1136,11 @@ class RepoArtifactTests(unittest.TestCase):
         with open(catalogue, encoding="utf-8") as handle:
             markup = handle.read()
         self.assertIn('id="script.raveplayer.ui"', markup)
-        self.assertIn('import addon="plugin.audio.raveplayer" version="3.9.47"', markup)
+        self.assertIn('import addon="plugin.audio.raveplayer" version="3.9.48"', markup)
+        self.assertIn('id="script.raveplayer.ui" name="Rave Screen" version="3.9.48"',
+                      markup)
         repo_zip = os.path.join(ROOT, "repo", "script.raveplayer.ui",
-                                "script.raveplayer.ui-3.9.47.zip")
+                                "script.raveplayer.ui-3.9.48.zip")
         self.assertTrue(os.path.isfile(repo_zip), repo_zip)
         with zipfile.ZipFile(repo_zip) as archive:
             names = set(archive.namelist())
@@ -753,7 +1152,13 @@ class RepoArtifactTests(unittest.TestCase):
                      "script.raveplayer.ui/resources/skins/Default/media/"
                      "screen-bg.jpg",
                      "script.raveplayer.ui/resources/art/surprise-burst.jpg",
-                     "script.raveplayer.ui/resources/art/spinner/head-512-00.png"):
+                     "script.raveplayer.ui/resources/art/spinner/head-512-00.png",
+                     "script.raveplayer.ui/resources/art/rave-screen/"
+                     "screen-bed-1280x720.jpg",
+                     "script.raveplayer.ui/resources/art/rave-screen/"
+                     "hero-frame-640x360.png",
+                     "script.raveplayer.ui/resources/art/rave-screen/"
+                     "mark.png"):
             self.assertIn(name, names)
 
 

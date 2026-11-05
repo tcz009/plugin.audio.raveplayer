@@ -1,6 +1,6 @@
 # Rave Screen — `script.raveplayer.ui`
 
-Full-screen Kodi window for Rave Player, version 3.9.47.
+Full-screen Kodi window for Rave Player, version 3.9.48.
 
 This is a **script add-on**, not an overlay. It owns one
 `xbmcgui.WindowXML` window at 1280×720 and reads the
@@ -10,8 +10,8 @@ This is a **script add-on**, not an overlay. It owns one
 
 Install both zips from the Rave Player repository:
 
-- `plugin.audio.raveplayer-3.9.47.zip`
-- `script.raveplayer.ui-3.9.47.zip`
+- `plugin.audio.raveplayer-3.9.48.zip`
+- `script.raveplayer.ui-3.9.48.zip`
 
 Then open **Rave Player → Rave Screen** (the first root row). Back closes the
 window and returns you to Kodi.

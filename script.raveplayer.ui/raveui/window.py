@@ -13,25 +13,66 @@ import time
 import xbmc
 import xbmcgui
 
-from .controller import RaveScreenController
+from .controller import HOME_TITLE, RaveScreenController
 from .data import RaveData
 from .playback import PlaybackService
 
 ADDON_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 XML_FILE = "script-raveplayer-ui.xml"
+ART_ROOT = os.path.join(ADDON_PATH, "resources", "art", "rave-screen")
+HERO_FALLBACK = os.path.join(ART_ROOT, "hero-fallback-640x360.jpg")
 
-CONTROL_BACKGROUND = 10
-CONTROL_HERO = 20
-CONTROL_TITLE = 22
-CONTROL_SUBTITLE = 23
+# Control IDs are the WINDOWXML-CONTROL-MAP.md contract. The home list is 50:
+# Kodi's WindowXML window list lives on 50-59 and addItems()/getCurrentListPosition()
+# are bound to it. Never move it to 500.
 CONTROL_STATUS = 30
 CONTROL_NOW_PLAYING = 31
 CONTROL_LIST = 50
-CONTROL_SPINNER_BG = 60
-CONTROL_SPINNER_HEAD = 61
-CONTROL_SPINNER_RING = 64
-CONTROL_SPINNER_LABEL = 62
-CONTROL_SPINNER_HINT = 63
+CONTROL_BED = 100
+CONTROL_NOISE = 101
+CONTROL_MARK = 111
+CONTROL_WORDMARK = 112
+CONTROL_CLOCK = 114
+CONTROL_ROOMS_IDLE = 115
+CONTROL_ROOMS_ON_AIR = 116
+CONTROL_VIEW_TITLE = 119
+CONTROL_VIEW_SUBTITLE = 120
+CONTROL_FOCUS_STICKER = 121
+CONTROL_HERO_SHADOW = 200
+CONTROL_HERO = 201
+CONTROL_HERO_SCRIM = 202
+CONTROL_HERO_STICKER = 204
+CONTROL_HERO_CODE = 207
+CONTROL_HERO_TITLE = 210
+CONTROL_HERO_META = 211
+CONTROL_HERO_PLOT = 212
+CONTROL_FOOTER = 600
+CONTROL_ON_AIR = 601
+CONTROL_NOW_KICKER = 602
+CONTROL_NOW_TITLE = 603
+CONTROL_NOW_META = 604
+CONTROL_SPINNER_BG = 700
+CONTROL_SPINNER_RING = 701
+CONTROL_SPINNER_HEAD = 702
+CONTROL_SPINNER_CAPTION = 703
+CONTROL_SPINNER_TITLE = 704
+CONTROL_SPINNER_SUB = 705
+CONTROL_SPINNER_LABEL = 706
+CONTROL_SPINNER_CANCEL = 707
+CONTROL_SPINNER_KEYCAP = 708
+CONTROL_SPINNER_HINT = 709
+CONTROL_SPINNER_MARK = 710
+CONTROL_SPINNER_TOP = 711
+CONTROL_SPINNER_CODE = 712
+CONTROL_SPINNER_NOISE = 713
+
+SPINNER_CONTROLS = (
+    CONTROL_SPINNER_BG, CONTROL_SPINNER_RING, CONTROL_SPINNER_HEAD,
+    CONTROL_SPINNER_CAPTION, CONTROL_SPINNER_TITLE, CONTROL_SPINNER_SUB,
+    CONTROL_SPINNER_LABEL, CONTROL_SPINNER_CANCEL, CONTROL_SPINNER_KEYCAP,
+    CONTROL_SPINNER_HINT, CONTROL_SPINNER_MARK, CONTROL_SPINNER_TOP,
+    CONTROL_SPINNER_CODE, CONTROL_SPINNER_NOISE,
+)
 
 BACK_ACTIONS = frozenset((
     getattr(xbmcgui, "ACTION_NAV_BACK", 92),
@@ -76,16 +117,47 @@ class KodiView(object):
                 pass
 
     def set_title(self, text):
-        self._label(CONTROL_TITLE, text)
+        text = str(text or "")
+        self._view_title = text
+        self._label(CONTROL_VIEW_TITLE, text)
+        self._visible(CONTROL_VIEW_TITLE, text != HOME_TITLE)
+        if text == HOME_TITLE:
+            self._visible(CONTROL_VIEW_SUBTITLE, False)
 
     def set_subtitle(self, text):
-        self._label(CONTROL_SUBTITLE, text)
+        self._label(CONTROL_VIEW_SUBTITLE, text)
+        self._visible(CONTROL_VIEW_SUBTITLE,
+                      getattr(self, "_view_title", HOME_TITLE) != HOME_TITLE)
 
     def set_status(self, text):
         self._label(CONTROL_STATUS, text)
 
     def set_now_playing(self, text):
-        self._label(CONTROL_NOW_PLAYING, text)
+        # The footer is bound to Player.* so Kodi keeps it current without a
+        # timer. Window property rp_now is the fallback label for a stream with
+        # no usable InfoTag title.
+        try:
+            self.window.setProperty("rp_now", str(text or ""))
+        except Exception:
+            pass
+
+    @staticmethod
+    def _is_art(path):
+        path = str(path or "")
+        if not path:
+            return False
+        if path.startswith(("http://", "https://", "special://")):
+            return True
+        return os.path.isfile(path)
+
+    def _row_art(self, entry):
+        icon = getattr(entry, "art", "") or getattr(entry, "hero", "")
+        hero = getattr(entry, "hero", "") or icon
+        if not self._is_art(hero):
+            hero = HERO_FALLBACK
+        if not self._is_art(icon):
+            icon = hero
+        return icon, hero
 
     def set_rows(self, rows):
         control = self._control(CONTROL_LIST)
@@ -95,19 +167,31 @@ class KodiView(object):
             control.reset()
         except Exception:
             pass
-        for row in rows:
+        for index, row in enumerate(rows):
+            icon, hero = self._row_art(row)
+            subtitle = getattr(row, "subtitle", "") or ""
+            fact = str(getattr(row, "fact", "") or subtitle)
+            code = str(getattr(row, "code", "") or "")
+            plot = str(getattr(row, "plot", "") or subtitle)
+            meta = "%s  ·  %s" % (fact, code) if fact and code else (fact or code)
             item = xbmcgui.ListItem(label=row.label)
             try:
-                item.setLabel2(row.subtitle)
+                item.setLabel2(fact)
             except Exception:
                 pass
-            if row.art:
-                try:
-                    item.setArt({"thumb": row.art, "icon": row.art})
-                except Exception:
-                    pass
             try:
-                item.setInfo("music", {"title": row.label, "comment": row.subtitle})
+                item.setArt({"icon": icon, "thumb": icon,
+                             "fanart": hero, "poster": icon})
+            except Exception:
+                pass
+            try:
+                item.setProperty("rp_index", "%02d" % (index + 1))
+                item.setProperty("rp_code", code)
+                item.setProperty("rp_meta", meta)
+            except Exception:
+                pass
+            try:
+                item.setInfo("video", {"plot": plot})
             except Exception:
                 pass
             try:
@@ -120,14 +204,18 @@ class KodiView(object):
             pass
 
     def set_hero(self, entry):
-        # The wordmark (21), view title (22) and view subtitle (23) are owned by
-        # set_title/set_subtitle. The hero is art only: overwriting the wordmark
-        # with a row label made the screen look like a different app.
-        if entry is None:
-            return
+        # The hero is art only. Control 201 also carries the XML binding
+        # $INFO[Container(50).ListItem.Art(fanart)]; setImage keeps it current
+        # on builds where a list-selection change does not re-evaluate it.
         control = self._control(CONTROL_HERO)
-        image = getattr(entry, "hero", "") or entry.art
-        if control is not None and image:
+        if control is None:
+            return
+        if entry is None:
+            image = HERO_FALLBACK
+        else:
+            icon, hero = self._row_art(entry)
+            image = hero or icon
+        if image:
             try:
                 control.setImage(image)
             except Exception:
@@ -143,9 +231,7 @@ class KodiView(object):
             return 0
 
     def set_spinner_visible(self, visible):
-        for control_id in (CONTROL_SPINNER_BG, CONTROL_SPINNER_HEAD,
-                           CONTROL_SPINNER_RING, CONTROL_SPINNER_LABEL,
-                           CONTROL_SPINNER_HINT):
+        for control_id in SPINNER_CONTROLS:
             self._visible(control_id, visible)
 
     def set_spinner_background(self, path):
@@ -196,7 +282,7 @@ class RaveScreenWindow(xbmcgui.WindowXML):
         self._view = KodiView(self)
         self._view.set_spinner_visible(False)
         self._view.set_spinner_background(
-            os.path.join(ADDON_PATH, "resources", "art", "surprise-burst.jpg"))
+            os.path.join(ART_ROOT, "surprise-burst-1280x720.jpg"))
         try:
             data = RaveData()
             self._controller = RaveScreenController(
@@ -208,12 +294,15 @@ class RaveScreenWindow(xbmcgui.WindowXML):
             xbmc.log("[script.raveplayer.ui] init failed: %s" % exc,
                      level=xbmc.LOGERROR)
             self._view.set_status("Rave Screen could not load Rave Player data.")
+
     def onClick(self, control_id):
         if control_id == CONTROL_LIST and self._controller is not None:
             self._controller.on_click()
-        elif control_id in (CONTROL_SPINNER_HEAD, CONTROL_SPINNER_BG):
-            if self._controller is not None:
-                self._controller.on_click()
+        elif control_id == CONTROL_SPINNER_CANCEL:
+            # The CANCEL button is the printed affordance for Back. By the time
+            # a click can be dispatched the blocking reveal is already over, so
+            # the safe action is the same as Back: close the screen once.
+            self.close()
 
     def onAction(self, action):
         try:

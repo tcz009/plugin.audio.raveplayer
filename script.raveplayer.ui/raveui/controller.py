@@ -145,7 +145,7 @@ class RaveScreenController(object):
         self.view.set_spinner_visible(True)
         if self._frames:
             self.view.set_spinner_image(self._frames[0])
-        self.view.set_spinner_label("PICKING A PACK…")
+        self.view.set_spinner_label("RANDOM PACK · RP-02")
         self.view.set_status("Spinning for one random pack and track…")
         try:
             pick = self._task_runner.run(self.data.random_pick)
@@ -154,7 +154,7 @@ class RaveScreenController(object):
             if pick is None:
                 self.view.set_status("No random pack found — try again.")
                 return False
-            self.view.set_spinner_label("SPINNING…")
+            self.view.set_spinner_label("RANDOM PACK · RP-02")
             if not self._frames:
                 self.view.set_status("Spinning art unavailable — no playback.")
                 return False

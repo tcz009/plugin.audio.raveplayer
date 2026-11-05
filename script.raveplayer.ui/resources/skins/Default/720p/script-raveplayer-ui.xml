@@ -1,4 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Rave Screen — full-screen WindowXML at 1280x720 (control space system 1).
+
+  Built from docs/rave-screen/WINDOWXML-CONTROL-MAP.md. The row list is
+  control 50 (Kodi's WindowXML window list lives on 50-59); defaultcontrol 50
+  focuses it, and no focus-id override is issued anywhere in this file.
+
+  Every static texture is an absolute special:// path inside this add-on so a
+  skin cannot shadow it with a same-named media file. Only font13/font12/font10
+  are used; no TTF ships.
+-->
 <window type="window" id="15047">
     <coordinates>
         <system>1</system>
@@ -6,224 +17,630 @@
         <posy>0</posy>
     </coordinates>
     <controls>
-        <!-- Static opaque backdrop from this add-on's own skin media; no skin fork. -->
-        <control type="image" id="10">
-            <description>Rave Screen backdrop</description>
-            <posx>0</posx>
-            <posy>0</posy>
-            <width>1280</width>
-            <height>720</height>
+
+        <!-- ================================================== screen bed -->
+        <control type="image" id="100">
+            <description>Screen bed: ink wash, halftone sun, hazard edge, crop marks</description>
+            <posx>0</posx><posy>0</posy><width>1280</width><height>720</height>
             <aspectratio>stretch</aspectratio>
-            <texture>screen-bg.jpg</texture>
-            <animation effect="fade" start="0" end="100" time="300">WindowOpen</animation>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/screen-bed-1280x720.jpg</texture>
+        </control>
+        <control type="image" id="101">
+            <description>Grain and scanline overlay above the bed, below all UI</description>
+            <posx>0</posx><posy>0</posy><width>1280</width><height>720</height>
+            <aspectratio>stretch</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/noise-overlay-1280x720.png</texture>
         </control>
 
-        <!-- Big hero art on the right. Kodi repaints after each setImage. -->
-        <control type="image" id="20">
-            <description>Hero art for the focused row</description>
-            <posx>600</posx>
-            <posy>76</posy>
-            <width>620</width>
-            <height>520</height>
+        <!-- ====================================================== header -->
+        <control type="image" id="110">
+            <description>Hard magenta shadow behind the 48px header mark</description>
+            <posx>70</posx><posy>46</posy><width>48</width><height>48</height>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/mark-shadow-48x48.png</texture>
+        </control>
+        <control type="image" id="111">
+            <description>Rave Player mark, unmodified</description>
+            <posx>64</posx><posy>40</posy><width>48</width><height>48</height>
             <aspectratio>keep</aspectratio>
-            <align>center</align>
-            <animation effect="fade" start="0" end="100" time="320">WindowOpen</animation>
-            <animation effect="slide" start="40,0" end="0,0" time="320">WindowOpen</animation>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/mark.png</texture>
         </control>
-
-        <control type="image">
-            <description>Header rule</description>
-            <posx>48</posx>
-            <posy>66</posy>
-            <width>1152</width>
-            <height>2</height>
-            <texture>rule-acid.png</texture>
-        </control>
-
-        <control type="label" id="21">
-            <description>Rave Screen wordmark</description>
-            <posx>48</posx>
-            <posy>28</posy>
-            <width>560</width>
-            <height>36</height>
-            <font>font45</font>
-            <textcolor>0xFFE8FF00</textcolor>
-            <label>RAVE SCREEN</label>
-            <animation effect="fade" start="0" end="100" time="260">WindowOpen</animation>
-        </control>
-
-        <control type="label" id="22">
-            <description>Current view title</description>
-            <posx>48</posx>
-            <posy>76</posy>
-            <width>530</width>
-            <height>52</height>
-            <font>font20</font>
-            <textcolor>0xFFF2EEE3</textcolor>
-            <label>RAVE SCREEN</label>
-        </control>
-
-        <control type="label" id="23">
-            <description>Current view subtitle</description>
-            <posx>48</posx>
-            <posy>128</posy>
-            <width>530</width>
-            <height>48</height>
+        <control type="label" id="112">
+            <description>Wordmark</description>
+            <posx>124</posx><posy>40</posy><width>360</width><height>34</height>
+            <label>[B]RAVE PLAYER[/B]</label>
             <font>font13</font>
-            <textcolor>0xFFA8A399</textcolor>
-            <label>Pick a source. OK opens it.</label>
+            <textcolor>0xFFF2EEE3</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+        </control>
+        <control type="image" id="113">
+            <description>Baked print subtitle: THE RAVE SCREEN</description>
+            <posx>124</posx><posy>74</posy><width>102</width><height>13</height>
+            <aspectratio>keep</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/label-the-rave-screen.png</texture>
         </control>
 
+        <control type="label" id="114">
+            <description>Clock</description>
+            <posx>1000</posx><posy>40</posy><width>216</width><height>28</height>
+            <label>$INFO[System.Time]</label>
+            <font>font12</font>
+            <textcolor>0xFFE8FF00</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <align>right</align><aligny>center</aligny>
+        </control>
+        <control type="label" id="115">
+            <description>Room count, standby</description>
+            <posx>1000</posx><posy>72</posy><width>216</width><height>24</height>
+            <label>[B]$INFO[Container(50).NumItems][/B] ROOMS · STANDBY</label>
+            <font>font10</font>
+            <textcolor>0xFFA8A399</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <align>right</align><aligny>center</aligny>
+            <visible>String.IsEmpty(Player.Title)</visible>
+        </control>
+        <control type="label" id="116">
+            <description>Room count, on air</description>
+            <posx>1000</posx><posy>72</posy><width>216</width><height>24</height>
+            <label>[B]$INFO[Container(50).NumItems][/B] ROOMS · ON AIR</label>
+            <font>font10</font>
+            <textcolor>0xFFA8A399</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <align>right</align><aligny>center</aligny>
+            <visible>!String.IsEmpty(Player.Title)</visible>
+        </control>
+
+        <!-- View context. The design map has no breadcrumb; the script add-on
+             still needs to say which section the user is inside. -->
+        <control type="label" id="119">
+            <description>Current view title</description>
+            <posx>540</posx><posy>40</posy><width>440</width><height>28</height>
+            <label></label>
+            <font>font12</font>
+            <textcolor>0xFFF2EEE3</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <align>right</align><aligny>center</aligny>
+        </control>
+        <control type="label" id="120">
+            <description>Current view subtitle</description>
+            <posx>540</posx><posy>72</posy><width>440</width><height>24</height>
+            <label></label>
+            <font>font10</font>
+            <textcolor>0xFFA8A399</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <align>right</align><aligny>center</aligny>
+        </control>
+
+        <control type="image" id="117">
+            <description>Acid header rule</description>
+            <posx>64</posx><posy>112</posy><width>1152</width><height>2</height>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/rule-acid-1152x2.png</texture>
+        </control>
+        <control type="image" id="118">
+            <description>Magenta rule misregistration</description>
+            <posx>66</posx><posy>114</posy><width>1152</width><height>2</height>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/rule-magenta-1152x2.png</texture>
+            <colordiffuse>0x88FFFFFF</colordiffuse>
+        </control>
+
+        <!-- Print sticker marking the focus zone, above the nine rows. -->
+        <control type="image" id="121">
+            <description>FOCUS sticker</description>
+            <posx>64</posx><posy>118</posy><width>58</width><height>27</height>
+            <aspectratio>keep</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/sticker-focus.png</texture>
+        </control>
+
+        <!-- ======================================================== hero -->
+        <control type="image" id="200">
+            <description>Hard magenta hero shadow, +12/+12</description>
+            <posx>588</posx><posy>160</posy><width>640</width><height>360</height>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/hero-shadow-640x360.png</texture>
+        </control>
+        <control type="image" id="201">
+            <description>Hero art for the focused row</description>
+            <posx>576</posx><posy>148</posy><width>640</width><height>360</height>
+            <aspectratio>stretch</aspectratio>
+            <fadetime>220</fadetime>
+            <texture>$INFO[Container(50).ListItem.Art(fanart)]</texture>
+        </control>
+        <control type="image" id="202">
+            <description>Ink scrim for hero type</description>
+            <posx>576</posx><posy>148</posy><width>640</width><height>360</height>
+            <aspectratio>stretch</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/hero-scrim-640x360.png</texture>
+        </control>
+        <control type="image" id="203">
+            <description>Hard shadow behind the 140px hero sticker</description>
+            <posx>608</posx><posy>204</posy><width>140</width><height>140</height>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/hero-sticker-shadow-140x140.png</texture>
+        </control>
+        <control type="image" id="204">
+            <description>Focused row sticker at 140px</description>
+            <posx>600</posx><posy>196</posy><width>140</width><height>140</height>
+            <aspectratio>keep</aspectratio>
+            <texture>$INFO[Container(50).ListItem.Icon]</texture>
+        </control>
+        <control type="image" id="205">
+            <description>Hero keyline, crop marks, code notch and drips</description>
+            <posx>576</posx><posy>148</posy><width>640</width><height>360</height>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/hero-frame-640x360.png</texture>
+        </control>
+        <control type="image" id="206">
+            <description>RP sticker</description>
+            <posx>596</posx><posy>164</posy><width>50</width><height>35</height>
+            <aspectratio>keep</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/sticker-rp.png</texture>
+        </control>
+        <control type="label" id="207">
+            <description>Focused row RP code</description>
+            <posx>662</posx><posy>170</posy><width>120</width><height>24</height>
+            <label>$INFO[Container(50).ListItem.Property(rp_code)]</label>
+            <font>font10</font>
+            <textcolor>0xFFE8FF00</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+        </control>
+        <control type="image" id="208">
+            <description>Baked ON THE SCREEN kicker</description>
+            <posx>600</posx><posy>354</posy><width>140</width><height>20</height>
+            <aspectratio>keep</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/label-on-the-screen.png</texture>
+        </control>
+
+        <!-- Hero caption -->
+        <control type="label" id="209">
+            <description>Title cyan misregistration twin (draw before 210)</description>
+            <posx>579</posx><posy>514</posy><width>637</width><height>36</height>
+            <label>[B][UPPERCASE]$INFO[Container(50).ListItem.Label][/UPPERCASE][/B]</label>
+            <font>font13</font>
+            <textcolor>0xFF22E6FF</textcolor>
+            <aligny>center</aligny>
+        </control>
+        <control type="label" id="210">
+            <description>Hero title</description>
+            <posx>576</posx><posy>512</posy><width>640</width><height>36</height>
+            <label>[B][UPPERCASE]$INFO[Container(50).ListItem.Label][/UPPERCASE][/B]</label>
+            <font>font13</font>
+            <textcolor>0xFFF2EEE3</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+        </control>
+        <control type="label" id="211">
+            <description>Hero fact and RP code</description>
+            <posx>576</posx><posy>548</posy><width>640</width><height>22</height>
+            <label>$INFO[Container(50).ListItem.Property(rp_meta)]</label>
+            <font>font10</font>
+            <textcolor>0xFFE8FF00</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+        </control>
+        <control type="label" id="212">
+            <description>Hero plot</description>
+            <posx>576</posx><posy>572</posy><width>640</width><height>36</height>
+            <label>$INFO[Container(50).ListItem.Plot]</label>
+            <font>font10</font>
+            <textcolor>0xFFA8A399</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <wrapmultiline>true</wrapmultiline>
+        </control>
+
+        <!-- ================================================== row list 50 -->
         <control type="list" id="50">
-            <description>Rave Screen vertical row list</description>
-            <posx>48</posx>
-            <posy>190</posy>
-            <width>518</width>
-            <height>410</height>
-            <onup>50</onup>
-            <ondown>50</ondown>
-            <onleft>50</onleft>
-            <onright>50</onright>
-            <pagecontrol>0</pagecontrol>
-            <animation effect="fade" start="0" end="100" time="260">WindowOpen</animation>
-            <itemlayout height="66" width="518">
+            <description>Rave Screen rows. Kodi's WindowXML window list is 50-59: never 500.</description>
+            <posx>64</posx><posy>148</posy><width>480</width><height>432</height>
+            <onup>50</onup><ondown>50</ondown>
+            <onleft>50</onleft><onright>50</onright>
+            <scrolltime>180</scrolltime>
+
+            <itemlayout height="48" width="480">
+                <control type="label">
+                    <description>Row index</description>
+                    <posx>6</posx><posy>0</posy><width>24</width><height>48</height>
+                    <label>$INFO[ListItem.Property(rp_index)]</label>
+                    <font>font10</font>
+                    <textcolor>0xFFA8A399</textcolor>
+                    <shadowcolor>0xFF07070B</shadowcolor>
+                    <align>center</align><aligny>center</aligny>
+                </control>
+                <control type="image">
+                    <description>Row icon</description>
+                    <posx>38</posx><posy>6</posy><width>36</width><height>36</height>
+                    <aspectratio>keep</aspectratio>
+                    <texture>$INFO[ListItem.Icon]</texture>
+                </control>
                 <control type="label">
                     <description>Row label</description>
-                    <posx>18</posx>
-                    <posy>8</posy>
-                    <width>480</width>
-                    <height>30</height>
-                    <font>font13</font>
-                    <textcolor>0xFFF2EEE3</textcolor>
+                    <posx>86</posx><posy>0</posy><width>246</width><height>48</height>
                     <label>$INFO[ListItem.Label]</label>
+                    <font>font12</font>
+                    <textcolor>0xFFF2EEE3</textcolor>
+                    <shadowcolor>0xFF07070B</shadowcolor>
+                    <aligny>center</aligny>
                 </control>
                 <control type="label">
-                    <description>Row fact</description>
-                    <posx>18</posx>
-                    <posy>38</posy>
-                    <width>480</width>
-                    <height>24</height>
-                    <font>font10</font>
-                    <textcolor>0xFF8F8A80</textcolor>
+                    <description>Row fact (duration / count / source)</description>
+                    <posx>336</posx><posy>0</posy><width>104</width><height>48</height>
                     <label>$INFO[ListItem.Label2]</label>
+                    <font>font10</font>
+                    <textcolor>0xFFA8A399</textcolor>
+                    <shadowcolor>0xFF07070B</shadowcolor>
+                    <align>right</align><aligny>center</aligny>
+                </control>
+                <control type="image">
+                    <description>Row separator</description>
+                    <posx>0</posx><posy>47</posy><width>480</width><height>1</height>
+                    <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/row-separator-480x1.png</texture>
                 </control>
             </itemlayout>
-            <focusedlayout height="76" width="518">
+
+            <focusedlayout height="48" width="480">
                 <control type="image">
-                    <description>Focused row ink plate</description>
-                    <posx>0</posx>
-                    <posy>0</posy>
-                    <width>518</width>
-                    <height>76</height>
-                    <texture>focus-plate.png</texture>
-                    <animation effect="zoom" start="100" end="103" center="left" time="150">Focus</animation>
+                    <description>Focused plate shadow</description>
+                    <posx>6</posx><posy>7</posy><width>474</width><height>40</height>
+                    <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/focus-plate-shadow-474x40.png</texture>
+                    <animation effect="slide" start="-8,0" end="0,0" time="160">Focus</animation>
+                    <animation effect="fade" start="0" end="100" time="120">Focus</animation>
+                </control>
+                <control type="image">
+                    <description>Focused plate</description>
+                    <posx>0</posx><posy>3</posy><width>474</width><height>40</height>
+                    <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/focus-plate-474x40.png</texture>
+                </control>
+                <control type="image">
+                    <description>Acid focus bar</description>
+                    <posx>0</posx><posy>6</posy><width>6</width><height>34</height>
+                    <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/focus-bar-6x34.png</texture>
+                    <animation effect="fade" start="0" end="100" time="120">Focus</animation>
+                </control>
+                <control type="image">
+                    <description>Focused icon shadow</description>
+                    <posx>40</posx><posy>8</posy><width>36</width><height>36</height>
+                    <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/icon-shadow-36x36.png</texture>
+                </control>
+                <control type="image">
+                    <description>Focused row icon</description>
+                    <posx>38</posx><posy>6</posy><width>36</width><height>36</height>
+                    <aspectratio>keep</aspectratio>
+                    <texture>$INFO[ListItem.Icon]</texture>
+                </control>
+                <control type="label">
+                    <description>Focused row index</description>
+                    <posx>6</posx><posy>0</posy><width>24</width><height>48</height>
+                    <label>$INFO[ListItem.Property(rp_index)]</label>
+                    <font>font10</font>
+                    <textcolor>0xFFE8FF00</textcolor>
+                    <shadowcolor>0xFF07070B</shadowcolor>
+                    <align>center</align><aligny>center</aligny>
+                </control>
+                <control type="label">
+                    <description>Focused label cyan twin (draw before the paper label)</description>
+                    <posx>88</posx><posy>2</posy><width>246</width><height>48</height>
+                    <label>[B]$INFO[ListItem.Label][/B]</label>
+                    <font>font12</font>
+                    <textcolor>0xFF22E6FF</textcolor>
+                    <aligny>center</aligny>
+                    <animation effect="slide" start="-2,0" end="0,0" time="150">Focus</animation>
                 </control>
                 <control type="label">
                     <description>Focused row label</description>
-                    <posx>22</posx>
-                    <posy>6</posy>
-                    <width>474</width>
-                    <height>34</height>
-                    <font>font16</font>
-                    <textcolor>0xFF07070B</textcolor>
-                    <label>$INFO[ListItem.Label]</label>
-                    <animation effect="zoom" start="100" end="102" center="left" time="150">Focus</animation>
+                    <posx>86</posx><posy>0</posy><width>246</width><height>48</height>
+                    <label>[B]$INFO[ListItem.Label][/B]</label>
+                    <font>font12</font>
+                    <textcolor>0xFFF2EEE3</textcolor>
+                    <shadowcolor>0xFF07070B</shadowcolor>
+                    <aligny>center</aligny>
                 </control>
                 <control type="label">
                     <description>Focused row fact</description>
-                    <posx>22</posx>
-                    <posy>42</posy>
-                    <width>474</width>
-                    <height>24</height>
-                    <font>font10</font>
-                    <textcolor>0xFF07070B</textcolor>
+                    <posx>336</posx><posy>0</posy><width>104</width><height>48</height>
                     <label>$INFO[ListItem.Label2]</label>
+                    <font>font10</font>
+                    <textcolor>0xFFE8FF00</textcolor>
+                    <shadowcolor>0xFF07070B</shadowcolor>
+                    <align>right</align><aligny>center</aligny>
+                </control>
+                <control type="label">
+                    <description>Focused row chevron</description>
+                    <posx>444</posx><posy>0</posy><width>24</width><height>48</height>
+                    <label>›</label>
+                    <font>font13</font>
+                    <textcolor>0xFFE8FF00</textcolor>
+                    <shadowcolor>0xFF07070B</shadowcolor>
+                    <align>center</align><aligny>center</aligny>
                 </control>
             </focusedlayout>
         </control>
 
-        <control type="image">
-            <description>Now-playing footer plate</description>
-            <posx>48</posx>
-            <posy>610</posy>
-            <width>1152</width>
-            <height>64</height>
-            <texture>footer-plate.png</texture>
+        <!-- ====================================================== footer -->
+        <control type="image" id="600">
+            <description>Footer plate</description>
+            <posx>64</posx><posy>620</posy><width>1152</width><height>64</height>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/footer-plate-1152x64.png</texture>
         </control>
 
-        <control type="label" id="30">
-            <description>Status / loading line</description>
-            <posx>48</posx>
-            <posy>620</posy>
-            <width>1184</width>
-            <height>30</height>
-            <font>font12</font>
-            <textcolor>0xFF22E6FF</textcolor>
-            <label>▲ ▼ select · OK open · BACK exit</label>
-        </control>
-
-        <control type="label" id="31">
-            <description>Now playing line</description>
-            <posx>48</posx>
-            <posy>654</posy>
-            <width>1184</width>
-            <height>34</height>
-            <font>font16</font>
-            <textcolor>0xFFFF2D8F</textcolor>
-            <label></label>
-        </control>
-
-        <!-- Spinning Surprise: a full-window reveal, not a dialog on top of a plugin. -->
-        <control type="image" id="60">
-            <description>Surprise backdrop</description>
-            <posx>0</posx>
-            <posy>0</posy>
-            <width>1280</width>
-            <height>720</height>
-            <aspectratio>stretch</aspectratio>
-            <texture>screen-bg.jpg</texture>
-            <animation effect="fade" start="0" end="100" time="180">Visible</animation>
-        </control>
-        <control type="image" id="64">
-            <description>Surprise burst ring</description>
-            <posx>320</posx>
-            <posy>40</posy>
-            <width>640</width>
-            <height>640</height>
+        <!-- Playing state -->
+        <control type="image" id="601">
+            <description>ON AIR sticker, only while playing</description>
+            <posx>76</posx><posy>630</posy><width>67</width><height>29</height>
             <aspectratio>keep</aspectratio>
-            <texture>surprise-ring.png</texture>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/sticker-on-air.png</texture>
+            <visible>Player.Playing</visible>
         </control>
-        <control type="image" id="61">
-            <description>Spinning Rave Player head</description>
-            <posx>440</posx>
-            <posy>160</posy>
-            <width>400</width>
-            <height>400</height>
+        <control type="image" id="602">
+            <description>Baked NOW PLAYING kicker</description>
+            <posx>156</posx><posy>624</posy><width>118</width><height>18</height>
             <aspectratio>keep</aspectratio>
-            <align>center</align>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/label-now-playing.png</texture>
+            <visible>!String.IsEmpty(Player.Title)</visible>
         </control>
-        <control type="label" id="62">
-            <description>Surprise label</description>
-            <posx>240</posx>
-            <posy>530</posy>
-            <width>800</width>
-            <height>60</height>
-            <font>font30</font>
-            <align>center</align>
-            <textcolor>0xFFFF2D8F</textcolor>
-            <label>SPINNING…</label>
-        </control>
-        <control type="label" id="63">
-            <description>Surprise hint</description>
-            <posx>240</posx>
-            <posy>596</posy>
-            <width>800</width>
-            <height>30</height>
+        <control type="label" id="603">
+            <description>Now playing title</description>
+            <posx>156</posx><posy>636</posy><width>350</width><height>28</height>
+            <label>$INFO[Player.Title]</label>
             <font>font12</font>
-            <align>center</align>
             <textcolor>0xFFF2EEE3</textcolor>
-            <label>One pick. One track. No re-roll loop.</label>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+            <visible>!String.IsEmpty(Player.Title)</visible>
         </control>
+        <control type="label" id="604">
+            <description>Now playing artist and album</description>
+            <posx>156</posx><posy>660</posy><width>350</width><height>20</height>
+            <label>$INFO[Player.Artist]  ·  $INFO[Player.Album]</label>
+            <font>font10</font>
+            <textcolor>0xFFA8A399</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+            <visible>!String.IsEmpty(Player.Title)</visible>
+        </control>
+        <control type="label" id="31">
+            <description>Now playing fallback when the stream has no InfoTag title</description>
+            <posx>156</posx><posy>636</posy><width>350</width><height>28</height>
+            <label>$INFO[Window.Property(rp_now)]</label>
+            <font>font12</font>
+            <textcolor>0xFFF2EEE3</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+            <visible>Player.Playing + String.IsEmpty(Player.Title)</visible>
+        </control>
+        <control type="label" id="605">
+            <description>Elapsed time</description>
+            <posx>550</posx><posy>622</posy><width>60</width><height>18</height>
+            <label>$INFO[Player.Time]</label>
+            <font>font10</font>
+            <textcolor>0xFFE8FF00</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+            <visible>!String.IsEmpty(Player.Duration)</visible>
+        </control>
+        <control type="label" id="606">
+            <description>Total duration; hidden for live radio</description>
+            <posx>830</posx><posy>622</posy><width>60</width><height>18</height>
+            <label>$INFO[Player.Duration]</label>
+            <font>font10</font>
+            <textcolor>0xFFA8A399</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <align>right</align><aligny>center</aligny>
+            <visible>!String.IsEmpty(Player.Duration)</visible>
+        </control>
+        <control type="image" id="607">
+            <description>Static now-playing waveform</description>
+            <posx>550</posx><posy>646</posy><width>340</width><height>28</height>
+            <aspectratio>stretch</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/np-wave-340x28.png</texture>
+            <visible>!String.IsEmpty(Player.Title)</visible>
+        </control>
+        <control type="progress" id="608">
+            <description>Now playing progress, acid fill</description>
+            <posx>550</posx><posy>676</posy><width>340</width><height>3</height>
+            <info>progress</info>
+            <texturebg>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/progress-track-340x3.png</texturebg>
+            <texturemid>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/progress-fill-2x3.png</texturemid>
+            <visible>!String.IsEmpty(Player.Duration)</visible>
+        </control>
+
+        <!-- Idle state: the selected row is the footer's subject. -->
+        <control type="image" id="609">
+            <description>Idle mark</description>
+            <posx>76</posx><posy>634</posy><width>36</width><height>36</height>
+            <aspectratio>keep</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/mark.png</texture>
+            <visible>String.IsEmpty(Player.Title) + !Player.Playing</visible>
+        </control>
+        <control type="label" id="610">
+            <description>Idle kicker</description>
+            <posx>156</posx><posy>624</posy><width>300</width><height>16</height>
+            <label>NOTHING PLAYING</label>
+            <font>font10</font>
+            <textcolor>0xFFA8A399</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+            <visible>String.IsEmpty(Player.Title) + !Player.Playing</visible>
+        </control>
+        <control type="label" id="611">
+            <description>Idle selected row label</description>
+            <posx>156</posx><posy>640</posy><width>350</width><height>24</height>
+            <label>$INFO[Container(50).ListItem.Label]</label>
+            <font>font12</font>
+            <textcolor>0xFFF2EEE3</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+            <visible>String.IsEmpty(Player.Title) + !Player.Playing</visible>
+        </control>
+        <control type="label" id="616">
+            <description>Idle selected row fact and code</description>
+            <posx>156</posx><posy>664</posy><width>350</width><height>18</height>
+            <label>$INFO[Container(50).ListItem.Property(rp_meta)]</label>
+            <font>font10</font>
+            <textcolor>0xFFA8A399</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+            <visible>String.IsEmpty(Player.Title) + !Player.Playing</visible>
+        </control>
+
+        <!-- Keycaps are graphics; Back is handled in Python onAction. -->
+        <control type="image" id="612">
+            <description>OK keycap</description>
+            <posx>944</posx><posy>632</posy><width>40</width><height>32</height>
+            <aspectratio>keep</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/keycap-ok.png</texture>
+        </control>
+        <control type="label" id="613">
+            <description>OK hint</description>
+            <posx>992</posx><posy>640</posy><width>60</width><height>20</height>
+            <label>OPEN</label>
+            <font>font10</font>
+            <textcolor>0xFFA8A399</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+        </control>
+        <control type="image" id="614">
+            <description>Back keycap</description>
+            <posx>1066</posx><posy>632</posy><width>32</width><height>32</height>
+            <aspectratio>keep</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/keycap-b.png</texture>
+        </control>
+        <control type="label" id="615">
+            <description>Back hint</description>
+            <posx>1106</posx><posy>640</posy><width>60</width><height>20</height>
+            <label>BACK</label>
+            <font>font10</font>
+            <textcolor>0xFFF2EEE3</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+        </control>
+
+        <!-- Transient status: loading, errors, playback handoff. -->
+        <control type="label" id="30">
+            <description>Status line</description>
+            <posx>64</posx><posy>584</posy><width>480</width><height>24</height>
+            <label></label>
+            <font>font10</font>
+            <textcolor>0xFF22E6FF</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+        </control>
+
+        <!-- =========================================== Spinning Surprise -->
+        <!-- A full-window state of the same window: the opaque burst sits
+             above every home control. Python swaps only 702; 700-713 are
+             hidden when the reveal is not running. -->
+        <control type="image" id="700">
+            <description>Surprise burst bed</description>
+            <posx>0</posx><posy>0</posy><width>1280</width><height>720</height>
+            <aspectratio>stretch</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/surprise-burst-1280x720.jpg</texture>
+            <visible>false</visible>
+        </control>
+        <control type="image" id="701">
+            <description>Surprise ring</description>
+            <posx>320</posx><posy>-28</posy><width>640</width><height>640</height>
+            <aspectratio>keep</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/surprise-ring-640x640.png</texture>
+            <colordiffuse>0xE6FFFFFF</colordiffuse>
+            <visible>false</visible>
+        </control>
+        <control type="image" id="702">
+            <description>Spinning Rave Player head, frame swapped by Python</description>
+            <posx>384</posx><posy>36</posy><width>512</width><height>512</height>
+            <aspectratio>keep</aspectratio>
+            <visible>false</visible>
+        </control>
+        <control type="image" id="703">
+            <description>Surprise caption plate</description>
+            <posx>320</posx><posy>516</posy><width>640</width><height>168</height>
+            <aspectratio>stretch</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/surprise-caption-plate-640x168.png</texture>
+            <visible>false</visible>
+        </control>
+        <control type="image" id="704">
+            <description>Baked SURPRISE ME title</description>
+            <posx>430</posx><posy>536</posy><width>420</width><height>72</height>
+            <aspectratio>keep</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/label-surprise-me.png</texture>
+            <visible>false</visible>
+        </control>
+        <control type="image" id="705">
+            <description>Baked SPINNING THE RACK sub-caption</description>
+            <posx>491</posx><posy>614</posy><width>290</width><height>16</height>
+            <aspectratio>keep</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/label-spinning-the-rack.png</texture>
+            <visible>false</visible>
+        </control>
+        <control type="label" id="706">
+            <description>Surprise code line</description>
+            <posx>500</posx><posy>632</posy><width>280</width><height>20</height>
+            <label>RANDOM PACK · RP-02</label>
+            <font>font10</font>
+            <textcolor>0xFFE8FF00</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <align>center</align><aligny>center</aligny>
+            <visible>false</visible>
+        </control>
+        <control type="button" id="707">
+            <description>Surprise CANCEL button</description>
+            <posx>560</posx><posy>648</posy><width>220</width><height>38</height>
+            <texturefocus>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/button-focus-220x38.png</texturefocus>
+            <texturenofocus>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/button-nofocus-220x38.png</texturenofocus>
+            <label></label>
+            <font>font12</font>
+            <textcolor>0xFFF2EEE3</textcolor>
+            <onclick>Action(Back)</onclick>
+            <visible>false</visible>
+        </control>
+        <control type="image" id="708">
+            <description>Surprise Back keycap</description>
+            <posx>590</posx><posy>652</posy><width>32</width><height>32</height>
+            <aspectratio>keep</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/keycap-b.png</texture>
+            <visible>false</visible>
+        </control>
+        <control type="label" id="709">
+            <description>Surprise CANCEL label</description>
+            <posx>632</posx><posy>652</posy><width>120</width><height>32</height>
+            <label>CANCEL</label>
+            <font>font12</font>
+            <textcolor>0xFFF2EEE3</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <align>center</align><aligny>center</aligny>
+            <visible>false</visible>
+        </control>
+        <control type="image" id="710">
+            <description>Surprise top mark</description>
+            <posx>64</posx><posy>36</posy><width>36</width><height>36</height>
+            <aspectratio>keep</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/mark.png</texture>
+            <visible>false</visible>
+        </control>
+        <control type="label" id="711">
+            <description>Surprise top label</description>
+            <posx>110</posx><posy>44</posy><width>300</width><height>20</height>
+            <label>RAVE SCREEN / SURPRISE</label>
+            <font>font10</font>
+            <textcolor>0xFFA8A399</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+            <visible>false</visible>
+        </control>
+        <control type="label" id="712">
+            <description>Surprise top code</description>
+            <posx>1100</posx><posy>44</posy><width>116</width><height>20</height>
+            <label>RP-02</label>
+            <font>font10</font>
+            <textcolor>0xFFE8FF00</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <align>right</align><aligny>center</aligny>
+            <visible>false</visible>
+        </control>
+        <control type="image" id="713">
+            <description>Grain and scanlines above the Surprise state</description>
+            <posx>0</posx><posy>0</posy><width>1280</width><height>720</height>
+            <aspectratio>stretch</aspectratio>
+            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/noise-overlay-1280x720.png</texture>
+            <visible>false</visible>
+        </control>
+
     </controls>
     <defaultcontrol>50</defaultcontrol>
 </window>

@@ -1,7 +1,11 @@
-# Rave Screen 3.9.47
+# Rave Screen 3.9.47 / 3.9.48
 
-**Date:** 5 Nov 2026 · **Version:** 3.9.47 · **Branch:** `feat/rave-screen-3.9.47`
+**Date:** 5 Nov 2026 · **Version:** 3.9.48 (screen visual pass) · **Branch:** `integration/3.9.48`
 **Status:** implemented and offline-tested; **not pushed, tagged or deployed**.
+
+> Sections 1-9 describe the 3.9.47 implementation. Section 10 is the 3.9.48
+> visual-parity pass over the same behaviour; read it for the current XML,
+> asset layout, deviations and device checklist.
 No Shield/Kodi-22 device run was possible in this workspace, so every item in
 the device checklist below is still open.
 
@@ -16,8 +20,8 @@ can refuse to draw, and Back follows normal Kodi window-stack behaviour.
 
 | Add-on | Role | Version |
 |---|---|---|
-| `plugin.audio.raveplayer` | Normal plugin lists, data providers, root **Rave Screen** row and fallback | 3.9.47 |
-| `script.raveplayer.ui` | Full-screen Rave Screen `WindowXML` owner | 3.9.47 |
+| `plugin.audio.raveplayer` | Normal plugin lists, data providers, root **Rave Screen** row and fallback | 3.9.48 |
+| `script.raveplayer.ui` | Full-screen Rave Screen `WindowXML` owner | 3.9.48 |
 | `repository.raveplayer` | Repository catalogue, now three add-ons | 1.0.0 |
 
 The script add-on declares `plugin.audio.raveplayer` as a dependency and imports
@@ -178,7 +182,7 @@ busy closes the window immediately.
   `PlayList`, `Player`, `Monitor`, `xbmcgui.ListItem`, `setArt/setInfo`.
 - Runtime code is parsed with the Python 3.9 grammar in tests. Kodi 22 ships a
   newer Python, so 3.9 is the conservative floor, not a ceiling.
-- **Dependency caveat:** the current `plugin.audio.raveplayer` 3.9.47 manifest
+- **Dependency caveat:** the current `plugin.audio.raveplayer` 3.9.48 manifest
   still requires `xbmc.python 3.0.1` (Kodi 20+). Kodi will therefore install
   the script+plugin pair on Kodi 20–22 only. The script code is Kodi-19
   compatible, but running it on Matrix would also need the plugin requirement
@@ -197,7 +201,7 @@ busy closes the window immediately.
 | Player hand-off from a script | Kodi may pause/stop audio when the launching script exits, or show no OSD because the custom window is on top | Window stays open after `Player().play`; Back is the explicit exit; device checklist tests audio, OSD and a second selection |
 | Focus/list rendering + skin assets | Skin media paths or focus animations can differ between skins/versions | Media lives in this add-on's own `resources/skins/Default/media`; no skin fork; only built-in fonts and colours |
 | Missing script add-on | Root row would otherwise be a dead item | `System.HasAddon` check + notification; normal root list is rebuilt |
-| Plugin dependency version | A future plugin bump can leave the script on an older API (or uninstalled) | Dependency is pinned to 3.9.47; bridge imports under a private alias and fails with one status line, not a traceback |
+| Plugin dependency version | A future plugin bump can leave the script on an older API (or uninstalled) | Dependency is pinned to 3.9.48; bridge imports under a private alias and fails with one status line, not a traceback |
 | Kodi 19 dependency floor | See §5: script is 3.0.0, plugin is 3.0.1 | Documented; no Matrix claim until a device test |
 | Network source slowness | Archive/radio sites can hang | Worker thread + 15 s timeout + status line; window stays usable/closeable |
 | Overlay regression | A future change could reintroduce a dialog over the plugin list | There is no `Dialog`/overlay in the script; docs and tests assert `WindowXML` ownership. The old plugin Surprise Me overlay (`spinner.SurpriseReveal`) remains only on the legacy plugin route and is untouched by the new screen |
@@ -206,13 +210,13 @@ busy closes the window immediately.
 
 ## 7. Device test checklist (Kodi 22, Shield)
 
-Run after installing **both** 3.9.47 zips. Record Kodi build, skin and log file.
+Run after installing **both** 3.9.48 zips. Record Kodi build, skin and log file.
 
 ### Install and entry
 
-- [ ] Install `plugin.audio.raveplayer-3.9.47.zip`, then
-      `script.raveplayer.ui-3.9.47.zip` (or both from the repository).
-- [ ] Settings → Add-ons → My add-ons shows **Rave Screen 3.9.47** enabled.
+- [ ] Install `plugin.audio.raveplayer-3.9.48.zip`, then
+      `script.raveplayer.ui-3.9.48.zip` (or both from the repository).
+- [ ] Settings → Add-ons → My add-ons shows **Rave Screen 3.9.48** enabled.
 - [ ] Rave Player root shows **Rave Screen** as row 1, with the screen sticker
       and fanart; the other nine rows are unchanged.
 - [ ] Select it: plugin directory closes, full-screen window opens (no plugin
@@ -283,8 +287,8 @@ Run after installing **both** 3.9.47 zips. Record Kodi build, skin and log file.
 ## 8. Tests and artefacts
 
 ```sh
-python3 -m unittest discover -s test      # 589 OK
-python3 -m unittest test.test_rave_screen -v   # 47 OK
+python3 -m unittest discover -s test      # green
+python3 -m unittest test.test_rave_screen -v   # green
 ./scripts/build.sh                        # both zips in dist/
 ./scripts/build-repo.sh                   # repo/addons.xml + both zips
 ./scripts/check-repo-artifacts.sh         # must print "current and committed"
@@ -305,10 +309,10 @@ New coverage in `test/test_rave_screen.py`:
 - Python 3.9 parse of every script source;
 - committed repo catalogue and zip contents.
 
-**Artifacts:** `dist/plugin.audio.raveplayer-3.9.47.zip`,
-`dist/script.raveplayer.ui-3.9.47.zip`,
-`repo/plugin.audio.raveplayer/plugin.audio.raveplayer-3.9.47.zip`,
-`repo/script.raveplayer.ui/script.raveplayer.ui-3.9.47.zip`,
+**Artifacts:** `dist/plugin.audio.raveplayer-3.9.48.zip`,
+`dist/script.raveplayer.ui-3.9.48.zip`,
+`repo/plugin.audio.raveplayer/plugin.audio.raveplayer-3.9.48.zip`,
+`repo/script.raveplayer.ui/script.raveplayer.ui-3.9.48.zip`,
 regenerated `repo/addons.xml` + `.md5`. `dist/` is gitignored; `repo/` is
 committed.
 
@@ -332,3 +336,86 @@ commits on the branch.
   and may be replaced by their final pass.
 - No device verification yet; the risk register and checklist above are the
   hand-off for that run.
+
+---
+
+## 10. 3.9.48 visual parity pass
+
+`script.raveplayer.ui` 3.9.48 rebuilds the window to the design specialist's
+`docs/rave-screen/WINDOWXML-CONTROL-MAP.md` (plugin version stays 3.9.48;
+behaviour is unchanged).
+
+### What changed
+
+- The 59 design assets were copied to
+  `script.raveplayer.ui/resources/art/rave-screen/`; the untouched Rave Player
+  `icon.png` is bundled beside them as `mark.png`. Every static texture is an
+  absolute `special://home/addons/script.raveplayer.ui/...` path.
+- `script-raveplayer-ui.xml` is now the control map: 1280x720 bed + grain,
+  header mark/wordmark/baked subtitle, acid/magenta rules, clock and room
+  count, 640x360 hero poster (shadow, fanart, scrim, 140px sticker, RP
+  sticker/code, frame, baked kicker), cyan/paper title twins, meta and plot,
+  48px rows with plate/shadow/bar/icon-shadow/twin/fact/chevron, and the
+  1152x64 footer with ON AIR, NOW PLAYING, `Player.*` metadata, waveform,
+  progress and keycaps. The list remains **control 50** with
+  `defaultcontrol 50`; the XML has no focus-id override.
+- Rows now carry `rp_index`, `rp_code`, `rp_meta` and `rp_fact` item
+  properties, `Label2` facts (duration/count/source, <= 16 chars), `fanart`
+  art for the hero binding and a video plot for the hero caption.
+- The footer shows the selected row while idle and `Player.*` while playing;
+  `Player.Duration` hides the total and progress on live radio.
+- Spinning Surprise is restyled as a full-window state of the same window:
+  burst, ring, 512px head frames (Python swaps only control 702), caption
+  plate, baked SURPRISE ME / SPINNING THE RACK labels, RP-02 code line and
+  B CANCEL. The single-pick guard, >= 1.2 s animation, one playback handoff
+  and fail-fast launcher are unchanged.
+- New offline tests parse the XML and assert control 50/defaultcontrol 50/no
+  focus override, that every referenced texture exists, the 720p bands and
+  64/36 safe margins for live type, the focus/hero/footer bindings, the
+  bundled asset set and the row facts.
+
+### Deviations from the design map (deliberate)
+
+- The window keeps the script add-on's established id `15047` (Kodi assigns
+  the runtime id); the map's `14002/14003` are plugin-window ids.
+- One window, not two: the Surprise state lives on 700-713 above the home
+  controls, so the proven `show()` + keepalive launcher does not change.
+- A header breadcrumb (119/120) shows the current section, which the map does
+  not define; it is right-aligned inside the safe frame and uses font12/10.
+- The idle footer's main line is the focused row (the map's static
+  "PICK A ROOM - PRESS OK" is replaced by the selected row + fact); the
+  right-hand keycaps still say OPEN/BACK.
+- The FOCUS sticker is placed above the row list at 64,118 (58x27) rather
+  than omitted, so all three print stickers are present.
+- Home still has the six 3.9.47 source rows (Latest, Toronto, JungleTapes,
+  RaveTapePacks, Live, Surprise), not the web/map's nine root rows: adding
+  favourites/search/about routing to the script window is a behaviour change,
+  out of scope for a visual pass. Rows are rendered with the new anatomy.
+
+### Device test checklist (in addition to section 7)
+
+- [ ] Install plugin 3.9.48 + script 3.9.48; restart Kodi once so the texture
+      cache picks up the new absolute paths.
+- [ ] Open Rave Screen: bed/halftone/grain, mark, wordmark, baked subtitle,
+      rules, clock and ROOMS count are visible; no texture is missing or
+      borrowed from the skin.
+- [ ] Home list: six rows with index, 36px sticker, label, right-hand fact;
+      focused row has the acid bar, magenta plate shadow, cyan twin, acid
+      fact and chevron; D-pad repeat stays smooth.
+- [ ] Focus movement crossfades the hero fanart; hero sticker, RP code,
+      title (cyan twin), meta and plot follow the row.
+- [ ] Footer idle: mark, NOTHING PLAYING, selected row label and fact,
+      OPEN/BACK keycaps.
+- [ ] Play a tape: ON AIR sticker appears, NOW PLAYING label, Player title /
+      artist / album, elapsed/total, waveform, 3px progress; header says
+      ON AIR. Pause: ON AIR hides, title remains.
+- [ ] Play live radio: total and progress hide; waveform and title remain.
+- [ ] Surprise: burst/ring/head are full-window, head spins >= 1.2 s, caption
+      and CANCEL render, one pick, one playback, Back exits; B CANCEL is the
+      printed affordance.
+- [ ] 720p and 1080p UI: no live type clipped at 64/36; overscan margins hold;
+      hero is 16:9 with no crop.
+- [ ] Skin without font12/font10 still opens the window (degraded hierarchy,
+      no crash); Kodi log has no unknown-control or invalid-texture errors.
+- [ ] Run the full suite and `./scripts/check-repo-artifacts.sh`; the
+      committed `repo/` must match the 3.9.48 zips.

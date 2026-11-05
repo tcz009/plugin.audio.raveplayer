@@ -25,10 +25,10 @@
     </assets>
   </extension>
 </addon>
-<addon id="script.raveplayer.ui" name="Rave Screen" version="3.9.47" provider-name="TheYid009">
+<addon id="script.raveplayer.ui" name="Rave Screen" version="3.9.48" provider-name="TheYid009">
   <requires>
     <import addon="xbmc.python" version="3.0.0" />
-    <import addon="plugin.audio.raveplayer" version="3.9.47" />
+    <import addon="plugin.audio.raveplayer" version="3.9.48" />
   </requires>
   <extension point="xbmc.python.script" library="default.py">
     <provides>executable</provides>
