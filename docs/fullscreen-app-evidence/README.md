@@ -27,10 +27,14 @@ screencap` frames from the independent QA harness run
 | `18-classic-rtp-category.jpg` | Classic list: RTP category |
 | `19-classic-rtp-pack.jpg` | Classic list: RTP pack |
 | `20-classic-rtp-tracks.jpg` | Classic list: RTP pack tracks |
+| `21-final-root.jpg` | Final-build root home (no debug overlay) |
+| `22-final-search-keys.jpg` | Final-build in-window keyboard, query “A” |
+| `23-final-jungletapes.jpg` | Final-build JungleTapes room (neutral hero, no baked TAPE PACKS) |
+| `24-final-latest-tracks.jpg` | Final-build pack → track row with duration/year/genre |
 
-Most of these frames have the Kodi debug-info overlay because debug logging was
-enabled for the run; it is a Kodi overlay, not part of the app. The app's own
-final-build frames (`final-root`, `final-search-keys`) have no overlay.
+Most 01-20 frames have the Kodi debug-info overlay because debug logging was
+enabled for the QA run; it is a Kodi overlay, not part of the app. The
+`21-final-*` frames were captured after the final install with debug off.
 
 `qa-checks.md` and `qa-manifest.json` are the machine-readable run report:
 **40 pass / 9 fail / 1 warn**. The 9 fails are QA-harness contract assumptions
