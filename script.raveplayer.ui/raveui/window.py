@@ -563,6 +563,13 @@ class RaveScreenWindow(xbmcgui.WindowXML):
             super().close()
         except Exception:
             pass
+        # Closing a script window returns to whatever spawned it (the plugin
+        # root launcher), which on Kodi 22 can immediately relaunch the app.
+        # One Back must leave the add-on: send Home explicitly after the close.
+        try:
+            xbmc.executebuiltin("ActivateWindow(Home)")
+        except Exception:
+            pass
 
 
 def _notify(message):
