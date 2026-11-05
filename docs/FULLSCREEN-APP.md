@@ -259,7 +259,7 @@ The app is audio-first and 1280×720/720p control space; it uses only
 ## 9. Tests and artifacts
 
 ```sh
-python3 -m unittest discover -s test        # 921 tests, OK (run 2×)
+python3 -m unittest discover -s test        # 923 tests, OK (run 2×)
 ./scripts/build.sh                          # dist zips 3.9.51 / 3.9.50
 ./scripts/build-repo.sh                     # repo/ catalogue + zips
 ./scripts/check-repo-artifacts.sh           # after committing repo/

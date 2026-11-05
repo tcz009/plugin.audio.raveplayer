@@ -1,5 +1,10 @@
 # Full-screen app device evidence (Shield / Kodi 22)
 
+> **App-integration pass (5 Nov 2026):** see
+> [`app-integration/README.md`](app-integration/README.md) for the frames taken
+> after the screen modules were wired into the shell (library rooms, Live
+> Radio, footer, Back stack). The table below is the earlier baseline run.
+
 These images are 1280×720 JPEG reductions of the 3840×2160 `adb exec-out
 screencap` frames from the independent QA harness run
 `qa-artifacts/baseline-3.9.51` on 5 Nov 2026, against the installed pair

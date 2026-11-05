@@ -86,8 +86,28 @@ pause state. Live hides duration/progress even when Kodi reports a total.
 - `test/test_screens_library.py`, `test_screens_live.py`,
   `test_nowplaying_footer.py`, `test_surprise_pick.py` remain the module
   contracts (153 tests).
-- `python3 -m unittest discover -s test -p 'test_*.py'` → **921 tests, OK**
+- `python3 -m unittest discover -s test -p 'test_*.py'` → **923 tests, OK**
   (run twice before committing).
+
+## Device evidence
+
+Frames and caveats are in
+[`docs/fullscreen-app-evidence/app-integration/`](fullscreen-app-evidence/app-integration/README.md).
+Confirmed on the Shield with the installed 3.9.51/3.9.50 pair (screen file
+hashes matched this worktree):
+
+- home with the new idle footer and static room facts;
+- Search keyboard with no SCOPE row (one library search);
+- new Favourites/Downloads/About library screens (About now 19 rows);
+- Live Radio with exactly 3 stations + Pirate door, ON AIR footer with no
+  duration, and Back to home with audio continuing;
+- a downloaded file's got elapsed/total/progress footer (one stale stack frame
+  still showed the old meta line; the model-driven fields were correct).
+
+Not captured cleanly because repeated `Addons.ExecuteAddon` calls left stacked
+script windows: Surprise splash/play and the empty Search state. Both are
+covered by the offline suites. The Kodi webserver stayed on **8080**; audio was
+stopped and Kodi left on Home.
 
 ## Residual duplication (deliberate)
 
