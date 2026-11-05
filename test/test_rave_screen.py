@@ -2233,6 +2233,52 @@ class DownloadQueueTests(unittest.TestCase):
             self.assertTrue(queue.cancel("k"))
             self.assertEqual(queue.rows()[0]["status"], "cancelling")
 
+    def test_window_queue_shows_the_owners_downloading_status(self):
+        import json as json_module
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "download-queue.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                json_module.dump([{
+                    "key": "k", "title": "Set", "source": "Archive.org",
+                    "url": "https://x/1.mp3", "status": "downloading",
+                    "percent": 42, "done": 42, "total": 100,
+                    "updated": time.time() + 10,
+                }], handle)
+            queue = DownloadQueue(store_path=path, local_workers=False)
+            row = queue.rows()[0]
+            self.assertEqual(row["status"], "downloading")
+            self.assertEqual(row["percent"], 42)
+
+    def test_cancel_from_the_window_reaches_the_headless_worker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "download-queue.json")
+
+            def slow(planned, progress=None, cancelled=None):
+                for index in range(200):
+                    if cancelled():
+                        return {"ok": False, "reason": "cancelled by user"}
+                    progress(index, 200)
+                    time.sleep(0.01)
+                return {"ok": False, "reason": "timed out"}
+
+            modules = self.modules()
+            modules.downloads.download = mock.Mock(side_effect=slow)
+            window_queue = DownloadQueue(modules=modules, store_path=path,
+                                         local_workers=False)
+            window_queue.start("https://x/1.mp3", "Set", "Archive.org",
+                               key="k")
+            owner = DownloadQueue(modules=modules, store_path=path)
+            owner.resume()
+            self.assertTrue(self.wait(
+                owner, lambda rows: rows and
+                rows[0]["status"] == "downloading"))
+            self.assertTrue(window_queue.cancel("k"))
+            self.assertTrue(self.wait(
+                owner, lambda rows: rows and
+                rows[0]["status"] == "cancelled"))
+            time.sleep(0.2)   # let the worker's final store write finish
+
     def test_spawn_worker_only_when_a_transfer_is_active(self):
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, "download-queue.json")

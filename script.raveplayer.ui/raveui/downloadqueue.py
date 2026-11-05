@@ -37,11 +37,25 @@ def default_store_path():
     try:
         import xbmcaddon
 
-        profile = xbmcaddon.Addon().getAddonInfo("profile")
+        profile = (xbmcaddon.Addon("script.raveplayer.ui")
+                   .getAddonInfo("profile") or "")
     except Exception:  # noqa: BLE001 - tests/CLI have no profile
-        profile = ""
+        try:
+            import xbmcaddon
+
+            profile = xbmcaddon.Addon().getAddonInfo("profile") or ""
+        except Exception:  # noqa: BLE001 - no add-on context
+            profile = ""
     if not profile:
         return ""
+    try:
+        import xbmcvfs
+
+        # Kodi returns "special://profile/..." here; os.open/makedirs need the
+        # translated filesystem path or every write fails with ENOENT.
+        profile = xbmcvfs.translatePath(profile) or profile
+    except Exception:  # noqa: BLE001 - tests / CLI have no VFS
+        pass
     try:
         os.makedirs(profile, exist_ok=True)
     except OSError:
@@ -69,7 +83,10 @@ class DownloadQueue(object):
         self._last_save = 0.0
         self._worker_lock_path = ""
         if store_path:
-            self._load_store()
+            # Only the process that will run the transfer may convert an
+            # interrupted "downloading" row back to "queued"; a read-only
+            # window follows the owner's live status instead.
+            self._load_store(restart=self._local_workers)
 
     @property
     def modules(self):
@@ -116,13 +133,18 @@ class DownloadQueue(object):
         return True, "Download started — progress is in Downloads."
 
     def cancel(self, key):
+        key = str(key or "")
         with self._lock:
-            row = self._items.get(str(key or ""))
+            row = self._items.get(key)
             if row is None or row.get("status") not in ACTIVE:
                 return False
             row["cancel"] = True
             row["status"] = "cancelling"
             row["updated"] = time.time()
+        # A progress write from the transfer worker can land after this row is
+        # saved; the sidecar is the durable cancel barrier the worker polls
+        # before every chunk (P1-5).
+        self._request_cancel(key)
         self._save_now()
         self._safe_update()
         return True
@@ -134,6 +156,7 @@ class DownloadQueue(object):
             if row is not None and key in self._order:
                 self._order.remove(key)
         if row is not None:
+            self._clear_cancel(key)
             self._save_now()
         return row is not None
 
@@ -338,7 +361,8 @@ class DownloadQueue(object):
         def cancelled():
             with self._lock:
                 current = self._items.get(key)
-                return bool(current is None or current.get("cancel"))
+                local = bool(current is None or current.get("cancel"))
+            return bool(local or self._cancel_requested(key))
 
         try:
             result = self.modules.downloads.download(
@@ -351,6 +375,7 @@ class DownloadQueue(object):
                 self._items.pop(key, None)
                 if key in self._order:
                     self._order.remove(key)
+            self._clear_cancel(key)
             self._save_now()
             self._safe_update()
             return
@@ -381,6 +406,7 @@ class DownloadQueue(object):
             row["status"] = status
             row["detail"] = str(detail or status)[:160]
             row["updated"] = time.time()
+        self._clear_cancel(key)
         self._log("download %s: %s (%s)" % (key, status, detail))
         self._save_now()
         self._safe_update()
@@ -394,16 +420,19 @@ class DownloadQueue(object):
             pass
 
     # ------------------------------------------------------------ persistence
-    def _load_store(self):
-        for row in self._read_store():
+    def _load_store(self, restart=True):
+        for row in self._read_store(restart=restart):
             key = str(row.get("key") or "")
             if not key or key in self._items:
                 continue
+            if self._cancel_requested(key):
+                row["status"] = "cancelled"
+                row["cancel"] = True
             if key not in self._order:
                 self._order.append(key)
             self._items[key] = row
 
-    def _read_store(self):
+    def _read_store(self, restart=False):
         path = self._store_path
         if not path:
             return []
@@ -422,11 +451,14 @@ class DownloadQueue(object):
             if not key or not url or not source:
                 continue
             status = str(raw.get("status") or "queued")
-            if status in ("checking", "downloading"):
-                # The previous owner exited mid-transfer; restart it.
-                status = "queued"
-            elif status == "cancelling":
-                status = "cancelled"
+            if restart:
+                # Only the owner's initial load treats an in-flight row as
+                # interrupted.  A live refresh must keep the current status so
+                # the Downloads room can show percent and cancel.
+                if status in ("checking", "downloading"):
+                    status = "queued"
+                elif status == "cancelling":
+                    status = "cancelled"
             rows.append({
                 "key": key,
                 "title": str(raw.get("title") or "Download"),
@@ -442,6 +474,52 @@ class DownloadQueue(object):
                 "updated": float(raw.get("updated") or 0),
             })
         return rows
+
+    def _cancel_store_path(self):
+        return self._store_path + ".cancel" if self._store_path else ""
+
+    def _read_cancels(self):
+        path = self._cancel_store_path()
+        if not path:
+            return set()
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                value = json.load(handle)
+        except (OSError, ValueError, TypeError):
+            return set()
+        if not isinstance(value, list):
+            return set()
+        return {str(key) for key in value if key}
+
+    def _write_cancels(self, keys):
+        path = self._cancel_store_path()
+        if not path:
+            return
+        temporary = path + ".tmp"
+        try:
+            with open(temporary, "w", encoding="utf-8") as handle:
+                json.dump(sorted(keys), handle)
+            os.replace(temporary, path)
+        except OSError as exc:
+            try:
+                os.remove(temporary)
+            except OSError:
+                pass
+            self._log("cancel flag save failed: %s" % exc)
+
+    def _request_cancel(self, key):
+        keys = self._read_cancels()
+        keys.add(str(key))
+        self._write_cancels(keys)
+
+    def _clear_cancel(self, key):
+        keys = self._read_cancels()
+        if str(key) in keys:
+            keys.discard(str(key))
+            self._write_cancels(keys)
+
+    def _cancel_requested(self, key):
+        return str(key) in self._read_cancels()
 
     def _save_now(self):
         self._last_save = time.monotonic()

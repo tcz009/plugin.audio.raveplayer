@@ -15,6 +15,7 @@ come.
 
 import errno
 import os
+import tempfile
 import threading
 import time
 
@@ -675,18 +676,43 @@ def _cleanup(window):
 
 def _instance_lock_path():
     """Profile marker path, or "" when the profile is unavailable."""
+    profile = ""
     try:
         import xbmcaddon
 
-        profile = xbmcaddon.Addon().getAddonInfo("profile")
+        profile = (xbmcaddon.Addon("script.raveplayer.ui")
+                   .getAddonInfo("profile") or "")
     except Exception:  # noqa: BLE001 - tests / CLI have no profile
-        profile = ""
+        try:
+            import xbmcaddon
+
+            profile = xbmcaddon.Addon().getAddonInfo("profile") or ""
+        except Exception:  # noqa: BLE001 - no add-on context
+            profile = ""
+    if profile:
+        try:
+            import xbmcvfs
+
+            profile = xbmcvfs.translatePath(profile) or profile
+        except Exception:  # noqa: BLE001 - tests / CLI have no VFS
+            pass
     if not profile:
-        return ""
+        try:
+            import xbmcvfs
+
+            translated = xbmcvfs.translatePath("special://temp")
+            if translated and not str(translated).startswith("special://"):
+                profile = translated
+        except Exception:  # noqa: BLE001 - no Kodi VFS
+            profile = ""
+    if not profile:
+        # Last-resort process-wide marker so two interpreters still cannot
+        # stack a second window (the profile lookup can be empty on Android).
+        profile = tempfile.gettempdir()
     try:
         os.makedirs(profile, exist_ok=True)
     except OSError:
-        return ""
+        pass
     return os.path.join(profile, "screen-instance.lock")
 
 

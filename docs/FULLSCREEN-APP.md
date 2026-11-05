@@ -153,25 +153,28 @@ the same window. Nothing is modal and nothing is drawn over a plugin list.
 | active download | Cancel download |
 | completed download | Play, Delete download |
 
-`Play all`/`Shuffle` queue the **whole collection** (the complete pack/show/
-genre/post/feed), not just the visible page, in one `PlayList`. The plugin's
-`mode=play` URL is used per track, so RTP egress/bridge and live reconnect stay
-the plugin's business.
+`Play all`/`Shuffle` queue the shell-owned room's **whole collection** (the
+complete pack/show/genre/post/feed) in one `PlayList`; the library rooms
+(Search/Favourites/Downloads) queue the visible page, as their in-window action
+copy says. The plugin's `mode=play` URL is used per track, so RTP
+egress/bridge and live reconnect stay the plugin's business.
 
 ---
 
 ## 5. States and failure rules
 
-- **Loading** paints before the worker starts; the controller animates the
-  small head on a daemon thread while the GUI thread is in `xbmc.sleep()`, so
-  the plate is visible even during a slow Archive fetch.
+- **Loading** paints before the worker starts; the controller advances the
+  small head from the task runner's poll on the GUI thread, so the plate stays
+  animated during a slow Archive fetch without touching a control from a
+  worker thread.
 - **Empty** is a quiet STANDBY plate: “Nothing in \<room\> right now. The
   source may be blocked or offline.” No notification, no dialog.
 - **Error/timeout** is an ERROR plate with the concrete reason and
   `OK retry · BACK back`. Retry reruns the same target/page.
-- **Back during load**: the window closes, the loading animation stops, and
-  the task runner's `cancelled` predicate drops the late result. No zombie
-  invoker and no repaint on a dead window.
+- **Back during load**: Back closes the window once instead of returning
+  `False` behind a loading plate, stops the animation, sets both cancel events,
+  and the runner's `cancelled` predicate drops the late result. Device
+  measurement (cold cache): Back → Kodi Home in ~0.1 s.
 - **Playback failure** is a status line (“Could not start playback — see the
   log”) and a quiet stop; there is no RTP warning/notification. The plugin's
   own RTP path already suppresses those.
@@ -207,6 +210,7 @@ auto-advance.
 | Platform hand-off (GetDarker/Mixcloud) | the official add-on's `plugin://` path |
 | Explicit Stop | remote Stop / context **Stop playback** → `Player().stop()` |
 | Leaving the window | **audio continues**; Kodi home/Classic lists stay usable |
+| Live stop / normal track | the next `tick()` reconciles the live latch with Kodi; ON AIR clears, duration returns for the normal item |
 
 That last row is the deliberate “sane behaviour”: the app is a shell, not a
 player owner. Back does not silently kill a set. The footer says
@@ -341,6 +345,22 @@ crash or a traceback. They are:
 - `run.harness_errors` records a 401 caused by the concurrent credential change
   during the run.
 
+### P1 fix pass (5 Nov 2026)
+
+The six P1s from the adversarial review were finished and re-verified on the
+same Shield/Kodi pair. Evidence, timings and the exact fault injection used for
+the Surprise timeout are in
+[`fullscreen-app-evidence/p1-fixes/README.md`](fullscreen-app-evidence/p1-fixes/README.md):
+
+| P1 | Device result |
+|---|---|
+| Back during load | closed to Home in ~0.1 s from a real cold `PLEASE WAIT` plate |
+| Surprise timeout | `PICK TIMED OUT`, player `[]` at timeout and 10 s later |
+| Live ON AIR | Stop clears ON AIR; a normal track replaces the station with elapsed/total |
+| DNB / hand-off favourites | DNB resolves and plays; YouTube favourite opens and plays in its add-on |
+| Downloads | active row shows percent; OK cancels; the headless owner persists the queue across the window |
+| Double launch | one screen; the second launch logs "second launch refused" |
+
 ### Device caveat / cleanup
 
 A second local process (the QA harness in `raveplayer-worktrees/qa-harness`) was
@@ -359,8 +379,11 @@ same evidence folder without the overlay.
   `Page n · more`; previous/next rows are authoritative.
 - GetDarker rows are platform hand-offs; if the Mixcloud add-on is not
   installed the source list is empty (the plugin's own route does the same).
-- Downloads show progress when the Downloads room is rendered; the active row
-  is not refreshed per percentage point while the user stays in another room.
+- Downloads show the live queue (active percent, cancel) when the room is
+  rendered. The row is not repainted every percentage point while the user
+  stays in another room; reopen the room for a fresh snapshot. The headless
+  `script.raveplayer.ui downloads` owner keeps a transfer alive after Back and
+  a window close.
 - The app is audio-first: no video, visualisation or subtitle UI.
 - The 02 art still uses the placeholder root sticker/hero generator; the
   screen-bed/spinner/footer art is the design snapshot.
