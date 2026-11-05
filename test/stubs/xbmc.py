@@ -55,6 +55,17 @@ class PlayList(object):
         return len(self.items)
 
 
+class Monitor(object):
+    def __init__(self):
+        self.aborted = False
+
+    def abortRequested(self):
+        return self.aborted
+
+    def waitForAbort(self, timeout=0):
+        return self.aborted
+
+
 class Player(object):
     def play(self, item=None, listitem=None, windowed=False, startpos=-1):
         PLAYED.append(item)

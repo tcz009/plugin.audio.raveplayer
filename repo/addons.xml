@@ -25,6 +25,32 @@
     </assets>
   </extension>
 </addon>
+<addon id="script.raveplayer.ui" name="Rave Screen" version="3.9.47" provider-name="TheYid009">
+  <requires>
+    <import addon="xbmc.python" version="3.0.0" />
+    <import addon="plugin.audio.raveplayer" version="3.9.47" />
+  </requires>
+  <extension point="xbmc.python.script" library="default.py">
+    <provides>executable</provides>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en_GB">Full-screen 2026 Rave UI for Rave Player, with Spinning Surprise.</summary>
+    <summary lang="en_US">Full-screen 2026 Rave UI for Rave Player, with Spinning Surprise.</summary>
+    <description lang="en_GB">A proper Kodi window — not an overlay stuck on top of a plugin directory. Big hero art, a vertical D-pad list, 2026 sticker styling and Spinning Surprise: one random tape pack and track, a ≥1.2 second spinning-head reveal, then playback handed to Kodi. Reads the Rave Player add-on's public data modules read-only. Back exits cleanly; the normal plugin lists remain available as the fallback.</description>
+    <description lang="en_US">A proper Kodi window — not an overlay stuck on top of a plugin directory. Big hero art, a vertical D-pad list, 2026 sticker styling and Spinning Surprise: one random tape pack and track, a ≥1.2 second spinning-head reveal, then playback handed to Kodi. Reads the Rave Player add-on's public data modules read-only. Back exits cleanly; the normal plugin lists remain available as the fallback.</description>
+    <disclaimer lang="en_GB">Rave Screen does not host or distribute any content. Playback is streamed from third-party public archives and radio directories.</disclaimer>
+    <platform>all</platform>
+    <license>GPL-3.0-or-later</license>
+    <language>en_GB</language>
+    <source>https://github.com/tcz009/plugin.audio.raveplayer</source>
+    <website>https://github.com/tcz009/plugin.audio.raveplayer</website>
+    <email>tcz009@hotmail.co.uk</email>
+    <assets>
+      <icon>icon.png</icon>
+      <fanart>fanart.jpg</fanart>
+    </assets>
+  </extension>
+</addon>
 <addon id="repository.raveplayer" name="Rave Player Repository" version="1.0.0" provider-name="TheYid009">
   <requires>
     <import addon="xbmc.addon" version="12.0.0" />

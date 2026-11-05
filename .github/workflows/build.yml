@@ -26,9 +26,16 @@ jobs:
         run: |
           python - <<'PY'
           import xml.etree.ElementTree as ET
-          root = ET.parse("addon.xml").getroot()
-          assert root.get("id") == "plugin.audio.raveplayer"
-          print("addon.xml ok, version", root.get("version"))
+
+          plugin = ET.parse("addon.xml").getroot()
+          assert plugin.get("id") == "plugin.audio.raveplayer"
+          screen = ET.parse("script.raveplayer.ui/addon.xml").getroot()
+          assert screen.get("id") == "script.raveplayer.ui"
+          imports = {item.get("addon"): item.get("version")
+                     for item in screen.findall("./requires/import")}
+          assert imports.get("plugin.audio.raveplayer") == plugin.get("version")
+          print("addon.xml ok, plugin", plugin.get("version"),
+                "screen", screen.get("version"))
           PY
 
       - name: Build installable zip
@@ -40,12 +47,12 @@ jobs:
       - name: Verify committed repo artifacts
         # repo/ is generated but must be committed for Kodi auto-updates. Do not
         # compare binary zips (timestamps churn); only the catalogue text and
-        # the tracked current plugin zip are checked.
+        # the tracked current add-on zips are checked.
         run: ./scripts/check-repo-artifacts.sh
 
       - uses: actions/upload-artifact@v4
         with:
-          name: plugin.audio.raveplayer
+          name: raveplayer-addons
           path: |
             dist/*.zip
             repo/repository.raveplayer/*.zip
@@ -54,7 +61,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          # The plugin zip exists in both dist/ and repo/; globbing repo/*/*.zip
+          # A zip can exist in both dist/ and repo/; globbing repo/*/*.zip
           # uploaded the same asset name twice and made the release step fail
           # with "update-a-release-asset Not Found" on v3.9.4.
           files: |

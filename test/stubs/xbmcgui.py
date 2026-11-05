@@ -14,6 +14,17 @@ RESOLVED = []
 
 INPUT_ALPHANUM = 0
 
+ACTION_MOVE_LEFT = 1
+ACTION_MOVE_RIGHT = 2
+ACTION_MOVE_UP = 3
+ACTION_MOVE_DOWN = 4
+ACTION_PAGE_UP = 5
+ACTION_PAGE_DOWN = 6
+ACTION_PREVIOUS_MENU = 10
+ACTION_NAV_BACK = 92
+
+NOTIFICATION_INFO = "info"
+
 
 class _Addon(object):
     def getAddonInfo(self, key):
@@ -129,3 +140,42 @@ class ListItem(object):
 
 class _DialogModule(object):
     pass
+
+
+class WindowXML(object):
+    """Minimal WindowXML base for script add-on tests.
+
+    Real Kodi reads the XML from ``script_path/resources/skins/<skin>/720p``;
+    this stub only records the constructor arguments and lifecycle so a test can
+    drive the add-on's Python class without a renderer.
+    """
+
+    def __init__(self, xml_filename="", script_path="", *args, **kwargs):
+        self.xml_filename = xml_filename
+        self.script_path = script_path
+        self.shown = False
+        self._closed = False
+        self.focus_id = None
+        self.actions = []
+
+    def show(self):
+        self.shown = True
+
+    @property
+    def closed(self):
+        return self._closed
+
+    def close(self):
+        self._closed = True
+
+    def setFocusId(self, control_id):
+        self.focus_id = control_id
+
+    def getControl(self, control_id):
+        raise KeyError(control_id)
+
+    def onAction(self, action):
+        self.actions.append(action)
+
+    def onClick(self, control_id):
+        pass

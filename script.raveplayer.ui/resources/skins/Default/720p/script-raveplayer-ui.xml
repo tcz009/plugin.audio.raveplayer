@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window type="window" id="15047">
+    <coordinates>
+        <system>1</system>
+        <posx>0</posx>
+        <posy>0</posy>
+    </coordinates>
+    <controls>
+        <!-- Static opaque backdrop from this add-on's own skin media; no skin fork. -->
+        <control type="image" id="10">
+            <description>Rave Screen backdrop</description>
+            <posx>0</posx>
+            <posy>0</posy>
+            <width>1280</width>
+            <height>720</height>
+            <aspectratio>stretch</aspectratio>
+            <texture>screen-bg.jpg</texture>
+            <animation effect="fade" start="0" end="100" time="300">WindowOpen</animation>
+        </control>
+
+        <!-- Big hero art on the right. Kodi repaints after each setImage. -->
+        <control type="image" id="20">
+            <description>Hero art for the focused row</description>
+            <posx>600</posx>
+            <posy>76</posy>
+            <width>620</width>
+            <height>520</height>
+            <aspectratio>keep</aspectratio>
+            <align>center</align>
+            <animation effect="fade" start="0" end="100" time="320">WindowOpen</animation>
+            <animation effect="slide" start="40,0" end="0,0" time="320">WindowOpen</animation>
+        </control>
+
+        <control type="image">
+            <description>Header rule</description>
+            <posx>48</posx>
+            <posy>66</posy>
+            <width>1152</width>
+            <height>2</height>
+            <texture>rule-acid.png</texture>
+        </control>
+
+        <control type="label" id="21">
+            <description>Rave Screen wordmark</description>
+            <posx>48</posx>
+            <posy>28</posy>
+            <width>560</width>
+            <height>36</height>
+            <font>font45</font>
+            <textcolor>0xFFE8FF00</textcolor>
+            <label>RAVE SCREEN</label>
+            <animation effect="fade" start="0" end="100" time="260">WindowOpen</animation>
+        </control>
+
+        <control type="label" id="22">
+            <description>Current view title</description>
+            <posx>48</posx>
+            <posy>76</posy>
+            <width>530</width>
+            <height>52</height>
+            <font>font20</font>
+            <textcolor>0xFFF2EEE3</textcolor>
+            <label>RAVE SCREEN</label>
+        </control>
+
+        <control type="label" id="23">
+            <description>Current view subtitle</description>
+            <posx>48</posx>
+            <posy>128</posy>
+            <width>530</width>
+            <height>48</height>
+            <font>font13</font>
+            <textcolor>0xFFA8A399</textcolor>
+            <label>Pick a source. OK opens it.</label>
+        </control>
+
+        <control type="list" id="50">
+            <description>Rave Screen vertical row list</description>
+            <posx>48</posx>
+            <posy>190</posy>
+            <width>518</width>
+            <height>410</height>
+            <onup>50</onup>
+            <ondown>50</ondown>
+            <onleft>50</onleft>
+            <onright>50</onright>
+            <pagecontrol>0</pagecontrol>
+            <animation effect="fade" start="0" end="100" time="260">WindowOpen</animation>
+            <itemlayout height="66" width="518">
+                <control type="label">
+                    <description>Row label</description>
+                    <posx>18</posx>
+                    <posy>8</posy>
+                    <width>480</width>
+                    <height>30</height>
+                    <font>font13</font>
+                    <textcolor>0xFFF2EEE3</textcolor>
+                    <label>$INFO[ListItem.Label]</label>
+                </control>
+                <control type="label">
+                    <description>Row fact</description>
+                    <posx>18</posx>
+                    <posy>38</posy>
+                    <width>480</width>
+                    <height>24</height>
+                    <font>font10</font>
+                    <textcolor>0xFF8F8A80</textcolor>
+                    <label>$INFO[ListItem.Label2]</label>
+                </control>
+            </itemlayout>
+            <focusedlayout height="76" width="518">
+                <control type="image">
+                    <description>Focused row ink plate</description>
+                    <posx>0</posx>
+                    <posy>0</posy>
+                    <width>518</width>
+                    <height>76</height>
+                    <texture>focus-plate.png</texture>
+                    <animation effect="zoom" start="100" end="103" center="left" time="150">Focus</animation>
+                </control>
+                <control type="label">
+                    <description>Focused row label</description>
+                    <posx>22</posx>
+                    <posy>6</posy>
+                    <width>474</width>
+                    <height>34</height>
+                    <font>font16</font>
+                    <textcolor>0xFF07070B</textcolor>
+                    <label>$INFO[ListItem.Label]</label>
+                    <animation effect="zoom" start="100" end="102" center="left" time="150">Focus</animation>
+                </control>
+                <control type="label">
+                    <description>Focused row fact</description>
+                    <posx>22</posx>
+                    <posy>42</posy>
+                    <width>474</width>
+                    <height>24</height>
+                    <font>font10</font>
+                    <textcolor>0xFF07070B</textcolor>
+                    <label>$INFO[ListItem.Label2]</label>
+                </control>
+            </focusedlayout>
+        </control>
+
+        <control type="image">
+            <description>Now-playing footer plate</description>
+            <posx>48</posx>
+            <posy>610</posy>
+            <width>1152</width>
+            <height>64</height>
+            <texture>footer-plate.png</texture>
+        </control>
+
+        <control type="label" id="30">
+            <description>Status / loading line</description>
+            <posx>48</posx>
+            <posy>620</posy>
+            <width>1184</width>
+            <height>30</height>
+            <font>font12</font>
+            <textcolor>0xFF22E6FF</textcolor>
+            <label>▲ ▼ select · OK open · BACK exit</label>
+        </control>
+
+        <control type="label" id="31">
+            <description>Now playing line</description>
+            <posx>48</posx>
+            <posy>654</posy>
+            <width>1184</width>
+            <height>34</height>
+            <font>font16</font>
+            <textcolor>0xFFFF2D8F</textcolor>
+            <label></label>
+        </control>
+
+        <!-- Spinning Surprise: a full-window reveal, not a dialog on top of a plugin. -->
+        <control type="image" id="60">
+            <description>Surprise backdrop</description>
+            <posx>0</posx>
+            <posy>0</posy>
+            <width>1280</width>
+            <height>720</height>
+            <aspectratio>stretch</aspectratio>
+            <texture>screen-bg.jpg</texture>
+            <animation effect="fade" start="0" end="100" time="180">Visible</animation>
+        </control>
+        <control type="image" id="64">
+            <description>Surprise burst ring</description>
+            <posx>320</posx>
+            <posy>40</posy>
+            <width>640</width>
+            <height>640</height>
+            <aspectratio>keep</aspectratio>
+            <texture>surprise-ring.png</texture>
+        </control>
+        <control type="image" id="61">
+            <description>Spinning Rave Player head</description>
+            <posx>440</posx>
+            <posy>160</posy>
+            <width>400</width>
+            <height>400</height>
+            <aspectratio>keep</aspectratio>
+            <align>center</align>
+        </control>
+        <control type="label" id="62">
+            <description>Surprise label</description>
+            <posx>240</posx>
+            <posy>530</posy>
+            <width>800</width>
+            <height>60</height>
+            <font>font30</font>
+            <align>center</align>
+            <textcolor>0xFFFF2D8F</textcolor>
+            <label>SPINNING…</label>
+        </control>
+        <control type="label" id="63">
+            <description>Surprise hint</description>
+            <posx>240</posx>
+            <posy>596</posy>
+            <width>800</width>
+            <height>30</height>
+            <font>font12</font>
+            <align>center</align>
+            <textcolor>0xFFF2EEE3</textcolor>
+            <label>One pick. One track. No re-roll loop.</label>
+        </control>
+    </controls>
+    <defaultcontrol>50</defaultcontrol>
+</window>

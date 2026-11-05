@@ -131,19 +131,20 @@ class ThemeArtTests(unittest.TestCase):
             with self.subTest(fanart=filename):
                 self.assertEqual(jpeg_size(art_path(filename)), (1280, 720))
 
-    def test_root_has_nine_distinct_icons_and_fanarts(self):
+    def test_root_has_ten_distinct_icons_and_fanarts(self):
         items = capture(routes.root)
-        self.assertEqual(len(items), 9)
+        self.assertEqual(len(items), 10)
         icons = [item["art"]["icon"] for item in items]
         fanarts = [item["art"]["fanart"] for item in items]
-        self.assertEqual(len(set(icons)), 9, "root rows must not share an icon")
-        self.assertEqual(len(set(fanarts)), 9, "root rows need their own fanart")
+        self.assertEqual(len(set(icons)), 10, "root rows must not share an icon")
+        self.assertEqual(len(set(fanarts)), 10, "root rows need their own fanart")
         for path in icons + fanarts:
             self.assertTrue(os.path.exists(path), path)
 
     def test_root_uses_the_2026_sticker_icons(self):
         items = capture(routes.root)
         expected = {
+            "Rave Screen": "screen.png",
             "Latest": "rave.png",
             "Tape Packs": "tapepacks.png",
             "Pirate Radio": "pirate-radio.png",
