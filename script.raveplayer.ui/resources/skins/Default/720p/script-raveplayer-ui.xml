@@ -525,13 +525,20 @@
         <!-- =========================================== Spinning Surprise -->
         <!-- A full-window state of the same window: the opaque burst sits
              above every home control. Python swaps only 702; 700-713 are
-             hidden when the reveal is not running. -->
+             hidden when the reveal is not running.
+
+             Do NOT use a literal <visible>false</visible> here. Kodi
+             re-evaluates a control's XML visibility condition every frame,
+             and a constant false permanently wins over Control.setVisible()
+             (Kodi 22/Shield: the splash stayed invisible while Python logged
+             visible=True). Bind to a window property instead; the controller
+             sets rp_splash from the reveal state. -->
         <control type="image" id="700">
             <description>Surprise burst bed</description>
             <posx>0</posx><posy>0</posy><width>1280</width><height>720</height>
             <aspectratio>stretch</aspectratio>
             <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/surprise-burst-1280x720.jpg</texture>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
         <control type="image" id="701">
             <description>Surprise ring</description>
@@ -539,34 +546,34 @@
             <aspectratio>keep</aspectratio>
             <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/surprise-ring-640x640.png</texture>
             <colordiffuse>0xE6FFFFFF</colordiffuse>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
         <control type="image" id="702">
             <description>Spinning Rave Player head, frame swapped by Python</description>
             <posx>384</posx><posy>36</posy><width>512</width><height>512</height>
             <aspectratio>keep</aspectratio>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
         <control type="image" id="703">
             <description>Surprise caption plate</description>
             <posx>320</posx><posy>516</posy><width>640</width><height>168</height>
             <aspectratio>stretch</aspectratio>
             <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/surprise-caption-plate-640x168.png</texture>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
         <control type="image" id="704">
             <description>Baked SURPRISE ME title</description>
             <posx>430</posx><posy>536</posy><width>420</width><height>72</height>
             <aspectratio>keep</aspectratio>
             <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/label-surprise-me.png</texture>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
         <control type="image" id="705">
             <description>Baked SPINNING THE RACK sub-caption</description>
             <posx>491</posx><posy>614</posy><width>290</width><height>16</height>
             <aspectratio>keep</aspectratio>
             <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/label-spinning-the-rack.png</texture>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
         <control type="label" id="706">
             <description>Surprise code line</description>
@@ -576,7 +583,7 @@
             <textcolor>0xFFE8FF00</textcolor>
             <shadowcolor>0xFF07070B</shadowcolor>
             <align>center</align><aligny>center</aligny>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
         <control type="button" id="707">
             <description>Surprise CANCEL button</description>
@@ -587,14 +594,14 @@
             <font>font12</font>
             <textcolor>0xFFF2EEE3</textcolor>
             <onclick>Action(Back)</onclick>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
         <control type="image" id="708">
             <description>Surprise Back keycap</description>
             <posx>590</posx><posy>652</posy><width>32</width><height>32</height>
             <aspectratio>keep</aspectratio>
             <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/keycap-b.png</texture>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
         <control type="label" id="709">
             <description>Surprise CANCEL label</description>
@@ -604,14 +611,14 @@
             <textcolor>0xFFF2EEE3</textcolor>
             <shadowcolor>0xFF07070B</shadowcolor>
             <align>center</align><aligny>center</aligny>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
         <control type="image" id="710">
             <description>Surprise top mark</description>
             <posx>64</posx><posy>36</posy><width>36</width><height>36</height>
             <aspectratio>keep</aspectratio>
             <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/mark.png</texture>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
         <control type="label" id="711">
             <description>Surprise top label</description>
@@ -621,7 +628,7 @@
             <textcolor>0xFFA8A399</textcolor>
             <shadowcolor>0xFF07070B</shadowcolor>
             <aligny>center</aligny>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
         <control type="label" id="712">
             <description>Surprise top code</description>
@@ -631,14 +638,14 @@
             <textcolor>0xFFE8FF00</textcolor>
             <shadowcolor>0xFF07070B</shadowcolor>
             <align>right</align><aligny>center</aligny>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
         <control type="image" id="713">
             <description>Grain and scanlines above the Surprise state</description>
             <posx>0</posx><posy>0</posy><width>1280</width><height>720</height>
             <aspectratio>stretch</aspectratio>
             <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/noise-overlay-1280x720.png</texture>
-            <visible>false</visible>
+            <visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
         </control>
 
     </controls>

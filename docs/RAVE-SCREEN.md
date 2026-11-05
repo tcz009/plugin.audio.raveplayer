@@ -1,13 +1,14 @@
 # Rave Screen 3.9.47 / 3.9.48
 
 **Date:** 5 Nov 2026 · **Version:** 3.9.48 (screen visual pass) · **Branch:** `integration/3.9.48`
-**Status:** implemented and offline-tested; **not pushed, tagged or deployed**.
+**Status:** implemented; 3.9.48 splash paint verified on the Shield (Kodi 22),
+full offline suite green; **not pushed, tagged or deployed**.
 
 > Sections 1-9 describe the 3.9.47 implementation. Section 10 is the 3.9.48
-> visual-parity pass over the same behaviour; read it for the current XML,
-> asset layout, deviations and device checklist.
-No Shield/Kodi-22 device run was possible in this workspace, so every item in
-the device checklist below is still open.
+> visual-parity pass over the same behaviour, including the device-verified
+> Spinning Surprise splash fix. See
+> [`RAVE-SCREEN-SPLASH-FIX.md`](RAVE-SCREEN-SPLASH-FIX.md) for the root cause
+> and screenshot evidence.
 
 This is the replacement for the plugin-list overlay approach: **a real add-on
 window, not a dialog painted on top of the plugin directory**. Kodi owns the
@@ -41,7 +42,7 @@ script.raveplayer.ui/
 │   ├── controller.py                  # view state, Back stack, single-pick surprise
 │   ├── data.py                        # six home rows + lazy source loaders
 │   ├── pluginbridge.py                # read-only import alias for plugin resources/lib
-│   ├── animation.py                   # >=1.2 s GUI-thread spinning-head loop
+│   ├── animation.py                   # >=1.2 s reveal-worker head spin
 │   ├── playback.py                    # one-item PlayList -> Player().play
 │   └── tasks.py                       # bounded worker-thread data loads
 ├── resources/skins/Default/720p/script-raveplayer-ui.xml
@@ -142,22 +143,26 @@ worker result is discarded if the window closed first.
 
 ## 4. Spinning Surprise — exactly once
 
-Sequence, all on the WindowXML callback thread:
+Sequence:
 
-1. OK on **SPINNING SURPRISE** → controller sets `_busy` and shows the spinner
-   panel.
-2. `data.random_pick()` runs once (worker, bounded):
+1. OK on **SPINNING SURPRISE** → the callback sets `_busy` and paints the
+   splash. Visibility is bound to `Window.Property(rp_splash)`: the adapter
+   sets the property to `1` and then calls `setVisible(True)` on controls
+   700-713. Never use a literal `<visible>false</visible>` here — Kodi
+   re-evaluates it every frame and it overrides `setVisible()`.
+2. `data.random_pick()` runs once on a bounded worker:
    - `latest.random_pack()` once;
    - `archive.audio_files(identifier)` once;
    - `random.choice` over playable tracks once.
-3. `SpinnerAnimator` runs for **at least 1.2 s**:
-   - `setImage(frame)` on control 61;
-   - `xbmc.sleep(frame_ms)` so Kodi can repaint;
+3. `SpinnerAnimator` runs on the reveal worker for **at least 1.2 s**:
+   - `setImage(frame)` on control 702 (the 512 px head inside the splash);
+   - `xbmc.sleep(frame_ms)`, with the Kodi GUI thread repainting independently;
    - 10 fps, frame index `int(elapsed*10) % 10`;
    - cancellation/dead control stops without playback.
-4. The controller hides the spinner and calls `PlaybackService.play(track)`
-   once: builds a one-item `xbmc.PlayList(xbmc.PLAYLIST_MUSIC)`, adds the
-   stream, calls `xbmc.Player().play(playlist)`.
+4. The controller clears `rp_splash`, hides the controls and calls
+   `PlaybackService.play(track)` once: builds a one-item
+   `xbmc.PlayList(xbmc.PLAYLIST_MUSIC)`, adds the stream, calls
+   `xbmc.Player().play(playlist)`.
 5. The window sets **`Now playing: <track> — <pack>`**, notifies once, and
    stays open.
 6. Any further OK while `_handed_off` is true only updates the status line
@@ -196,7 +201,8 @@ busy closes the window immediately.
 | Risk | Why it matters on Kodi 22 | Mitigation / status |
 |---|---|---|
 | `WindowXML` custom-window internals | Kodi 22 changed renderer/skin paths in past releases; a custom add-on XML is not exercised by the default skin | Uses only long-standing `WindowXML` + list controls; XML validated in tests; **device run required** |
-| GUI-thread `xbmc.sleep` loop | `onAction` cannot be processed while the Python callback sleeps, so a long reveal feels unresponsive | Hard 1.2 s minimum, 10 fps; bounded pick timeout; no animation queue; Back during animation is queued, not destructive |
+| Splash visibility condition | A literal `<visible>false</visible>` is re-evaluated every GUI frame and silently overrides `Control.setVisible(True)`, so the reveal never paints | 700-713 bind to `Window.Property(rp_splash)`; the adapter writes the property before the controls; tests forbid literal `false`; **device-verified 4/4** (3 primary runs + rebuilt-zip smoke; see `RAVE-SCREEN-SPLASH-FIX.md`) |
+| Reveal worker + control updates | `setImage` runs on the reveal worker while the Kodi GUI renders; a dead or closed control must not raise or leak | Hard 1.2 s minimum, 10 fps; bounded pick timeout; `cancelled` poll and fail-soft `setImage`; no animation queue; **device video shows the head rotating** |
 | `show()` non-modal + script keepalive | If Kodi changes `show()` semantics, the script could exit and take the window with it | `open_screen` polls `window.closed` / `Monitor.abortRequested` with `xbmc.sleep(100)`; no busy-spin |
 | Player hand-off from a script | Kodi may pause/stop audio when the launching script exits, or show no OSD because the custom window is on top | Window stays open after `Player().play`; Back is the explicit exit; device checklist tests audio, OSD and a second selection |
 | Focus/list rendering + skin assets | Skin media paths or focus animations can differ between skins/versions | Media lives in this add-on's own `resources/skins/Default/media`; no skin fork; only built-in fonts and colours |
@@ -334,8 +340,9 @@ commits on the branch.
 - The root sticker/fanart and fallback hero remain placeholders; the
   screen-bed/spinner/footer art is the parallel specialist's current snapshot
   and may be replaced by their final pass.
-- No device verification yet; the risk register and checklist above are the
-  hand-off for that run.
+- The Spinning Surprise splash and its 1.2 s head spin are device-verified on
+  the Shield/Kodi 22; the rest of the section 7 and section 10 checklist has
+  not been re-run end-to-end since the 3.9.48 visual pass.
 
 ---
 
@@ -410,12 +417,30 @@ behaviour is unchanged).
       artist / album, elapsed/total, waveform, 3px progress; header says
       ON AIR. Pause: ON AIR hides, title remains.
 - [ ] Play live radio: total and progress hide; waveform and title remain.
-- [ ] Surprise: burst/ring/head are full-window, head spins >= 1.2 s, caption
+- [x] Surprise: burst/ring/head are full-window, head spins >= 1.2 s, caption
       and CANCEL render, one pick, one playback, Back exits; B CANCEL is the
-      printed affordance.
+      printed affordance. **Device-verified 5 Nov 2026, 4/4 runs (3 primary + rebuilt-zip smoke).**
 - [ ] 720p and 1080p UI: no live type clipped at 64/36; overscan margins hold;
       hero is 16:9 with no crop.
 - [ ] Skin without font12/font10 still opens the window (degraded hierarchy,
       no crash); Kodi log has no unknown-control or invalid-texture errors.
 - [ ] Run the full suite and `./scripts/check-repo-artifacts.sh`; the
       committed `repo/` must match the 3.9.48 zips.
+
+### Splash paint fix (device-verified)
+
+The first 3.9.48 build put a literal `<visible>false</visible>` on every
+splash control (700-713). Kodi 22 treats that as a visibility *condition*,
+re-evaluates it on every GUI frame and re-hides the control immediately after
+`Control.setVisible(True)` — so Python logged `visible=True controls=14` while
+the splash never painted. The fix binds 700-713 to
+`String.IsEqual(Window.Property(rp_splash),1)`, and
+`KodiView.set_spinner_visible()` sets `rp_splash=1`/`0` before touching the
+controls. The 1.2 s spin and single-play behaviour are unchanged.
+
+Verified on the Shield with four JSON-RPC-driven Surprise runs (the last on the rebuilt zip) and
+`adb exec-out screencap`: the splash painted every time, the head rotated
+during the reveal, and playback started once immediately after the hide.
+Root cause, log timestamps and before/after frames:
+[`RAVE-SCREEN-SPLASH-FIX.md`](RAVE-SCREEN-SPLASH-FIX.md) and
+[`rave-screen-evidence/`](rave-screen-evidence/).

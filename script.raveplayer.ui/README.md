@@ -27,3 +27,19 @@ window and returns you to Kodi.
 
 See `../docs/RAVE-SCREEN.md` in the source repository for the architecture,
 Kodi 22 risk notes and the device test checklist.
+
+## Splash visibility
+
+The 14 Spinning Surprise controls (700-713) are shown by a window-property
+condition, not by XML defaults:
+
+```xml
+<visible>String.IsEqual(Window.Property(rp_splash),1)</visible>
+```
+
+`KodiView.set_spinner_visible()` sets `rp_splash=1` before calling
+`setVisible(True)` on the controls, and clears it when the reveal ends. Do not
+replace this with a literal `<visible>false</visible>`: Kodi re-evaluates that
+condition every frame and it silently overrides `setVisible()`, leaving the
+splash invisible on Kodi 22 even though the Python log says it is visible.
+See [`../docs/RAVE-SCREEN-SPLASH-FIX.md`](../docs/RAVE-SCREEN-SPLASH-FIX.md).

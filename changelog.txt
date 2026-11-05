@@ -7,13 +7,20 @@ Rave Player 3.9.48
   resources/art/rave-screen. List stays control 50/defaultcontrol 50, no
   setFocusId, only font13/12/10, absolute special:// textures. Plugin version
   unchanged; behaviour (single-pick guard, playback handoff, fail-fast launch)
-  unchanged. No device run in this workspace.
+  unchanged. No device run in this workspace for the visual pass.
+- Rave Screen Spinning Surprise splash fix (device-verified, Shield/Kodi 22):
+  the 14 splash controls had a literal `<visible>false</visible>`, which Kodi
+  22 re-evaluates every frame and uses to override Control.setVisible(True);
+  the splash never painted even though Python logged visible=True. They now
+  bind to Window.Property(rp_splash), set before the controls. Three JSON-RPC
+  runs painted the splash and played once; 1.2 s spin and single-play guards
+  unchanged. See docs/RAVE-SCREEN-SPLASH-FIX.md.
 - Round-face fallback for Kodi’s player/Now Playing: playable tracks with no
   cover now use resources/art/icon.png instead of the generic eye; genuine
   cover art is preserved. Applied in play/playlist resolution, ui.track_item
   and RaveTapePacks/Toronto/Moxser track rows.
-- Tests: 634 OK (including the new Rave Screen XML/row tests). No
-  playback/autoplay changes.
+- Tests: 645 OK (including the new Rave Screen XML/row tests and the splash
+  property-binding regression). No playback/autoplay changes.
 
 Rave Player 3.9.43
 - Merged feat/rtp-egress: per-host RaveTapePacks HTTP CONNECT proxy via

@@ -71,6 +71,14 @@ CONTROL_SPINNER_TOP = 711
 CONTROL_SPINNER_CODE = 712
 CONTROL_SPINNER_NOISE = 713
 
+# The splash controls are conditionally visible on this window property, not on
+# a literal <visible>false</visible>. Kodi re-evaluates that condition every
+# frame, so a constant false silently undoes Control.setVisible(True) (the
+# Shield/Kodi 22 symptom: Python logged visible=True for nine seconds and the
+# splash never painted). Setting the property *and* the controls keeps the
+# XML condition and the Python state in agreement.
+SPLASH_PROPERTY = "rp_splash"
+
 SPINNER_CONTROLS = (
     CONTROL_SPINNER_BG, CONTROL_SPINNER_RING, CONTROL_SPINNER_HEAD,
     CONTROL_SPINNER_CAPTION, CONTROL_SPINNER_TITLE, CONTROL_SPINNER_SUB,
@@ -264,11 +272,19 @@ class KodiView(object):
             return 0
 
     def set_spinner_visible(self, visible):
+        # Property first: the XML condition must already be true when the
+        # controls are made visible, otherwise the GUI thread can evaluate the
+        # old (hidden) condition for a frame and drop the reveal again.
+        try:
+            self.window.setProperty(SPLASH_PROPERTY, "1" if visible else "0")
+        except Exception:
+            pass
         shown = 0
         for control_id in SPINNER_CONTROLS:
             if self._visible(control_id, visible):
                 shown += 1
-        xbmc.log("[script.raveplayer.ui] spinner visible=%s controls=%d" % (visible, shown),
+        xbmc.log("[script.raveplayer.ui] spinner visible=%s %s=%d controls=%d"
+                 % (visible, SPLASH_PROPERTY, 1 if visible else 0, shown),
                  level=xbmc.LOGDEBUG)
 
     def set_spinner_background(self, path):

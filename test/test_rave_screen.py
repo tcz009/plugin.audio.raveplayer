@@ -924,20 +924,21 @@ class ManifestAndSkinTests(unittest.TestCase):
         self.assertEqual(root.findtext("defaultcontrol"),
                          str(ravewindow.CONTROL_LIST))
 
-    def test_spinner_controls_start_hidden_in_the_xml(self):
+    def test_spinner_controls_are_property_bound_not_constant_false(self):
         import xml.etree.ElementTree as ET
 
         path = os.path.join(SCREEN, "resources", "skins", "Default", "720p",
                             ravewindow.XML_FILE)
         root = ET.parse(path).getroot()
         by_id = {control.get("id"): control for control in root.iter("control")}
-        for control_id in (ravewindow.CONTROL_SPINNER_BG,
-                           ravewindow.CONTROL_SPINNER_HEAD,
-                           ravewindow.CONTROL_SPINNER_RING,
-                           ravewindow.CONTROL_SPINNER_LABEL,
-                           ravewindow.CONTROL_SPINNER_HINT):
-            visible = by_id[str(control_id)].findtext("visible")
-            self.assertEqual(visible, "false", control_id)
+        expected = "String.IsEqual(Window.Property(%s),1)" % (
+            ravewindow.SPLASH_PROPERTY,)
+        for control_id in ravewindow.SPINNER_CONTROLS:
+            control = by_id[str(control_id)]
+            # A literal "false" is re-evaluated every frame by Kodi and wins
+            # over Control.setVisible(True): the splash never paints.
+            self.assertEqual(control.findtext("visible"), expected, control_id)
+            self.assertNotEqual(control.findtext("visible"), "false", control_id)
 
     def test_script_sources_are_python39_compatible(self):
         paths = [os.path.join(SCREEN, "default.py")]
@@ -1165,10 +1166,13 @@ class RaveScreenXMLTests(unittest.TestCase):
                       by_id(self.root, 704).findtext("texture"))
         self.assertIn("label-spinning-the-rack.png",
                       by_id(self.root, 705).findtext("texture"))
+        expected_visibility = "String.IsEqual(Window.Property(%s),1)" % (
+            ravewindow.SPLASH_PROPERTY,)
         for control_id in range(700, 714):
             control = by_id(self.root, control_id)
             self.assertIsNotNone(control, control_id)
-            self.assertEqual(control.findtext("visible"), "false", control_id)
+            self.assertEqual(control.findtext("visible"), expected_visibility,
+                             control_id)
 
 
 class _FakeControl(object):
@@ -1282,10 +1286,14 @@ class RowViewTests(unittest.TestCase):
         for control_id in ravewindow.SPINNER_CONTROLS:
             self.assertTrue(self.window.getControl(control_id).visible,
                             control_id)
+        # The XML condition reads this property, so it must agree with the
+        # controls; otherwise Kodi re-hides them on the next frame.
+        self.assertEqual(self.window.props[ravewindow.SPLASH_PROPERTY], "1")
         self.view.set_spinner_visible(False)
         for control_id in ravewindow.SPINNER_CONTROLS:
             self.assertFalse(self.window.getControl(control_id).visible,
                              control_id)
+        self.assertEqual(self.window.props[ravewindow.SPLASH_PROPERTY], "0")
         self.assertEqual(len(ravewindow.SPINNER_CONTROLS), 14)
 
 

@@ -23,10 +23,20 @@
   `resources/art/rave-screen/` (plus the untouched Rave Player mark), and every
   texture reference is an absolute `special://home/addons/script.raveplayer.ui`
   path so the skin cannot shadow it.
+- **Spinning Surprise splash fix (device-verified)** — the 14 splash controls
+  (700-713) no longer carry a literal `<visible>false</visible>`. Kodi
+  re-evaluates that condition every frame and it overrode `setVisible(True)`,
+  so on Kodi 22 the splash stayed hidden while the log said it was visible.
+  They now bind to `String.IsEqual(Window.Property(rp_splash),1)` and
+  `KodiView.set_spinner_visible()` sets the property before the controls.
+  Shield verification: 3/3 runs painted the splash and played once; the 1.2 s
+  head spin and single-play guards are unchanged. See
+  `docs/RAVE-SCREEN-SPLASH-FIX.md`.
 - **Tests** — new offline checks parse the XML, assert control 50/defaultcontrol
   50/no setFocusId, resolve every referenced texture, verify 720p geometry and
-  64/36 safe margins for live type, and assert the focus/hero bindings and the
-  data facts. Full suite green (634 tests); no device run.
+  64/36 safe margins for live type, assert the focus/hero bindings and the
+  data facts, and now guard the splash controls against a literal `false`.
+  Full suite green (645 tests); Splash verified on the Shield.
 
 # Rave Player 3.9.47
 
