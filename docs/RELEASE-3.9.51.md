@@ -175,12 +175,16 @@ Before the tag is pushed (main fast-forwarded, release rejected):
 git push --force-with-lease=main:<main-sha> origin 22cbf4d:main
 ```
 
-If force-pushing `main` is not allowed, revert the range instead:
+If force-pushing `main` is not allowed, publish a normal commit whose **tree** is
+the previous release tree. This avoids the merge commits in the release range
+(which make `git revert <range>` conflict) and needs no force:
 
 ```sh
 git checkout main
-git revert --no-commit 22cbf4d..feat/app-integration
-git commit -m "Revert 3.9.51 release"
+git status --short                       # must be clean first
+git read-tree -u --reset 22cbf4d         # index + working tree = v3.9.50 tree
+git commit -m "Revert 3.9.51 release (tree restored to 3.9.50)"
+git diff --stat 22cbf4d HEAD             # must be empty
 git push origin main
 ```
 
