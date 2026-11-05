@@ -60,7 +60,9 @@ git push -u origin main --tags
 
 The 3.9.x release flow is: bump `addon.xml` + `changelog.txt`; rebuild the
 artifacts; commit the regenerated `repo/`; then tag. The current release is
-**3.9.5** (source artefacts built; tag/release to be created by the owner).
+**3.9.51** (`plugin.audio.raveplayer` 3.9.51 + `script.raveplayer.ui` 3.9.50),
+prepared on `feat/app-integration`; the exact commands and rollback are in
+`docs/RELEASE-3.9.51.md`.
 
 ```sh
 # 1. version bump already in addon.xml/changelog.txt
@@ -78,11 +80,15 @@ git tag v<version>
 git push origin v<version>
 ```
 
-- Actions → `build` runs the 192 unit tests, validates `addon.xml`, rebuilds
+- Actions → `build` runs the 923 unit tests, validates `addon.xml`, rebuilds
   `dist/` and `repo/`, and then fails if `repo/addons.xml`, `repo/addons.xml.md5`
   or the current versioned plugin zip are not committed
   (`scripts/check-repo-artifacts.sh`). Generated repo/ files must be committed or
   Kodi auto-updates stay on the old version even though the tag and release exist.
+- GitHub release assets: there is no API token available locally, so the
+  release job is the tag-triggered `build` workflow (it uses the workflow's own
+  `GITHUB_TOKEN`). Do not try to create a release or upload assets by hand.
+  The Kodi update path is the committed `repo/` on `main`, not the release zip.
 - Kodi install: download `plugin.audio.raveplayer-<version>.zip` from `dist/` or
   the GitHub release → Add-ons → Install from zip file. Alternatively keep
   `repository.raveplayer-1.0.0.zip` installed once and let Kodi update from

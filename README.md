@@ -261,6 +261,10 @@ A self-hosted **web version** (same sources, runs in Docker) lives at
 
 ## Install from the repository (recommended)
 
+Current release: **`plugin.audio.raveplayer` 3.9.51** with
+**`script.raveplayer.ui` 3.9.50** (the full-screen Rave app; the script requires
+the 3.9.51 plugin).
+
 Add the repository once, then Rave Player installs and updates itself.
 
 1. Download **`repository.raveplayer-1.0.0.zip`** from the
