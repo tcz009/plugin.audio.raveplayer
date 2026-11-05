@@ -7,8 +7,10 @@ through the stub base class.
 """
 
 import ast
+import itertools
 import os
 import sys
+import tempfile
 import types
 import unittest
 import xml.etree.ElementTree as ET
@@ -23,6 +25,7 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, SCREEN)
 
 import xbmc  # noqa: E402
+import xbmcaddon  # noqa: E402
 import xbmcgui  # noqa: E402
 import xbmcplugin  # noqa: E402
 
@@ -31,7 +34,8 @@ from raveui.animation import SpinnerAnimator, frame_index  # noqa: E402
 from raveui.controller import RaveScreenController  # noqa: E402
 from raveui.data import Entry, RaveData, Track  # noqa: E402
 from raveui.playback import PlaybackService  # noqa: E402
-from raveui.tasks import DirectTaskRunner, TaskFailed, TaskTimeout, ThreadTaskRunner  # noqa: E402
+from raveui.tasks import (DirectTaskRunner, TaskCancelled, TaskFailed, TaskTimeout,
+                          ThreadTaskRunner)  # noqa: E402
 from raveui import window as ravewindow  # noqa: E402
 
 
@@ -448,6 +452,51 @@ class WindowAdapterTests(unittest.TestCase):
         self.assertEqual(stub.focus, 1)
         self.assertEqual(len(window.actions), 1)
 
+    def test_parent_dir_action_also_closes(self):
+        window = ravewindow.RaveScreenWindow("x.xml", "/tmp")
+        stub = StubController()
+        window._controller = stub
+        window.onAction(FakeAction(9))
+        self.assertEqual(stub.back, 1)
+        self.assertTrue(window.closed)
+
+    def test_set_rows_binds_the_whole_list_in_one_message(self):
+        class FakeList(object):
+            def __init__(self):
+                self.batches = []
+                self.singles = 0
+                self.selected = None
+
+            def reset(self):
+                pass
+
+            def addItems(self, items):
+                self.batches.append(list(items))
+
+            def addItem(self, item):
+                self.singles += 1
+
+            def selectItem(self, index):
+                self.selected = index
+
+        class FakeWindow(object):
+            def __init__(self, control):
+                self.control = control
+
+            def getControl(self, control_id):
+                if control_id == ravewindow.CONTROL_LIST:
+                    return self.control
+                raise KeyError(control_id)
+
+        control = FakeList()
+        view = ravewindow.KodiView(FakeWindow(control))
+        view.set_rows([Entry("a", "One", "fact one"),
+                       Entry("b", "Two", "fact two")])
+        self.assertEqual(len(control.batches), 1)
+        self.assertEqual([item.label for item in control.batches[0]], ["One", "Two"])
+        self.assertEqual(control.singles, 0)
+        self.assertEqual(control.selected, 0)
+
     def test_open_screen_shows_and_returns_a_closed_window(self):
         class FakeWindow(object):
             def __init__(self):
@@ -488,6 +537,65 @@ class WindowAdapterTests(unittest.TestCase):
             monitor_factory=lambda: types.SimpleNamespace(abortRequested=lambda: True))
         self.assertIs(result, fake)
         self.assertTrue(fake.closed)
+
+    def test_open_screen_waits_for_a_modal_dialog_before_showing(self):
+        class FakeWindow(object):
+            def __init__(self):
+                self.closed = False
+                self.initialized = False
+                self.shown = 0
+
+            def show(self):
+                # Real Kodi sends GUI_MSG_WINDOW_INIT and invokes onInit, which
+                # sets this flag; a modal-refused show() never does.
+                self.shown += 1
+                self.initialized = True
+
+            def close(self):
+                self.closed = True
+
+        fake = FakeWindow()
+        modal = [True, True, False]
+        with mock.patch.object(ravewindow, "_modal_dialog_active",
+                               side_effect=lambda: modal.pop(0) if modal else False):
+            result = ravewindow.open_screen(
+                window_factory=lambda *a, **k: fake,
+                monitor_factory=lambda: types.SimpleNamespace(
+                    abortRequested=lambda: fake.shown > 0))
+        self.assertIs(result, fake)
+        self.assertEqual(fake.shown, 1)
+        self.assertTrue(fake.closed)
+
+    def test_open_screen_fails_fast_when_activation_is_refused(self):
+        class FakeWindow(object):
+            def __init__(self):
+                self.closed = False
+                self.initialized = False
+                self.shown = 0
+
+            def show(self):
+                self.shown += 1
+                # Refused activation: no onInit, so initialized stays False.
+
+            def close(self):
+                self.closed = True
+
+        fake = FakeWindow()
+        ticks = itertools.count(0.0, 1.0)
+        with mock.patch.object(ravewindow, "_modal_dialog_active", return_value=False), \
+                mock.patch.object(ravewindow, "_notify") as notify, \
+                mock.patch.object(ravewindow.time, "monotonic",
+                                  side_effect=lambda: next(ticks)):
+            result = ravewindow.open_screen(
+                window_factory=lambda *a, **k: fake,
+                monitor_factory=lambda: types.SimpleNamespace(abortRequested=lambda: False))
+        self.assertIs(result, fake)
+        self.assertGreaterEqual(fake.shown, 1)
+        notify.assert_called_once()
+        # No headless keepalive. Do not close() an uninitialised window:
+        # Window.close() would send TMSG_GUI_PREVIOUS_WINDOW and pop the root
+        # list the user is standing on.
+        self.assertFalse(fake.closed)
 
 
 # ----------------------------------------------------------------------- data
@@ -673,6 +781,35 @@ class PluginBridgeTests(unittest.TestCase):
         self.assertEqual(os.path.abspath(modules.kodi.ADDON_PATH), ROOT)
         self.assertEqual(modules.kodi.ADDON_ID, "plugin.audio.raveplayer")
 
+    def test_plugin_context_is_bound_before_data_modules_import(self):
+        class FakeAddon(object):
+            def __init__(self, addon_id=""):
+                self.addon_id = addon_id or "script.raveplayer.ui"
+
+            def getAddonInfo(self, key):
+                plugin = self.addon_id == "plugin.audio.raveplayer"
+                root = ROOT if plugin else SCREEN
+                return {
+                    "id": self.addon_id,
+                    "name": "Rave",
+                    "version": "3.9.47",
+                    "path": root,
+                    "profile": os.path.join(tempfile.gettempdir(), "rave-profile"),
+                    "icon": os.path.join(root, "icon.png"),
+                    "fanart": os.path.join(root, "fanart.jpg"),
+                }.get(key, "")
+
+        def factory(addon_id=""):
+            return FakeAddon(addon_id)
+
+        with mock.patch.object(xbmcaddon, "Addon", side_effect=factory):
+            modules = pluginbridge.load_plugin()
+        self.assertEqual(os.path.abspath(modules.kodi.ADDON_PATH), ROOT)
+        # ``ui.DEFAULT_FANART`` is a module-level copy taken while ``ui``
+        # imports; it must already be the plugin's fanart, not the script's.
+        self.assertEqual(os.path.abspath(modules.ui.DEFAULT_FANART),
+                         os.path.join(ROOT, "fanart.jpg"))
+
     def test_missing_plugin_raises_a_single_stable_error(self):
         class Missing(object):
             def __init__(self, addon_id):
@@ -737,9 +874,70 @@ class ManifestAndSkinTests(unittest.TestCase):
         self.assertEqual(extension.get("library"), "default.py")
 
     def test_skin_media_files_exist(self):
+        import xml.etree.ElementTree as ET
+
+        path = os.path.join(SCREEN, "resources", "skins", "Default", "720p",
+                            ravewindow.XML_FILE)
+        root = ET.parse(path).getroot()
         media = os.path.join(SCREEN, "resources", "skins", "Default", "media")
-        self.assertTrue(os.path.isfile(os.path.join(media, "focus-plate.png")))
-        self.assertTrue(os.path.isfile(os.path.join(media, "screen-bg.jpg")))
+        art = os.path.join(SCREEN, "resources", "art", "rave-screen")
+        textures = {node.text for node in root.iter("texture") if node.text}
+        self.assertTrue(textures)
+        prefix = "special://home/addons/script.raveplayer.ui/"
+        for texture in textures:
+            if texture.startswith("$INFO["):
+                continue
+            if texture.startswith(prefix):
+                path = os.path.join(SCREEN, texture[len(prefix):])
+            else:
+                path = os.path.join(media, texture)
+            self.assertTrue(os.path.isfile(path), texture)
+
+    def test_skin_fonts_exist_in_estuary(self):
+        import xml.etree.ElementTree as ET
+
+        # Estuary (Kodi 19-22) defines exactly these among the plain names used
+        # here. Any other name silently falls back to font13: font16, font20
+        # and font30 do not exist and previously collapsed the type hierarchy.
+        allowed = {"font10", "font12", "font13", "font14", "font27", "font32",
+                   "font37", "font45"}
+        path = os.path.join(SCREEN, "resources", "skins", "Default", "720p",
+                            ravewindow.XML_FILE)
+        root = ET.parse(path).getroot()
+        fonts = {node.text for node in root.iter("font") if node.text}
+        self.assertTrue(fonts)
+        self.assertEqual(fonts - allowed, set())
+
+    def test_every_control_constant_exists_in_the_skin_xml(self):
+        import xml.etree.ElementTree as ET
+
+        path = os.path.join(SCREEN, "resources", "skins", "Default", "720p",
+                            ravewindow.XML_FILE)
+        root = ET.parse(path).getroot()
+        controls = root.find("controls")
+        ids = [control.get("id") for control in controls
+               if control.tag == "control" and control.get("id")]
+        for name in dir(ravewindow):
+            if not name.startswith("CONTROL_"):
+                continue
+            self.assertIn(str(getattr(ravewindow, name)), ids, name)
+        self.assertEqual(root.findtext("defaultcontrol"),
+                         str(ravewindow.CONTROL_LIST))
+
+    def test_spinner_controls_start_hidden_in_the_xml(self):
+        import xml.etree.ElementTree as ET
+
+        path = os.path.join(SCREEN, "resources", "skins", "Default", "720p",
+                            ravewindow.XML_FILE)
+        root = ET.parse(path).getroot()
+        by_id = {control.get("id"): control for control in root.iter("control")}
+        for control_id in (ravewindow.CONTROL_SPINNER_BG,
+                           ravewindow.CONTROL_SPINNER_HEAD,
+                           ravewindow.CONTROL_SPINNER_RING,
+                           ravewindow.CONTROL_SPINNER_LABEL,
+                           ravewindow.CONTROL_SPINNER_HINT):
+            visible = by_id[str(control_id)].findtext("visible")
+            self.assertEqual(visible, "false", control_id)
 
     def test_script_sources_are_python39_compatible(self):
         paths = [os.path.join(SCREEN, "default.py")]
@@ -1095,7 +1293,7 @@ class PluginIntegrationTests(unittest.TestCase):
     def setUp(self):
         del xbmcplugin.ITEMS[:]
 
-    def test_root_has_rave_screen_as_the_first_row(self):
+    def test_root_has_rave_screen_as_a_non_folder_program_row(self):
         from resources.lib import routes
 
         routes.root(1, {})
@@ -1103,29 +1301,58 @@ class PluginIntegrationTests(unittest.TestCase):
         self.assertIn("mode=screen", xbmcplugin.ITEMS[0]["url"])
         self.assertTrue(xbmcplugin.ITEMS[0]["art"]["icon"].endswith("screen.png"))
         self.assertTrue(xbmcplugin.ITEMS[0]["art"]["fanart"].endswith("fanart-screen.jpg"))
+        # Kodi runs a non-folder plugin item via RunScriptWithParams: no
+        # directory window, no DialogBusy, and Back stays on the root list.
+        self.assertFalse(xbmcplugin.ITEMS[0]["isFolder"])
+        self.assertTrue(all(item["isFolder"] for item in xbmcplugin.ITEMS[1:]))
 
-    def test_screen_route_launches_the_script_and_closes_the_directory(self):
+    def test_screen_route_launches_the_script_without_a_directory(self):
         from resources.lib import routes
 
-        with mock.patch.object(routes.xbmc, "getCondVisibility", return_value=True), \
+        with mock.patch.object(routes.xbmc, "getCondVisibility",
+                               return_value=True), \
                 mock.patch.object(routes.xbmc, "executebuiltin") as execute, \
                 mock.patch.object(routes.kodi, "end_directory") as end:
-            routes.rave_screen(1, {})
+            routes.rave_screen(-1, {})
         execute.assert_called_once_with("RunScript(script.raveplayer.ui)")
-        end.assert_called_once()
+        end.assert_not_called()
 
-    def test_screen_route_keeps_lists_usable_when_script_missing(self):
+    def test_screen_route_ends_a_legacy_folder_handle(self):
         from resources.lib import routes
 
-        del xbmcplugin.ITEMS[:]
+        with mock.patch.object(routes.xbmc, "getCondVisibility",
+                               return_value=True), \
+                mock.patch.object(routes.xbmc, "executebuiltin"), \
+                mock.patch.object(routes.kodi, "end_directory") as end:
+            routes.rave_screen(7, {})
+        end.assert_called_once()
+
+    def test_screen_route_tells_the_user_when_script_missing(self):
+        from resources.lib import routes
+
         with mock.patch.object(routes.xbmc, "getCondVisibility", return_value=False), \
                 mock.patch.object(routes.xbmc, "executebuiltin") as execute, \
                 mock.patch.object(routes.kodi, "notify") as notify:
-            routes.rave_screen(1, {})
+            routes.rave_screen(-1, {})
         execute.assert_not_called()
-        self.assertTrue(notify.called)
-        self.assertEqual(len(xbmcplugin.ITEMS), 10)
-        self.assertEqual(xbmcplugin.ITEMS[0]["label"], "Rave Screen")
+        notify.assert_called_once()
+        self.assertIn("not installed", notify.call_args[0][0])
+        self.assertEqual(xbmcplugin.ITEMS, [])
+
+    def test_screen_route_tells_the_user_when_script_disabled(self):
+        from resources.lib import routes
+
+        def visibility(condition):
+            return condition.startswith("System.HasAddon")
+
+        with mock.patch.object(routes.xbmc, "getCondVisibility",
+                               side_effect=visibility), \
+                mock.patch.object(routes.xbmc, "executebuiltin") as execute, \
+                mock.patch.object(routes.kodi, "notify") as notify:
+            routes.rave_screen(-1, {})
+        execute.assert_not_called()
+        notify.assert_called_once()
+        self.assertIn("disabled", notify.call_args[0][0])
 
 
 class RepoArtifactTests(unittest.TestCase):
@@ -1196,6 +1423,15 @@ class TaskRunnerTests(unittest.TestCase):
                                   monitor=types.SimpleNamespace(abortRequested=lambda: False),
                                   timeout=1.0)
         self.assertEqual(runner.run(lambda: 42), 42)
+
+    def test_thread_runner_stops_when_the_window_closed(self):
+        called = []
+        runner = ThreadTaskRunner(sleep=lambda ms: None, clock=lambda: 0.0,
+                                  monitor=types.SimpleNamespace(abortRequested=lambda: False),
+                                  timeout=1.0, cancelled=lambda: True)
+        with self.assertRaises(TaskCancelled):
+            runner.run(lambda: called.append(1))
+        self.assertEqual(called, [])
 
     def test_thread_runner_wraps_errors(self):
         runner = ThreadTaskRunner(sleep=lambda ms: None, clock=lambda: 0.0,
