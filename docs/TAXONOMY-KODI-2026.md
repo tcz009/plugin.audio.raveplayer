@@ -1,4 +1,4 @@
-# Kodi taxonomy — 3.9.42
+# Kodi taxonomy — 3.9.42 (navigation update 3.9.48)
 
 Mirrors the web 1.6.44 scene taxonomy (`docs/RAVE-TAXONOMY-2026.md`): labels,
 grouping and source order only. No new scraping; the 1.6.46 legacy-stream URL
@@ -16,7 +16,10 @@ gone.
 
 1. Toronto Rave Mixtape Archive
 2. JungleTapes.com
-3. RaveTapePacks.com — By Event · By DJ · By MC · By Year · All Packs
+3. RaveTapePacks.com — By Event · By DJ · By MC · By Year · All Packs.
+   Each kind lists its categories (`legacy_index`), a category lists every
+   `?p=<id>` pack across WordPress pages (`legacy_category`), and a pack opens
+   its direct MP3s (`legacy_post`); All Packs keeps the homepage-pack view.
 4. Classic Pack Series
 5. By Rave, Venue & Promoter
 6. By Year
@@ -45,5 +48,8 @@ removed.
 
 `test/test_taxonomy_2026.py` asserts exact root/Tape Packs/Pirate/Mixes/Live
 order, split doors, kebab-case ids, removed legacy routes and distinct stickers.
-`test/test_naming.py` also rejects any `* 2.*` duplicate copy. Full suite
-**499 tests OK**. No playback/autoplay changes.
+`test/test_rtp_navigation.py` pins the 50/209/90/13 document-order categories,
+paginated category packs, post tracks, and the exact legacy_index/
+legacy_category/legacy_post routes, offline.
+`test/test_naming.py` also rejects any `* 2.*` duplicate copy. No
+playback/autoplay changes.

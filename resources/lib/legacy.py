@@ -35,6 +35,18 @@ TORONTO_TTL = 6 * 60 * 60
 # still read and fingerprinted so a fixture/mock that changes the page cannot
 # be served a stale parse.
 RTP_PACKS_KEY = "legacy:rtp:packs:v1"
+# 3.9.48: the homepage nav is parsed by document order, not by its <ul>
+# nesting, and category/post pages are new cache entries.  Versioned keys keep
+# a pre-3.9.48 parse (or the old web parse) from being reused.
+RTP_CATEGORIES_KEY = "legacy:rtp:categories:v2"
+RTP_CATEGORY_KEY = "legacy:rtp:category:v2:%s"
+RTP_POST_KEY = "legacy:rtp:post:v1:%s"
+CATEGORY_TTL = 6 * 60 * 60
+POST_TTL = 6 * 60 * 60
+# WordPress archives page at 10 posts by default.  A category with hundreds of
+# packs stops here rather than turning one directory refresh into a crawl.
+MAX_CATEGORY_PAGES = 20
+CATEGORY_KINDS = ("events", "djs", "mcs", "years")
 
 # The site mixes three shapes: <audio src> with absolute or relative URLs,
 # ordinary <a href> links on category pages, and a JSON playlist whose slashes
@@ -242,6 +254,332 @@ def pack(key):
         if isinstance(entry, dict) and entry.get("key") == key:
             return entry
     return None
+
+
+# --------------------------------------------------------------- RTP categories
+#
+# The homepage exposes its taxonomy twice: the nav's PACKS BY EVENT/DJ/MC/YEAR
+# sub-menus, and a flat, alphabetical category widget in the sidebar.  The site
+# has changed the wrapper markup between years, so the stable signal is the
+# document order of the category anchors: 50 events, then 209 DJs from "Adam F",
+# then 90 MCs from "5ive-O", then 13 years from "1992" to "2004".  Anchors after
+# the year block are genre/other categories and are intentionally ignored.
+
+_CAT_HREF_RE = re.compile(r"[?&](?:amp;)?cat=(\d+)", re.IGNORECASE)
+_POST_HREF_RE = re.compile(r"[?&](?:amp;)?p=(\d+)", re.IGNORECASE)
+_ANCHOR_RE = re.compile(r"<a\b([^>]*)>(.*?)</a>", re.IGNORECASE | re.DOTALL)
+_TAG_RE = re.compile(r"<(?:a|link)\b[^>]*>", re.IGNORECASE)
+_ATTR_RE = re.compile(
+    r"""([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)')""")
+_ENTRY_TITLE_RE = re.compile(
+    r"""<h1[^>]*\bclass\s*=\s*["'][^"']*\bentry-title\b[^"']*["'][^>]*>(.*?)</h1>""",
+    re.IGNORECASE | re.DOTALL)
+_PACKS_HEADING_RE = re.compile(
+    r"<li[^>]*>\s*<a[^>]*>\s*(PACKS BY (?:EVENT|DJ|MC|YEAR))\s*</a>\s*"
+    r"<ul[^>]*>(.*?)</ul>", re.IGNORECASE | re.DOTALL)
+_HEADING_KINDS = {
+    "PACKS BY EVENT": "events",
+    "PACKS BY DJ": "djs",
+    "PACKS BY MC": "mcs",
+    "PACKS BY YEAR": "years",
+}
+_EMPTY_CATEGORIES = {"events": [], "djs": [], "mcs": [], "years": []}
+
+
+def _attr_value(attrs, name):
+    """Return one HTML attribute value (double or single quoted), or ``""``."""
+    wanted = str(name or "").lower()
+    for match in _ATTR_RE.finditer(attrs or ""):
+        if match.group(1).lower() == wanted:
+            return match.group(2) if match.group(2) is not None else (match.group(3) or "")
+    return ""
+
+
+def _tag_text(raw):
+    """Visible text of one scraped fragment, decoded exactly once."""
+    text = re.sub(r"<[^>]+>", " ", raw or "")
+    return re.sub(r"\s+", " ", html.unescape(text)).strip()
+
+
+def _marker(value):
+    return re.sub(r"\s+", " ", html.unescape(str(value or ""))).strip().casefold()
+
+
+def _category_rows(page):
+    """Yield every ``(cat_id, name)`` anchor in document order.
+
+    Duplicate ids are kept here: the site reuses one category id for an event
+    and an MC ("Vision" = 33), so a global id de-dupe would silently drop the
+    MC row.  Each *kind* de-dupes its own slice instead (see parse_categories).
+    """
+    rows = []
+    for match in _ANCHOR_RE.finditer(page or ""):
+        href = _decode_url(_attr_value(match.group(1), "href"))
+        found = _CAT_HREF_RE.search(href)
+        if not found:
+            continue
+        name = _tag_text(match.group(2))
+        if not name:
+            continue
+        rows.append((found.group(1), name))
+    return rows
+
+
+def _categories_from_headings(page):
+    """Fallback for a page whose category list no longer starts at "Adam F"."""
+    groups = {"events": [], "djs": [], "mcs": [], "years": []}
+    for match in _PACKS_HEADING_RE.finditer(page or ""):
+        heading = re.sub(r"\s+", " ", match.group(1)).strip().upper()
+        kind = _HEADING_KINDS.get(heading)
+        if not kind:
+            continue
+        seen = set(entry["id"] for entry in groups[kind])
+        for cat_id, name in _category_rows(match.group(2)):
+            if cat_id in seen:
+                continue
+            seen.add(cat_id)
+            groups[kind].append({"id": cat_id, "name": name})
+    return groups
+
+
+def parse_categories(page):
+    """Classify the homepage category anchors into event/dj/mc/year groups.
+
+    Uses the verified document order and three stable boundary names.  A
+    page that no longer contains those markers falls back to the PACKS BY
+    sub-menu nesting, so a future theme tweak degrades instead of emptying
+    the indexes.
+    """
+    rows = _category_rows(page)
+    if rows:
+        names = [_marker(name) for _cat_id, name in rows]
+        try:
+            dj_start = names.index("adam f")
+            mc_start = names.index("5ive-o", dj_start + 1)
+            year_start = next(
+                index for index, name in enumerate(names)
+                if index > mc_start and re.fullmatch(r"(?:19|20)\d{2}", name))
+        except (ValueError, StopIteration):
+            dj_start = mc_start = year_start = -1
+        if 0 <= dj_start < mc_start < year_start:
+            groups = {"events": [], "djs": [], "mcs": [], "years": []}
+            for kind, chunk in (("events", rows[:dj_start]),
+                                ("djs", rows[dj_start:mc_start]),
+                                ("mcs", rows[mc_start:year_start])):
+                seen = set()
+                for cat_id, name in chunk:
+                    if cat_id in seen:
+                        continue
+                    seen.add(cat_id)
+                    groups[kind].append({"id": cat_id, "name": name})
+            previous = 0
+            for cat_id, name in rows[year_start:]:
+                if not re.fullmatch(r"(?:19|20)\d{2}", name):
+                    break
+                year = int(name)
+                # Stop at 2004 and at the sidebar's repeat of 1992; only the
+                # ascending nav block is the year index.
+                if not 1992 <= year <= 2004 or year <= previous:
+                    break
+                previous = year
+                groups["years"].append({"id": cat_id, "name": name})
+            return groups
+    return _categories_from_headings(page)
+
+
+def categories():
+    """Return ``{events|djs|mcs|years: [{'id', 'name'}]}`` from the homepage."""
+    page = http.fetch(BASE, timeout=25, ttl=PACKS_TTL, headers=PAGE_HEADERS)
+    parsed = _cached_parse(RTP_CATEGORIES_KEY, PACKS_TTL, page, parse_categories)
+    return parsed if isinstance(parsed, dict) else dict(_EMPTY_CATEGORIES)
+
+
+def _query_value(url, key):
+    try:
+        values = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+    except ValueError:
+        return ""
+    return (values.get(key) or [""])[0]
+
+
+def _next_category_url(page, current_url):
+    """Return the WordPress "older posts" URL for this category page, or ``""``.
+
+    WordPress themes spell the next link half a dozen ways (``link rel=next``,
+    ``next page-numbers``, ``nextpostslink``, a ``nav-previous`` wrapper).  All
+    of them are accepted, but the category id and a forward ``paged`` value are
+    required, so the "Newer posts" link on the last page cannot walk backwards
+    and a cross-category link cannot escape the archive.
+    """
+    current_cat = _query_value(current_url, "cat")
+    try:
+        current_page = max(1, int(_query_value(current_url, "paged") or 1))
+    except (TypeError, ValueError):
+        current_page = 1
+    candidates = []
+    for tag in _TAG_RE.findall(page or ""):
+        href = _attr_value(tag, "href")
+        if not href:
+            continue
+        rel = _attr_value(tag, "rel").lower().split()
+        classes = _attr_value(tag, "class").lower().split()
+        if ("next" in rel or "nextpostslink" in classes
+                or ("next" in classes and "page-numbers" in classes)):
+            candidates.append(href)
+    for match in _ANCHOR_RE.finditer(page or ""):
+        body = _tag_text(match.group(2)).lower()
+        href = _attr_value(match.group(1), "href")
+        if href and (body in ("next", "next page")
+                     or "older posts" in body or "older entries" in body
+                     or "next page" in body):
+            candidates.append(href)
+    ahead = []
+    for match in _ANCHOR_RE.finditer(page or ""):
+        href = _decode_url(_attr_value(match.group(1), "href"))
+        found = re.search(r"[?&](?:amp;)?paged=(\d+)", href, re.IGNORECASE)
+        if not found:
+            continue
+        try:
+            number = int(found.group(1))
+        except ValueError:
+            continue
+        if number > current_page:
+            ahead.append((number, _attr_value(match.group(1), "href")))
+    if ahead:
+        ahead.sort(key=lambda item: item[0])
+        candidates.append(ahead[0][1])
+    for raw in candidates:
+        url = urllib.parse.urljoin(BASE, _decode_url(raw))
+        try:
+            split = urllib.parse.urlsplit(url)
+        except ValueError:
+            continue
+        if split.scheme.lower() not in ("http", "https") or not split.hostname:
+            continue
+        if not _allowed_host(split.hostname.lower(), BASE):
+            continue
+        if not current_cat or _query_value(url, "cat") != current_cat:
+            continue
+        try:
+            page_number = int(_query_value(url, "paged") or 1)
+        except (TypeError, ValueError):
+            page_number = 1
+        if page_number <= current_page:
+            continue
+        return url
+    return ""
+
+
+def _posts_from_html(page):
+    """Parse a category archive's ``?p=<id>`` bookmark links, in page order."""
+    posts, seen = [], set()
+    for match in _ANCHOR_RE.finditer(page or ""):
+        attrs, body = match.group(1), match.group(2)
+        rel = _attr_value(attrs, "rel").lower().split()
+        if "bookmark" not in rel or "<time" in body.lower():
+            continue
+        href = _decode_url(_attr_value(attrs, "href"))
+        found = _POST_HREF_RE.search(href)
+        if not found:
+            continue
+        post_id = found.group(1)
+        if post_id in seen:
+            continue
+        name = _tag_text(body)
+        if not name:
+            continue
+        seen.add(post_id)
+        posts.append({"id": post_id, "name": name})
+    return posts
+
+
+def category(cat_id):
+    """Return every pack (post) in one RaveTapePacks category, in page order.
+
+    Each category is a WordPress archive: page 1 lists the ten newest posts,
+    and "Older posts" walks ``?cat=<id>&paged=N``.  All pages are followed up to
+    ``MAX_CATEGORY_PAGES`` and the result is cached against the exact page
+    bodies, so a warm directory does not re-fetch or re-parse the archive.
+    """
+    cat_id = str(cat_id or "")
+    if not cat_id.isdigit() or len(cat_id) > 12:
+        return []
+    url = BASE + "?cat=" + cat_id
+    pages, seen_urls = [], set()
+    for _index in range(MAX_CATEGORY_PAGES):
+        if not url or url in seen_urls:
+            break
+        seen_urls.add(url)
+        page = http.fetch(url, timeout=25, ttl=CATEGORY_TTL, headers=PAGE_HEADERS)
+        if page is None:
+            break
+        pages.append(page)
+        url = _next_category_url(page, url)
+    if not pages:
+        return []
+    fingerprint = _fingerprint("\n".join(pages))
+    cached = cache.get(RTP_CATEGORY_KEY % cat_id, CATEGORY_TTL)
+    if isinstance(cached, dict) and cached.get("fingerprint") == fingerprint:
+        value = cached.get("value")
+        if isinstance(value, list):
+            return value
+    posts, seen_ids = [], set()
+    for page in pages:
+        for post in _posts_from_html(page):
+            if post["id"] in seen_ids:
+                continue
+            seen_ids.add(post["id"])
+            posts.append(post)
+    cache.put(RTP_CATEGORY_KEY % cat_id,
+              {"fingerprint": fingerprint, "value": posts}, sync=False)
+    return posts
+
+
+def _post_title(page):
+    match = _ENTRY_TITLE_RE.search(page or "")
+    if match:
+        title = _tag_text(match.group(1))
+        if title:
+            return title
+    match = re.search(r"<title[^>]*>(.*?)</title>", page or "",
+                      re.IGNORECASE | re.DOTALL)
+    if match:
+        title = _tag_text(match.group(1))
+        return re.split(r"\s+[|–-]\s+", title, 1)[0].strip()
+    return ""
+
+
+def _post_from_html(page, post_id):
+    tracks, seen = [], set()
+    for _pack, filename, url in _music_refs(page):
+        if url in seen:
+            continue
+        seen.add(url)
+        tracks.append({"name": _display(filename.rsplit(".", 1)[0]) or filename,
+                       "url": url})
+    return {"key": post_id,
+            "name": _post_title(page) or ("Pack %s" % post_id),
+            "tracks": tracks}
+
+
+def post(post_id):
+    """Return ``{'key', 'name', 'tracks'}`` for one RaveTapePacks post page.
+
+    A post (``?p=899``) is the pack detail: it carries the direct MP3 players
+    for that pack.  The resolver below is the same one the homepage index uses,
+    so the Referer suffix and URL canonicalisation behave identically.
+    """
+    post_id = str(post_id or "")
+    if not post_id.isdigit() or len(post_id) > 12:
+        return None
+    page = http.fetch(BASE + "?p=" + post_id, timeout=25, ttl=POST_TTL,
+                      headers=PAGE_HEADERS)
+    if page is None:
+        return None
+    entry = _cached_parse(
+        RTP_POST_KEY % post_id, POST_TTL, page,
+        lambda body: _post_from_html(body, post_id))
+    return entry if isinstance(entry, dict) else None
 
 
 def playable(url):

@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """Explicit offline downloads (phase 1).
 
-Only direct audio files from the four approved sources can be downloaded:
-Archive.org tracks, Moxser mix MP3s, Hardscore MP3/M4A and Pirate Radio
-Archives direct files.  Platform pages, RSS enclosures, Legacy/GetDarker rows,
-live streams and HLS are never eligible.  All file work goes through
+Only direct audio files from the approved sources can be downloaded:
+Archive.org tracks, Moxser mix MP3s, Hardscore MP3/M4A, Pirate Radio Archives
+direct files and RaveTapePacks.com pack MP3s (fetched through the RTP egress
+route, like playback).  Platform pages, RSS enclosures, GetDarker rows, live
+streams and HLS are never eligible.  All file work goes through
 ``xbmcvfs``; downloads are explicit user gestures, atomic (temp + rename) and
 metadata is kept in ``downloads.json`` beside the files.
 """
@@ -38,6 +39,7 @@ ALLOWED_SOURCES = {
     "Pirate Radio Archives": ("hardscore.com", "www.hardscore.com"),
     "Toronto Rave Mixtape Archive": ("torontoravemixtapearchive.com",
                                      "www.torontoravemixtapearchive.com"),
+    "RaveTapePacks.com": ("ravetapepacks.com", "www.ravetapepacks.com"),
 }
 ALLOWED_CONTENT_TYPES = ("audio/", "application/octet-stream")
 

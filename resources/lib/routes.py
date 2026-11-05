@@ -1240,15 +1240,15 @@ def legacy_menu(handle, params):
     """RaveTapePacks.com index (source's own Event/DJ/MC/Year taxonomy)."""
     rows = [
         ("By Event", url_for(mode="legacy_index", kind="event"),
-         MENU_ART["pack_rave"], "Dreamscape, One Nation, Helter Skelter, Roast…",
+         MENU_ART["pack_rave"], "Browse event categories: Dreamscape, One Nation, Roast…",
          "events"),
         ("By DJ", url_for(mode="legacy_index", kind="dj"),
-         MENU_ART["pack_jungle"], "Brockie, Randall, Hype, Slipmatt, Sy…", "DJs"),
+         MENU_ART["pack_jungle"], "Browse every DJ category: Brockie, Randall, Hype…", "DJs"),
         ("By MC", url_for(mode="legacy_index", kind="mc"),
-         MENU_ART["pack_hardcore"], "Det, Fearless, Skibadee, Bassman, Five-O…",
+         MENU_ART["pack_hardcore"], "Browse every MC category: Det, Fearless, Skibadee…",
          "MCs"),
         ("By Year", url_for(mode="legacy_index", kind="year"),
-         MENU_ART["pack_year"], "1992 · 1993 · 1994 … 2004", "1992–2004"),
+         MENU_ART["pack_year"], "Browse packs by release year, 1992–2004.", "1992–2004"),
         ("All Packs", url_for(mode="legacy_packs"),
          MENU_ART["curated_legacy"], "Every RaveTapePacks pack.", "all"),
     ]
@@ -1260,30 +1260,95 @@ def legacy_menu(handle, params):
     kodi.end_directory(handle, "files")
 
 
+# RaveTapePacks index kind -> plural group in legacy.categories().  The menu
+# uses the singular form so every existing legacy_index link keeps working.
+RTP_INDEX_KINDS = {"event": "events", "dj": "djs", "mc": "mcs", "year": "years"}
+RTP_INDEX_LABELS = {"event": "By Event", "dj": "By DJ", "mc": "By MC", "year": "By Year"}
+RTP_INDEX_ART = {"event": MENU_ART["pack_rave"], "dj": MENU_ART["pack_jungle"],
+                 "mc": MENU_ART["pack_hardcore"], "year": MENU_ART["pack_year"]}
+
+
 def legacy_index(handle, params):
-    """Present the RaveTapePacks index; the source exposes no machine index."""
+    """List one RaveTapePacks category kind (event/dj/mc/year)."""
     kind = params.get("kind", "")
-    labels = {"event": "By Event", "dj": "By DJ", "mc": "By MC", "year": "By Year"}
-    if kind not in labels:
+    group = RTP_INDEX_KINDS.get(kind)
+    if not group:
         kodi.notify("That RaveTapePacks index is not available.")
         kodi.end_directory(handle, "files")
         return
-    entries = legacy.packs()
-    for entry in entries:
+    for entry in legacy.categories().get(group, []):
         name = ui.plain(entry["name"])
         ui.menu_item(
             handle,
-            url_for(mode="legacy_pack", pack=entry["key"]),
-            "%s  [COLOR gray](%d tape%s)[/COLOR]"
-            % (name, len(entry["tracks"]), "" if len(entry["tracks"]) == 1 else "s"),
-            icon=art(MENU_ART["pack_ravetapepacks"]),
-            plot="RaveTapePacks.com · %s" % labels[kind],
+            url_for(mode="legacy_category", kind=kind, cat=entry["id"], label=name),
+            name,
+            icon=art(RTP_INDEX_ART[kind]),
+            plot="RaveTapePacks.com · %s category" % RTP_INDEX_LABELS[kind],
             title=name,
-            context=[_favourite("legacy_pack", entry["key"], name, "RaveTapePacks.com")],
+            label2=RTP_INDEX_LABELS[kind],
         )
     ui.menu_item(handle, url_for(mode="legacy_menu"), "Back")
     kodi.end_directory(handle, "files")
 
+
+def legacy_category(handle, params):
+    """List the packs (WordPress posts) inside one RaveTapePacks category."""
+    kind = params.get("kind", "")
+    cat_id = params.get("cat", "")
+    label = params.get("label", "")
+    if kind not in RTP_INDEX_KINDS or not str(cat_id).isdigit():
+        kodi.end_directory(handle, "files")
+        return
+    for entry in legacy.category(cat_id):
+        name = ui.plain(entry["name"])
+        ui.menu_item(
+            handle,
+            url_for(mode="legacy_post", post=entry["id"], kind=kind, cat=cat_id,
+                    label=name),
+            name,
+            icon=art(MENU_ART["pack_ravetapepacks"]),
+            plot="RaveTapePacks.com · %s" % (ui.plain(label) or RTP_INDEX_LABELS[kind]),
+            title=name,
+            label2=RTP_INDEX_LABELS[kind],
+        )
+    ui.menu_item(handle, url_for(mode="legacy_index", kind=kind), "Back")
+    kodi.end_directory(handle, "files")
+
+
+def _rtp_track_context(url, name):
+    """Play + Download context for one RaveTapePacks track."""
+    context = [_favourite("stream", url, name, "RaveTapePacks.com")]
+    context.extend(_download_context(url, name, "RaveTapePacks.com"))
+    return context
+
+
+def legacy_post(handle, params):
+    """List the MP3s on one RaveTapePacks post (a pack's detail page)."""
+    post_id = params.get("post", "")
+    if not post_id:
+        kodi.end_directory(handle, "songs")
+        return
+    entry = legacy.post(post_id)
+    if not entry:
+        kodi.end_directory(handle, "songs")
+        return
+    album = ui.plain(entry["name"])
+    for track in entry["tracks"]:
+        url = _playable_url(legacy.playable(track["url"]))
+        if not url:
+            continue
+        name = ui.plain(track["name"])
+        ui.track_item(
+            handle,
+            url_for(mode="play", url=url, label=name,
+                    thumb=art(MENU_ART["pack_ravetapepacks"])),
+            name,
+            thumb=art(MENU_ART["pack_ravetapepacks"]),
+            plot="RaveTapePacks.com · %s" % album,
+            album=album,
+            context=_rtp_track_context(url, name),
+        )
+    kodi.end_directory(handle, "songs")
 
 
 def legacy_jt(handle, params):
@@ -1419,7 +1484,7 @@ def legacy_pack(handle, params):
             thumb=art(MENU_ART["pack_ravetapepacks"]),
             plot="RaveTapePacks.com · %s" % ui.plain(entry["name"]),
             album=ui.plain(entry["name"]),
-            context=[_favourite("stream", url, name, "RaveTapePacks.com")],
+            context=_rtp_track_context(url, name),
         )
     kodi.end_directory(handle, "songs")
 
@@ -2214,6 +2279,8 @@ HANDLERS = {
     "pirate_station": pirate_station,
     "legacy_menu": legacy_menu,
     "legacy_index": legacy_index,
+    "legacy_category": legacy_category,
+    "legacy_post": legacy_post,
     "legacy_jt": legacy_jt,
     "legacy_jt_show": legacy_jt_show,
     "toronto": toronto,

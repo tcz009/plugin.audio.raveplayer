@@ -102,6 +102,24 @@ class NewSourceRouteTests(unittest.TestCase):
             self.assertIn("kind=" + kind, urls[label])
         self.assertIn("mode=legacy_packs", urls["All Packs"])
 
+    def test_ravetapepacks_index_opens_each_kind_s_category_route(self):
+        categories = {
+            "events": [{"id": "5", "name": "Dreamscape"}],
+            "djs": [{"id": "106", "name": "Brockie"}],
+            "mcs": [{"id": "203", "name": "Bassman"}],
+            "years": [{"id": "56", "name": "1992"}],
+        }
+        for kind in ("event", "dj", "mc", "year"):
+            del xbmcplugin.ITEMS[:]
+            with mock.patch.object(routes.legacy, "categories",
+                                   return_value=categories):
+                routes.legacy_index(1, {"kind": kind})
+            url = xbmcplugin.ITEMS[0]["url"]
+            self.assertIn("mode=legacy_category", url)
+            self.assertIn("kind=" + kind, url)
+            self.assertIn("cat=" + categories[routes.RTP_INDEX_KINDS[kind]][0]["id"],
+                          url)
+
     def test_about_and_sources_lists_credits_and_every_source(self):
         routes.about(1, {})
         labels = self._labels()

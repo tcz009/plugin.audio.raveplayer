@@ -74,6 +74,12 @@ class DownloadTests(unittest.TestCase):
             self.assertTrue(downloads.eligible(
                 "https://hardscore.com/mixes/Radio/WeekendRush/a.mp3",
                 "Pirate Radio Archives"))
+            self.assertTrue(downloads.eligible(
+                "https://www.ravetapepacks.com/music/Pack/Tape.mp3"
+                "|Referer=https://www.ravetapepacks.com/&User-Agent=Mozilla/5.0",
+                "RaveTapePacks.com"))
+            self.assertFalse(downloads.eligible(
+                "https://evil.example/music/Pack/Tape.mp3", "RaveTapePacks.com"))
             self.assertFalse(downloads.eligible(URL, "Podcasts"))
             self.assertFalse(downloads.eligible("https://archive.org/a.wav", "Archive.org"))
             self.assertFalse(downloads.eligible(

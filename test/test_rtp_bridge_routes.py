@@ -64,14 +64,17 @@ class BridgeRouteTests(unittest.TestCase):
 
     def test_rtp_browse_failures_are_quiet(self):
         with mock.patch.object(routes.legacy, "packs", return_value=[]), \
+                mock.patch.object(routes.legacy, "categories", return_value={}), \
+                mock.patch.object(routes.legacy, "category", return_value=[]), \
                 mock.patch.object(routes.legacy, "pack", return_value=None), \
                 mock.patch.object(routes.kodi, "notify") as notify, \
                 mock.patch.object(routes.kodi, "end_directory") as end:
             routes.legacy_packs(1, {})
             routes.legacy_index(1, {"kind": "dj"})
+            routes.legacy_category(1, {"kind": "dj", "cat": "106"})
             routes.legacy_pack(1, {"pack": "missing"})
         notify.assert_not_called()
-        self.assertEqual(end.call_count, 3)
+        self.assertEqual(end.call_count, 4)
 
     def test_unplayable_rtp_resolve_is_quiet(self):
         self.playable = mock.patch.object(routes, "_playable_url", return_value="")
