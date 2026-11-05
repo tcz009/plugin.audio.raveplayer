@@ -386,12 +386,17 @@ class NewPaginationTests(_CacheIsolation):
     def test_jt_show_list_is_paginated(self):
         shows = [{"key": "show-%03d" % index, "name": "Show %03d" % index}
                  for index in range(120)]
+        rows = routes._rows_per_page()
         with mock.patch.object(routes.legacy, "jungle_shows", return_value=shows), \
                 mock.patch.object(routes.kodi, "end_directory"):
             routes.legacy_jt(1, {})
         urls = [item["url"] for item in xbmcplugin.ITEMS]
-        self.assertEqual(len([url for url in urls if "mode=legacy_jt_show" in url]), 50)
+        self.assertEqual(len([url for url in urls if "mode=legacy_jt_show" in url]),
+                         min(rows, 120))
         self.assertTrue(any("mode=legacy_jt&page=2" in url for url in urls))
+        labels = [item["label"] for item in xbmcplugin.ITEMS]
+        self.assertIn("Page 1 of %d · 120 shows" % ((120 + rows - 1) // rows),
+                      labels)
 
     def test_category_route_offers_the_next_page(self):
         posts = [{"id": "899", "name": "Dreamscape 7"}]

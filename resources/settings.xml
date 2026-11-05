@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <settings>
     <category id="general" label="General">
-        <setting id="results_per_page" type="number" label="Archive results per page" default="50"/>
+        <setting id="results_per_page" type="select" label="Rows per page (all lists)" default="50">
+            <options>
+                <option label="25">25</option>
+                <option label="50">50</option>
+                <option label="100">100</option>
+            </options>
+        </setting>
         <setting id="episode_limit" type="number" label="Maximum episodes per podcast feed (5000 = all)" default="5000"/>
         <setting id="radio_limit" type="number" label="Maximum live stations" default="500"/>
         <setting id="hide_empty_feeds" type="bool" label="Hide podcast feeds with no episodes" default="false"/>

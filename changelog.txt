@@ -21,6 +21,25 @@ Rave Player 3.9.50
 - Tests: 705 Kodi tests OK (twice). New bridge/JT, status, focus, plural,
   title-clip and RTP-index regression tests.
 
+Rave Player 3.9.50 (integration pending; no version bump yet)
+- Uniform pagination for every list that can exceed a page. The
+  results_per_page setting is now a 25/50/100 choice (default 50) and every
+  source uses it: Toronto genres (679/2,640 mixtapes), Moxser (1,001 mixes),
+  JungleTapes (310 shows), Rave Nights (55), downloads, live radio, podcast
+  feeds, RaveTapePacks indexes/categories/packs, Archive sections/search/packs,
+  Latest and favourites. Each paged list opens with "Page N of M · X items" and
+  ends with Previous page / Next page rows, hidden at their bounds.
+- Track numbers stay absolute across pages (page 2 of a pack starts at 51, not
+  1), and Play all / Shuffle act on the whole collection: the pack, Toronto
+  genre, RaveTapePacks post/pack and JungleTapes show resolvers re-read the
+  full list rather than reusing the visible page.
+- Listing work is now O(page), not O(collection): the visible window is sliced
+  before track/pack dictionaries are built.
+- Test determinism: the suite gets a unique cache directory per process, the
+  entry-point guard test loads default.py by path instead of the ambiguous
+  `import default`, and the download-job scheduler is paused between tests and
+  in the cross-process claim test. See docs/PAGINATION-AND-FLAKES.md.
+
 Rave Player 3.9.49
 - Integration release: the sources overhaul, the 3.9.49 performance pass and
   the 2026 look now ship together. Sources correctness is authoritative where
