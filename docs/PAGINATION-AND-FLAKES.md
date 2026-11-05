@@ -1,7 +1,7 @@
 # Pagination and test determinism — 3.9.50 (integration pending)
 
 Branch `feat/pagination-3.9.50` (worktree `raveplayer-worktrees/pagination-3.9.50`),
-based on `integration/3.9.49` @ `49d3e3c`.  No version bump: the integration
+based on `integration/3.9.49` @ `49d3e3c`; work commit `ea562cd`.  No version bump: the integration
 release was pending when this branch was cut.
 
 ## What changed
