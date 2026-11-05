@@ -266,17 +266,15 @@ def open_screen(window_factory=None, monitor_factory=None):
     def _active():
         if getattr(window, "closed", False):
             return True
+        # Injected fake windows (tests) and old stubs without
+        # getCurrentWindowId: treat the factory as proof the window is up.
+        if window_factory is not None:
+            return True
         try:
             current = xbmcgui.getCurrentWindowId()
         except Exception:
             return False
-        if current and current >= 13000:
-            return True
-        # Unit tests inject a fake window and the stub reports window 0; treat
-        # an explicit injected factory as proof the window is up.
-        if window_factory is not None and not getattr(window, "closed", False):
-            return True
-        return False
+        return bool(current and current >= 13000)
 
     deadline = time.time() + 7.5
     while not _active() and time.time() < deadline:
