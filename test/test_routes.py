@@ -185,8 +185,12 @@ class RouteRenderTests(unittest.TestCase):
             routes.archive_item(1, {"id": "pack-1"})
         item = xbmcplugin.ITEMS[0]
         thumb = routes.archive.thumb("pack-1")
-        self.assertEqual(item["art"]["fanart"], thumb)
+        # The cover is square; fanart must stay 16:9.  The old row passed the
+        # cover as fanart, which skins stretched across the background.
+        self.assertEqual(item["art"]["fanart"], routes.kodi.FANART)
         self.assertEqual(item["art"]["thumb"], thumb)
+        self.assertEqual(item["art"]["poster"], thumb)
+        self.assertTrue(item["art"]["icon"].endswith("tapepacks.png"))
         plot = item["info"]["music"]["plot"]
         self.assertEqual(item["info"]["music"].get("comment"), plot)
         self.assertIn("Carl Cox", plot)
@@ -194,7 +198,7 @@ class RouteRenderTests(unittest.TestCase):
         self.assertIn("1995", plot)
         self.assertIn("From archive.org item pack-1", plot)
         self.assertIn("mode=play", item["url"])
-        self.assertIn("fanart=", item["url"])
+        self.assertNotIn("fanart=", item["url"])  # 16:9 brand fanart is the default
         self.assertIn("plot=", item["url"])
 
     def test_play_resolver_sets_fanart_and_plot_on_the_resolved_item(self):
@@ -220,7 +224,13 @@ class RouteRenderTests(unittest.TestCase):
         with mock.patch.object(routes.http.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
             routes.play(1, {"url": "https://example.test/1.mp3", "thumb": "https://art.example.test/thumb"})
         resolved = xbmcplugin.RESOLVED[-1]
-        self.assertEqual(resolved["art"], {"thumb": "https://art.example.test/thumb", "icon": "https://art.example.test/thumb"})
+        self.assertEqual(resolved["art"], {
+            "thumb": "https://art.example.test/thumb",
+            "icon": "https://art.example.test/thumb",
+            "poster": "https://art.example.test/thumb",
+            "fanart": routes.kodi.FANART,
+            "landscape": routes.kodi.FANART,
+        })
         self.assertNotIn("plot", resolved["info"]["music"])
         self.assertNotIn("comment", resolved["info"]["music"])
 
@@ -406,7 +416,14 @@ class LatestCascadeTests(unittest.TestCase):
             routes.latest_view(1, {})
         self.assertTrue(notify.called)
         self.assertEqual(xbmcplugin.CONTENT[-1], "files")
-        self.assertEqual(xbmcplugin.ITEMS, [])
+        # 2026 look: an empty directory keeps a visible standby row with a
+        # real retry URL instead of going blank.
+        self.assertEqual(len(xbmcplugin.ITEMS), 1)
+        row = xbmcplugin.ITEMS[0]
+        self.assertIn("Nothing new right now", row["label"])
+        self.assertIn("STANDBY", row["label"])
+        self.assertEqual(row["label2"], "empty")
+        self.assertEqual(row["url"], routes.url_for(mode="latest"))
 
     def test_latest_prepends_live_on_air_rows(self):
         stations = {"kool": [{"name": "Kool FM",
@@ -758,7 +775,10 @@ class ArtUrlGuardTests(unittest.TestCase):
                                   return_value="https://stream.example.test/a"), \
                 mock.patch.object(routes.http.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
             routes._station_items(1, [station], "Live")
-        self.assertEqual(xbmcplugin.ITEMS[0]["art"].get("thumb"), routes.kodi.ROUND_FACE)
+        # A rejected favicon falls back to the 2026 radio sticker, not to the
+        # round brand face: a live station is a radio, not a generic track.
+        self.assertTrue(xbmcplugin.ITEMS[0]["art"].get("thumb").endswith("radio.png"))
+        self.assertTrue(xbmcplugin.ITEMS[0]["art"].get("icon").endswith("radio.png"))
 
     def test_play_drops_local_file_thumb_and_keeps_public_stream(self):
         with mock.patch.object(routes.http.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
