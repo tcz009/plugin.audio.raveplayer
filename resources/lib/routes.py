@@ -240,32 +240,49 @@ FILTER_ART = {
 }
 
 
-def _filters():
+_DATA_CACHE = {}
+
+
+def _cached_json(name):
+    """Parse one data file once per process, keyed by its mtime.
+
+    ``filters.json`` / ``rave-catalog.json`` are package data that change only
+    with a release, but the hub routes re-read and re-parsed them on every
+    directory build.  The mtime check keeps a test (or a hot-swapped file)
+    correct while the common path skips the disk read.
+    """
     import json
-    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "filters.json")
+
+    path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), name)
+    try:
+        modified = os.path.getmtime(path)
+    except OSError:
+        return []
+    cached = _DATA_CACHE.get(name)
+    if cached is not None and cached[0] == modified:
+        return cached[1]
     try:
         with open(path, encoding="utf-8") as handle:
             data = json.load(handle)
     except (OSError, ValueError):
         return []
     if not isinstance(data, list):
-        return []
+        data = []
+    _DATA_CACHE[name] = (modified, data)
+    return data
+
+
+def _filters():
     return [
-        entry for entry in data
+        entry for entry in _cached_json("filters.json")
         if isinstance(entry, dict) and entry.get("id") and entry.get("query")
     ]
 
 
 def _rave_catalog():
-    import json
-    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rave-catalog.json")
-    try:
-        with open(path, encoding="utf-8") as handle:
-            data = json.load(handle)
-    except (OSError, ValueError):
-        return []
     entries = []
-    for entry in data if isinstance(data, list) else []:
+    for entry in _cached_json("rave-catalog.json"):
         if not isinstance(entry, dict) or not entry.get("name"):
             continue
         try:

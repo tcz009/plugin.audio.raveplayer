@@ -9,12 +9,17 @@ import html as html_module
 import re
 import urllib.parse
 
-from . import http, kodi
+from . import cache, http, kodi
 
 BASE = "https://dnbradio.com"
 RECORDINGS = BASE + "/recordings"
 RECORDINGS_TTL = 10 * 60
 STREAM_TTL = 6 * 60 * 60
+# One small disk entry maps mix id -> resolved MP3 for the whole batch.  A warm
+# Latest used to spawn one worker per DNB row purely to re-read and re-regex
+# one listen page each; the map makes the warm path zero threads, one read.
+STREAM_MAP_KEY = "dnbradio:streams:v1"
+STREAM_MAP_MAX = 200
 
 # Directory builds resolve several mixes at once; keep the batch short so an
 # unreachable host cannot stall the "Latest" folder.
@@ -73,6 +78,24 @@ def stream_url(mix_id, timeout=25):
                                   headers={"Referer": RECORDINGS}, ttl=STREAM_TTL))
 
 
+def _cached_streams():
+    value = cache.get(STREAM_MAP_KEY, STREAM_TTL)
+    return value if isinstance(value, dict) else {}
+
+
+def _remember_streams(found):
+    """Merge resolved ids into the batch map (best effort, bounded)."""
+    if not found:
+        return
+    merged = _cached_streams()
+    merged.update(found)
+    if len(merged) > STREAM_MAP_MAX:
+        # Dicts keep insertion order; drop the oldest ids first.
+        for key in list(merged)[: len(merged) - STREAM_MAP_MAX]:
+            merged.pop(key, None)
+    cache.put(STREAM_MAP_KEY, merged, sync=False)
+
+
 def stream_urls(mix_ids, timeout=RESOLVE_TIMEOUT, workers=RESOLVE_WORKERS):
     """Resolve several mix ids concurrently, dropping the ones that fail.
 
@@ -80,6 +103,10 @@ def stream_urls(mix_ids, timeout=RESOLVE_TIMEOUT, workers=RESOLVE_WORKERS):
     must stay snappy, so the requests run in parallel with a short timeout: an
     unreachable host costs one timeout, not one per row.  Failed ids are simply
     absent so the caller can drop the dead playable row instead of shipping it.
+
+    A small disk map caches the batch resolutions for the same 6 h as the
+    listen pages they came from, so a warm directory resolves with one cache
+    read and no worker threads.
     """
     unique = []
     for mix_id in mix_ids or []:
@@ -88,16 +115,24 @@ def stream_urls(mix_ids, timeout=RESOLVE_TIMEOUT, workers=RESOLVE_WORKERS):
             unique.append(text)
     if not unique:
         return {}
-    if len(unique) == 1:
-        url = stream_url(unique[0], timeout=timeout)
-        return {unique[0]: url} if url else {}
-    found = {}
+    known = _cached_streams()
+    found = {mix_id: known[mix_id] for mix_id in unique if known.get(mix_id)}
+    missing = [mix_id for mix_id in unique if mix_id not in found]
+    if not missing:
+        return found
+    if len(missing) == 1:
+        url = stream_url(missing[0], timeout=timeout)
+        if url:
+            found[missing[0]] = url
+            _remember_streams({missing[0]: url})
+        return found
     try:
         from concurrent.futures import ThreadPoolExecutor
 
-        count = max(1, min(int(workers or 1), len(unique)))
+        count = max(1, min(int(workers or 1), len(missing)))
         with ThreadPoolExecutor(max_workers=count) as pool:
-            jobs = [(pool.submit(stream_url, mix_id, timeout), mix_id) for mix_id in unique]
+            jobs = [(pool.submit(stream_url, mix_id, timeout), mix_id)
+                    for mix_id in missing]
             for job, mix_id in jobs:
                 try:
                     url = job.result()
@@ -108,7 +143,9 @@ def stream_urls(mix_ids, timeout=RESOLVE_TIMEOUT, workers=RESOLVE_WORKERS):
                     found[mix_id] = url
     except Exception as exc:  # never let the batch take the directory down
         kodi.log("DNB stream batch failed (%s)" % exc, level=30)
-        return {}
+        return found
+    _remember_streams({mix_id: found[mix_id] for mix_id in missing
+                       if mix_id in found})
     return found
 
 

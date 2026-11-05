@@ -13,13 +13,16 @@ import re
 import urllib.parse
 import xml.etree.ElementTree as ET
 
-from . import http, kodi
+from . import cache, http, kodi
 
 ITUNES = "{http://www.itunes.com/dtds/podcast-1.0.0}"
 MEDIA = "{http://search.yahoo.com/mrss/}"
 ATOM = "{http://www.w3.org/2005/Atom}"
 
 FEED_TTL = 900
+# Parsed feeds persist beside the raw XML (fingerprinted), so a refresh skips
+# the per-feed ElementTree pass.
+FEED_PARSE_KEY = "feeds:parse:v1:%s"
 DESCRIPTION_LIMIT = 400
 FEED_WORKERS = 5
 _DESCRIPTION_SCAN_LIMIT = 8192
@@ -215,7 +218,11 @@ def episodes(feed_id, limit=60):
     body = http.fetch(entry["url"], timeout=25, ttl=FEED_TTL)
     if not body:
         return []
-    return parse(body)[:limit]
+    # Persist the parsed feed against the exact XML: Kodi runs a new process per
+    # directory, so a warm Latest/hub would otherwise re-run ElementTree over
+    # every feed's full item list on each refresh.
+    parsed = cache.parsed(FEED_PARSE_KEY % entry["id"], FEED_TTL, body, parse)
+    return (parsed if isinstance(parsed, list) else [])[:limit]
 
 
 def episodes_many(entries, limit=60, workers=FEED_WORKERS):

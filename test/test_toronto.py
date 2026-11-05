@@ -61,6 +61,7 @@ class TorontoFetchTests(unittest.TestCase):
             calls.append((url, kwargs.get("ttl")))
             return fixture("toronto_home.html") if url.endswith("/") else fixture("toronto_jungle.html")
         with mock.patch.object(toronto.http, "fetch", side_effect=fetch), \
+                mock.patch.object(toronto.http, "is_cached", return_value=False), \
                 mock.patch.object(toronto.time, "sleep") as sleep, \
                 mock.patch.object(toronto, "_last_fetch_at", 0.0):
             rows = toronto.genres()
@@ -72,6 +73,17 @@ class TorontoFetchTests(unittest.TestCase):
         self.assertEqual(calls[0][1], toronto.INDEX_TTL)
         self.assertEqual(calls[1][1], toronto.PAGE_TTL)
         sleep.assert_called()
+
+    def test_cached_pages_do_not_pay_the_courtesy_gap(self):
+        def fetch(url, **kwargs):
+            return fixture("toronto_home.html") if url.endswith("/") \
+                else fixture("toronto_jungle.html")
+        with mock.patch.object(toronto.http, "fetch", side_effect=fetch), \
+                mock.patch.object(toronto.http, "is_cached", return_value=True), \
+                mock.patch.object(toronto.time, "sleep") as sleep:
+            self.assertTrue(toronto.genres())
+            self.assertTrue(toronto.tracks("jungle"))
+        sleep.assert_not_called()
 
     def test_empty_page_is_fail_soft(self):
         with mock.patch.object(toronto.http, "fetch", return_value=""):

@@ -712,7 +712,12 @@ def fetch(url, timeout=DEFAULT_TIMEOUT, headers=None, ttl=0):
     if effective <= 0:
         kodi.log("network budget exhausted; skipping fetch of %s" % url, level=30)
         return None
-    return cache.remember(key, ttl, lambda: _fetch_for_cache(url, effective, headers))
+    # ``sync=False``: a fetched body is recomputable.  fsync on the Shield's
+    # flash added tens of milliseconds to every cold page for no benefit — a
+    # lost write after a power cut just means one more fetch.
+    return cache.remember(key, ttl,
+                          lambda: _fetch_for_cache(url, effective, headers),
+                          sync=False)
 
 
 def is_cached(url, ttl, headers=None):
@@ -745,7 +750,9 @@ def fetch_json(url, timeout=DEFAULT_TIMEOUT, headers=None, ttl=0):
         return _parse_json(url, fetch(url, timeout=timeout, headers=headers))
     key = _cache_key("json", url, headers)
     return cache.remember(
-        key, ttl, lambda: _parse_json(url, fetch(url, timeout=timeout, headers=headers))
+        key, ttl,
+        lambda: _parse_json(url, fetch(url, timeout=timeout, headers=headers)),
+        sync=False,
     )
 
 

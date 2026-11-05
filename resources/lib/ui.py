@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """List item construction, kept tidy so routes read like a menu definition."""
 
-import datetime
 import re
 
 import xbmcgui
@@ -113,6 +112,10 @@ def short_date(value):
     match = _ISO_DATE_RE.match(str(value or "").strip())
     if not match:
         return ""
+    # ``datetime`` costs ~10 ms to import and only dated rows need it, so the
+    # warm root/hub menu (which carries no date fact) never pays for it.
+    import datetime
+
     try:
         month = int(match.group(2))
         day = int(match.group(3))

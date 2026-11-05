@@ -8,7 +8,6 @@ RaveTapePacks.com's MP3s are hotlink-protected — a bare GET returns 403 — so
 playback URLs carry a Referer suffix that Kodi turns into a real header.
 """
 
-import hashlib
 import html
 import re
 import urllib.parse
@@ -216,27 +215,18 @@ def _packs_from_html(page):
 
 def _fingerprint(page):
     """Stable (cross-process) fingerprint of the exact page text."""
-    return hashlib.blake2b(page.encode("utf-8", "replace"), digest_size=8).hexdigest()
+    return cache.fingerprint(page)
 
 
 def _cached_parse(key, ttl, page, parser):
     """Return the parsed page for this exact body, re-parsing only on change.
 
     Kodi starts a fresh process per directory, so the parse is persisted in the
-    normal disk cache.  Reading the body back and fingerprinting it is still
-    cheaper than the three regex passes and keeps mocks/fixtures correct.
+    normal disk cache (``cache.parsed``).  Reading the body back and
+    fingerprinting it is still cheaper than the three regex passes and keeps
+    mocks/fixtures correct.
     """
-    if page is None:
-        return None
-    fingerprint = _fingerprint(page)
-    record = cache.get(key, ttl)
-    if isinstance(record, dict) and record.get("fingerprint") == fingerprint:
-        value = record.get("value")
-        if isinstance(value, (list, dict)):
-            return value
-    value = parser(page)
-    cache.put(key, {"fingerprint": fingerprint, "value": value}, sync=False)
-    return value
+    return cache.parsed(key, ttl, page, parser)
 
 
 def packs():
@@ -619,14 +609,17 @@ def jungle_shows():
 
     The site's front page only lists the newest two, so the sitemap is the
     catalogue: 300+ /show/ pages.
+
+    ``/tapes`` and ``/sitemap.xml`` are independent, so they run together: a
+    cold hub used to pay both round trips back to back (~2.7 s on the Shield's
+    link).  Results keep the old order (tapes catalogue first, then sitemap).
     """
     slugs = []
     # /tapes is the current catalogue (400+ entries); the sitemap catches
     # anything older that has dropped off it. Union both, then de-dupe below.
-    index = http.fetch(JT_BASE + "/tapes", timeout=30, ttl=SITEMAP_TTL)
+    index, xml = _fetch_jt_catalogue()
     if index:
         slugs.extend(re.findall(r'href="/show/([^"]+)"', index))
-    xml = http.fetch(JT_BASE + "/sitemap.xml", timeout=30, ttl=SITEMAP_TTL)
     if xml:
         slugs.extend(re.findall(r"<loc>[^<]*?/show/([^<]+)</loc>", xml))
     if not slugs:
@@ -641,6 +634,29 @@ def jungle_shows():
         shows.append({"key": slug, "name": _jt_label(slug)})
     shows.sort(key=lambda item: item["name"], reverse=True)
     return shows
+
+
+def _fetch_jt_catalogue():
+    """Fetch ``/tapes`` and ``/sitemap.xml`` concurrently; ``(index, xml)``.
+
+    Jungletapes has no politeness gap configured (unlike RTP/Toronto/Moxser), so
+    two independent catalogue pages may be in flight at once.  Any executor
+    problem falls back to the old serial order, so a constrained Kodi build
+    still gets its catalogue.
+    """
+    urls = (JT_BASE + "/tapes", JT_BASE + "/sitemap.xml")
+
+    def one(url):
+        return http.fetch(url, timeout=30, ttl=SITEMAP_TTL)
+
+    try:
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(one, url) for url in urls]
+            return futures[0].result(), futures[1].result()
+    except Exception:  # noqa: BLE001 - serial is always correct, just slower
+        return one(urls[0]), one(urls[1])
 
 
 def _jt_label(slug):

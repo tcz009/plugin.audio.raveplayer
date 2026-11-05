@@ -19,6 +19,7 @@ import time
 import urllib.parse
 import xml.etree.ElementTree as ET
 
+from . import cache
 from . import http
 
 SITE = "https://moxser.com"
@@ -28,6 +29,10 @@ MIX_TTL = 6 * 60 * 60
 MIN_INTERVAL = 1.0  # <= 1 request/second
 MAX_SITEMAPS = 20
 MAX_MIXES = 5000
+# Parsed sitemap rows persist beside the raw XML.  The mixes sitemap carries
+# thousands of <url> nodes and ElementTree costs ~2 s on a cold parse, so a
+# directory refresh must read the parsed list instead of re-running it.
+SITEMAP_PARSE_KEY = "moxser:sitemap:v1:%s"
 BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
@@ -192,7 +197,11 @@ def mixes(limit=60):
         body = _fetch(sitemap, SITEMAP_TTL)
         if not body:
             continue
-        for row in _parse_mixes_sitemap(body):
+        # Persist the parsed rows per sitemap: a warm refresh reads a list
+        # instead of re-running ElementTree over thousands of <url> nodes.
+        parsed = cache.parsed(SITEMAP_PARSE_KEY % sitemap, SITEMAP_TTL, body,
+                              _parse_mixes_sitemap)
+        for row in parsed if isinstance(parsed, list) else []:
             if row["page_url"] in seen:
                 continue
             seen.add(row["page_url"])

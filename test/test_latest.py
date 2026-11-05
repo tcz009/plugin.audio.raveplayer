@@ -3,7 +3,9 @@
 
 import datetime
 import os
+import shutil
 import sys
+import tempfile
 import threading
 import time
 import unittest
@@ -13,7 +15,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "stubs"))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from resources.lib import dnbradio, latest  # noqa: E402
+from resources.lib import cache, dnbradio, latest  # noqa: E402
 
 
 class DateTests(unittest.TestCase):
@@ -109,6 +111,20 @@ class RandomPackTests(unittest.TestCase):
 
 class DnbStreamBatchTests(unittest.TestCase):
     """The directory-build batch must drop mixes whose host cannot be reached."""
+
+    def setUp(self):
+        # The batch writes a resolved-URL map to the disk cache (the warm path
+        # for directory builds); isolate it so a previous run cannot answer.
+        self.directory = tempfile.mkdtemp(prefix="raveplayer-dnb-test-")
+        self.old = os.environ.get(cache.CACHE_DIR_ENV)
+        os.environ[cache.CACHE_DIR_ENV] = self.directory
+
+    def tearDown(self):
+        if self.old is None:
+            os.environ.pop(cache.CACHE_DIR_ENV, None)
+        else:
+            os.environ[cache.CACHE_DIR_ENV] = self.old
+        shutil.rmtree(self.directory, ignore_errors=True)
 
     @staticmethod
     def _fetch(reachable):

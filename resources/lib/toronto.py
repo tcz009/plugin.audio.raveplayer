@@ -16,6 +16,7 @@ import re
 import time
 import urllib.parse
 
+from . import cache
 from . import http
 
 BASE = "https://www.torontoravemixtapearchive.com"
@@ -23,6 +24,12 @@ PAGE_TTL = 6 * 60 * 60
 INDEX_TTL = 6 * 60 * 60
 MIN_PAGE_GAP = 0.5
 MAX_TRACKS = 5000
+# Parsed pages persist beside the raw body: Kodi spawns a new process per
+# directory, so without this every refresh re-ran the genre-page regexes over
+# ~1 MB of HTML (measured ~100 ms warm).  Keyed per page, fingerprinted against
+# the exact body so a changed page re-parses.
+GENRES_PARSE_KEY = "toronto:genres:v1"
+TRACKS_PARSE_KEY = "toronto:tracks:v1:%s"
 BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
@@ -188,7 +195,7 @@ def parse_genres(page):
 def genres():
     """Genre subfolders, cached/rate-limited via the homepage."""
     page = _fetch(BASE + "/", ttl=INDEX_TTL)
-    return parse_genres(page)
+    return cache.parsed(GENRES_PARSE_KEY, INDEX_TTL, page, parse_genres) or []
 
 
 def tracks(genre):
@@ -197,7 +204,11 @@ def tracks(genre):
     if not re.match(r"^[a-z0-9_-]{1,40}$", slug):
         return []
     page = _fetch(BASE + "/" + slug + ".html", ttl=PAGE_TTL)
-    return parse_tracks(page)
+    # The page is ~1 MB and the label/metadata regexes are the most expensive
+    # parse in the add-on; persist the parsed rows against the exact body so a
+    # directory refresh costs a cache read instead of a re-parse.
+    parsed = cache.parsed(TRACKS_PARSE_KEY % slug, PAGE_TTL, page, parse_tracks)
+    return parsed if isinstance(parsed, list) else []
 
 
 def all_tracks():

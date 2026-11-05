@@ -234,16 +234,47 @@ def maintain(now=None, max_entries=MAX_ENTRIES, max_age=MAX_AGE_SECONDS,
     return removed
 
 
-def remember(key, ttl, producer):
+def remember(key, ttl, producer, sync=True):
     """Return a cached value, otherwise call ``producer`` and cache its result.
 
     ``producer`` results of ``None`` are treated as failures and are not
     cached, so a temporary network error does not stick for the whole TTL.
+    ``sync=False`` skips fsync: correct for derived/recomputable entries such
+    as raw HTTP bodies, where a lost write just means one more fetch.
     """
     value = get(key, ttl)
     if value is not MISSING:
         return value
     value = producer()
     if value is not None:
-        put(key, value)
+        put(key, value, sync=sync)
+    return value
+
+
+def fingerprint(text):
+    """Stable (cross-process) fingerprint of an exact page body."""
+    return hashlib.blake2b(str(text).encode("utf-8", "replace"),
+                           digest_size=8).hexdigest()
+
+
+def parsed(key, ttl, body, parser):
+    """Return the parsed form of ``body``, re-parsing only when it changes.
+
+    Kodi starts a fresh Python process for every directory, so a parsed page
+    has to live on disk to survive a refresh.  The raw body is fingerprinted
+    first: a changed page (or a test fixture) re-parses, while a warm refresh
+    skips the regex/XML pass.  A parser result that is not JSON-safe is
+    returned but not cached.
+    """
+    if body is None:
+        return None
+    digest = fingerprint(body)
+    record = get(key, ttl)
+    if isinstance(record, dict) and record.get("fingerprint") == digest:
+        value = record.get("value")
+        if isinstance(value, (list, dict)):
+            return value
+    value = parser(body)
+    if isinstance(value, (list, dict)):
+        put(key, {"fingerprint": digest, "value": value}, sync=False)
     return value

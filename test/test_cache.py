@@ -92,6 +92,55 @@ class CacheTests(unittest.TestCase):
         self.assertEqual(cache.remember("remember", 60, producer), "produced")
         self.assertEqual(len(calls), 1)
 
+    def test_remember_can_skip_fsync_for_recomputable_values(self):
+        calls = []
+
+        def producer():
+            calls.append(1)
+            return "body"
+
+        with mock.patch.object(cache.os, "fsync") as fsync:
+            self.assertEqual(cache.remember("no-sync", 60, producer, sync=False), "body")
+            self.assertEqual(cache.remember("no-sync", 60, producer, sync=False), "body")
+        fsync.assert_not_called()
+        self.assertEqual(len(calls), 1)
+
+    def test_remember_still_fsyncs_by_default(self):
+        with mock.patch.object(cache.os, "fsync") as fsync:
+            cache.remember("sync-default", 60, lambda: "body")
+        fsync.assert_called_once()
+
+    def test_parsed_parses_once_per_body(self):
+        calls = []
+
+        def parser(body):
+            calls.append(body)
+            return [{"value": body}]
+
+        first = cache.parsed("parsed-key", 60, "page-a", parser)
+        second = cache.parsed("parsed-key", 60, "page-a", parser)
+        self.assertEqual(first, second)
+        self.assertEqual(calls, ["page-a"])
+
+    def test_parsed_reparses_when_the_body_changes(self):
+        parser = lambda body: [body]  # noqa: E731
+        self.assertEqual(cache.parsed("parsed-change", 60, "one", parser), ["one"])
+        self.assertEqual(cache.parsed("parsed-change", 60, "two", parser), ["two"])
+
+    def test_parsed_does_not_cache_scalar_results(self):
+        calls = []
+
+        def parser(body):
+            calls.append(body)
+            return 42
+
+        self.assertEqual(cache.parsed("parsed-scalar", 60, "page", parser), 42)
+        self.assertEqual(cache.parsed("parsed-scalar", 60, "page", parser), 42)
+        self.assertEqual(len(calls), 2)
+
+    def test_parsed_returns_none_for_a_missing_body(self):
+        self.assertIsNone(cache.parsed("parsed-none", 60, None, lambda body: [body]))
+
     def test_remember_does_not_cache_failures(self):
         calls = []
 
