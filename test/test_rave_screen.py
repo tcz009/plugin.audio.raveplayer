@@ -1488,7 +1488,7 @@ class RepoArtifactTests(unittest.TestCase):
         with open(catalogue, encoding="utf-8") as handle:
             markup = handle.read()
         self.assertIn('id="script.raveplayer.ui"', markup)
-        self.assertIn('import addon="plugin.audio.raveplayer" version="3.9.48"', markup)
+        self.assertIn('import addon="plugin.audio.raveplayer" version="3.9.50"', markup)
         self.assertIn('id="script.raveplayer.ui" name="Rave Screen" version="3.9.48"',
                       markup)
         repo_zip = os.path.join(ROOT, "repo", "script.raveplayer.ui",
