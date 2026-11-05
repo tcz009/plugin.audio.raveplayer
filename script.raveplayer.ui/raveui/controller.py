@@ -13,10 +13,11 @@ playback service. Every state transition is explicit:
 from dataclasses import dataclass
 
 from .animation import FPS, MIN_DURATION, SpinnerAnimator
-from .tasks import TaskTimeout, ThreadTaskRunner
+from .tasks import TaskCancelled, TaskTimeout, ThreadTaskRunner
 
 HOME_TITLE = "RAVE SCREEN"
-HOME_SUBTITLE = "OK opens a source · SPINNING SURPRISE picks one random track"
+# Label 23 is 530 px wide at 720p; the previous sentence clipped ("...one rando").
+HOME_SUBTITLE = "OK opens a source · SPINNING SURPRISE picks one"
 
 
 @dataclass
@@ -38,7 +39,11 @@ class RaveScreenController(object):
         self._clock = clock
         self._logger = logger or self._default_log
         self._task_runner = task_runner or ThreadTaskRunner(
-            sleep=self._sleep_ms, clock=clock, monitor=monitor)
+            sleep=self._sleep_ms, clock=clock, monitor=monitor,
+            # Back closes the window while a 15 s source load or random pick is
+            # still polling; stop waiting immediately instead of keeping the
+            # script (and the closed window) alive until the worker finishes.
+            cancelled=lambda: self._closed)
         self._frames = list(frames) if frames is not None else list(
             data.spinner_frames() if hasattr(data, "spinner_frames") else [])
         self._title = HOME_TITLE
@@ -178,6 +183,10 @@ class RaveScreenController(object):
                 self.view.set_status("Surprise animation unavailable — no playback.")
                 return False
             return self._handoff(pick)
+        except TaskCancelled:
+            # The user pressed Back; the window is closing and the late result
+            # is irrelevant. Never paint a status line on a closed window.
+            return False
         except TaskTimeout as exc:
             self.view.set_status("Random pick timed out — try again.")
             self._log("surprise pick timeout: %s" % exc)
@@ -211,6 +220,8 @@ class RaveScreenController(object):
         self.view.set_status("Loading %s…" % entry.label)
         try:
             rows = self._task_runner.run(loader)
+        except TaskCancelled:
+            return False
         except TaskTimeout as exc:
             self.view.set_status("Timed out loading %s — try again." % entry.label)
             self._log("load timeout for %s: %s" % (entry.key, exc))

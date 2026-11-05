@@ -124,14 +124,25 @@ def load_plugin(addon_factory=None):
         return cached
     _install_alias(PLUGIN_ALIAS, root)
     modules = {}
+    name = MODULE_NAMES[0]
     try:
+        # Import the plugin's ``kodi`` wrapper first and repair its add-on
+        # context *before* the data modules load. Those modules import ``kodi``
+        # while executing (``from . import kodi``) and some cache module-level
+        # copies of its constants, e.g. ``ui.DEFAULT_FANART = kodi.FANART``.
+        # Binding afterwards leaves those copies pointing at the script add-on.
+        kodi_module = importlib.import_module(
+            "%s.resources.lib.kodi" % PLUGIN_ALIAS)
+        _bind_addon_context(kodi_module, addon, root)
+        modules["kodi"] = kodi_module
         for name in MODULE_NAMES:
+            if name == "kodi":
+                continue
             modules[name] = importlib.import_module(
                 "%s.resources.lib.%s" % (PLUGIN_ALIAS, name))
     except Exception as exc:  # noqa: BLE001 - report one stable error type
         _clear_alias(PLUGIN_ALIAS)
         raise PluginUnavailable("could not import plugin %s: %s" % (name, exc))
-    _bind_addon_context(modules["kodi"], addon, root)
     namespace = types.SimpleNamespace(root=root, addon=addon, **modules)
     _CACHE[root] = namespace
     return namespace

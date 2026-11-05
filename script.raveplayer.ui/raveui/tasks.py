@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 """Bounded worker-thread task runner for window data loads.
 
-Kodi's Python window callbacks run on the GUI thread. Network scrapers there
-would freeze focus movement, so a source load or a surprise pick runs on a
-daemon thread while the controller polls with ``xbmc.sleep`` (which yields and
-lets Kodi repaint the "Loading…" status). The timeout is a hard upper bound;
-the worker cannot be killed, but its late result is ignored.
+Kodi queues Python window callbacks and runs them on the thread that owns the
+interpreter (this script), so a blocking network call there would also block
+Back and D-pad handling. A source load or a surprise pick therefore runs on a
+daemon thread while the owner polls with ``xbmc.sleep``, which pumps the queued
+callbacks and lets Kodi repaint the "Loading…" status. The timeout is a hard
+upper bound; the worker cannot be killed, but its late result is ignored. When
+the window closes (``cancelled``), the poll stops at once instead of waiting
+for the worker to finish.
 """
 
 import threading
@@ -20,6 +23,10 @@ class TaskFailed(RuntimeError):
     pass
 
 
+class TaskCancelled(RuntimeError):
+    """The window closed while the worker was still running."""
+
+
 class DirectTaskRunner(object):
     """Run the callable inline; used by tests and deterministic callers."""
 
@@ -28,8 +35,10 @@ class DirectTaskRunner(object):
 
 
 class ThreadTaskRunner(object):
-    def __init__(self, sleep=None, clock=None, monitor=None, timeout=15.0):
+    def __init__(self, sleep=None, clock=None, monitor=None, timeout=15.0,
+                 cancelled=None):
         self.timeout = max(0.0, float(timeout))
+        self.cancelled = cancelled
         if sleep is None:
             import xbmc
 
@@ -42,13 +51,23 @@ class ThreadTaskRunner(object):
             monitor = xbmc.Monitor()
         self.monitor = monitor
 
+    def _is_cancelled(self):
+        if self.cancelled is None:
+            return False
+        try:
+            return bool(self.cancelled())
+        except Exception:  # noqa: BLE001 - the predicate is advisory
+            return False
+
     def run(self, function):
+        if self._is_cancelled():
+            raise TaskCancelled("window closed before the load started")
         outcome = {}
 
         def target():
             try:
                 outcome["value"] = function()
-            except Exception as exc:  # noqa: BLE001 - re-raised on the GUI thread
+            except Exception as exc:  # noqa: BLE001 - re-raised on the caller thread
                 outcome["error"] = exc
 
         thread = threading.Thread(target=target, name="rave-screen-load")
@@ -56,6 +75,8 @@ class ThreadTaskRunner(object):
         thread.start()
         started = self.clock()
         while thread.is_alive():
+            if self._is_cancelled():
+                raise TaskCancelled("window closed")
             try:
                 if self.monitor.abortRequested():
                     raise TaskTimeout("Kodi is shutting down")
