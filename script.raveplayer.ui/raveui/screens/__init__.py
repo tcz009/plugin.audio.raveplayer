@@ -1,0 +1,77 @@
+# -*- coding: utf-8 -*-
+"""Extra full-screen rooms for the Rave UI (Search / Favourites / Downloads /
+About).
+
+The shell renders the plain :class:`~raveui.screens.library.Screen` protocol;
+all data access goes through :class:`~raveui.screens.library.PluginBackend`,
+which reads the Rave Player plugin's public modules.  Nothing here imports Kodi
+at module level, so the package stays import-light and testable.
+"""
+
+from .library import (  # noqa: F401 - public re-exports for the shell
+    AboutInfo,
+    ActionResult,
+    DEFAULT_PAGE_SIZE,
+    KIND_ACTION,
+    KIND_ROOM,
+    KIND_TRACK,
+    LibraryScreens,
+    Link,
+    PluginBackend,
+    PlayItem,
+    ROW_KINDS,
+    ROUTE_ABOUT,
+    ROUTE_DOWNLOADS,
+    ROUTE_FAVOURITES,
+    ROUTE_SEARCH,
+    Row,
+    Screen,
+    STATE_EMPTY,
+    STATE_ERROR,
+    STATE_LOADING,
+    STATE_READY,
+    ACTION_DOWNLOAD,
+    ACTION_FAVOURITE,
+    ACTION_OPEN,
+    ACTION_PLAY,
+    ACTION_PLAY_ALL,
+    ACTION_REMOVE,
+    ACTION_RETRY,
+    ACTION_SHUFFLE,
+    PAGE_SIZES,
+    normalise_page_size,
+)
+
+__all__ = [
+    "AboutInfo",
+    "ActionResult",
+    "DEFAULT_PAGE_SIZE",
+    "KIND_ACTION",
+    "KIND_ROOM",
+    "KIND_TRACK",
+    "LibraryScreens",
+    "Link",
+    "PluginBackend",
+    "PlayItem",
+    "ROW_KINDS",
+    "ROUTE_ABOUT",
+    "ROUTE_DOWNLOADS",
+    "ROUTE_FAVOURITES",
+    "ROUTE_SEARCH",
+    "Row",
+    "Screen",
+    "STATE_EMPTY",
+    "STATE_ERROR",
+    "STATE_LOADING",
+    "STATE_READY",
+    "ACTION_DOWNLOAD",
+    "ACTION_FAVOURITE",
+    "ACTION_OPEN",
+    "ACTION_PLAY",
+    "ACTION_PLAY_ALL",
+    "ACTION_REMOVE",
+    "ACTION_RETRY",
+    "ACTION_SHUFFLE",
+    "PAGE_SIZES",
+    "normalise_page_size",
+]
