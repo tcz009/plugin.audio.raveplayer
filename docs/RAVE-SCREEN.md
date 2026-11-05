@@ -200,7 +200,7 @@ busy closes the window immediately.
 | Plugin dependency version | A future plugin bump can leave the script on an older API (or uninstalled) | Dependency is pinned to 3.9.47; bridge imports under a private alias and fails with one status line, not a traceback |
 | Kodi 19 dependency floor | See §5: script is 3.0.0, plugin is 3.0.1 | Documented; no Matrix claim until a device test |
 | Network source slowness | Archive/radio sites can hang | Worker thread + 15 s timeout + status line; window stays usable/closeable |
-| Overlay regression | A future change could reintroduce a dialog over the plugin list | There is no `Dialog`/overlay in the script; docs and tests assert `WindowXML` ownership. The old spinner overlay is unrelated, opt-in and used only for downloads |
+| Overlay regression | A future change could reintroduce a dialog over the plugin list | There is no `Dialog`/overlay in the script; docs and tests assert `WindowXML` ownership. The old plugin Surprise Me overlay (`spinner.SurpriseReveal`) remains only on the legacy plugin route and is untouched by the new screen |
 
 ---
 
