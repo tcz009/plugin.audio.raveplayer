@@ -8,10 +8,13 @@ made exactly once per explicit user action by the controller; there is no loop,
 watchdog or retry in this module.
 """
 
+import urllib.parse
 from dataclasses import dataclass
 
 import xbmc
 import xbmcgui
+
+PLUGIN = "plugin://plugin.audio.raveplayer/"
 
 
 @dataclass
@@ -41,7 +44,12 @@ class PlaybackService(object):
         live = bool(getattr(track, "live", False))
         art = str(getattr(track, "art", "") or "")
 
-        item = self.xbmcgui.ListItem(label=title, path=url)
+        # Delegate to the plugin's play resolver so RTP URLs go through the
+        # configured egress/bridge (Referer, VPN proxy, loopback bridge) instead
+        # of Kodi's player fetching a blocked URL directly.
+        plugin_url = PLUGIN + "?" + urllib.parse.urlencode(
+            {"mode": "play", "url": url, "label": title})
+        item = self.xbmcgui.ListItem(label=title, path=plugin_url)
         if art:
             item.setArt({"thumb": art, "icon": art})
         info = {"title": title}
@@ -56,7 +64,7 @@ class PlaybackService(object):
 
         playlist = self.xbmc.PlayList(self.xbmc.PLAYLIST_MUSIC)
         playlist.clear()
-        playlist.add(url, item)
+        playlist.add(plugin_url, item)
         self.xbmc.Player().play(playlist)
         self.last_url = url
         self.calls += 1
