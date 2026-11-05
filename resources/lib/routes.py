@@ -664,7 +664,17 @@ def _play_tracks(tracks, identifier=None, start=0, shuffle=False,
         details = nowplaying.parse(pack_title, track["title"])
         plotted = nowplaying.plot(
             plot or ("From archive.org item %s" % identifier), details)
-        item = xbmcgui.ListItem(path=url)
+        # Bridge hosts must not be queued as raw URLs: Kodi's libcurl stalls
+        # on them (RTP WAN block, JungleTapes TLS stall). A playlist item that
+        # is a plugin play URL resolves through mode=play per track, which
+        # starts the loopback bridge and keeps the silence rules.
+        path = url
+        if http.is_bridge_host(url):
+            path = url_for(mode="play", url=url, label=track["title"],
+                           thumb=thumb, fanart=kodi.FANART)
+        item = xbmcgui.ListItem(path=path)
+        if path != url:
+            item.setProperty("IsPlayable", "true")
         # 1:1 cover in the art slots, 16:9 brand fanart behind it.  The old
         # pass put the square cover in the fanart slot, which every skin
         # stretched across the whole 16:9 background.
@@ -685,7 +695,7 @@ def _play_tracks(tracks, identifier=None, start=0, shuffle=False,
             info["genre"] = track["genre"]
         info["tracknumber"] = index + 1
         item.setInfo("music", info)
-        playlist.add(url, item)
+        playlist.add(path, item)
     xbmc.Player().play(playlist)
     return True
 
@@ -971,7 +981,7 @@ def archive_list(handle, params):
     _page_header(handle, page, pages, total, "items")
     _archive_items(handle, docs)
     _page_nav(handle, "archive_list", {"key": section["key"]},
-              page, pages, total, rows, "items", has_next=bool(docs))
+              page, pages, total, rows, "items", has_next=page < pages)
     kodi.end_directory(handle, "files")
 
 
@@ -1260,7 +1270,7 @@ def rave_list(handle, params):
         _archive_items(handle, docs)
         _page_nav(handle, "rave_list",
                   {"key": entry.get("slug") or entry["name"]},
-                  page, pages, total, rows, "items", has_next=bool(docs))
+                  page, pages, total, rows, "items", has_next=page < pages)
     elif entry.get("mixcloud_query") and entry.get("mixcloud_count"):
         kodi.notify("No Archive packs for that rave — open its Mixcloud sets.")
     if entry.get("mixcloud_query") and entry.get("mixcloud_count"):
@@ -1331,7 +1341,7 @@ def filter_list(handle, params):
     _page_header(handle, page, pages, total, "items")
     _archive_items(handle, docs)
     _page_nav(handle, "filter_list", {"key": entry["id"]},
-              page, pages, total, rows, "items", has_next=bool(docs))
+              page, pages, total, rows, "items", has_next=page < pages)
     kodi.end_directory(handle, "files")
 
 
@@ -1505,7 +1515,7 @@ def year_list(handle, params):
     _page_header(handle, page, pages, total, "items")
     _archive_items(handle, docs)
     _page_nav(handle, "year_list", {"year": year}, page, pages, total, rows,
-              "items", has_next=bool(docs))
+              "items", has_next=page < pages)
     kodi.end_directory(handle, "files")
 
 
@@ -2513,7 +2523,7 @@ def search(handle, params):
     _page_header(handle, page, pages, total, "items")
     _archive_items(handle, docs)
     _page_nav(handle, "search", {"q": query}, page, pages, total, rows,
-              "items", has_next=bool(docs))
+              "items", has_next=page < pages)
     kodi.end_directory(handle, "files")
 
 

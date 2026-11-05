@@ -139,3 +139,37 @@ class PlayAllUrlGuardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BridgePlaylistTests(unittest.TestCase):
+    """Play all / Shuffle must not queue raw bridge-host URLs (3.9.50 P1-1)."""
+
+    BRIDGE_TRACKS = [
+        {"title": "RTP One", "url": "https://www.ravetapepacks.com/music/pack/a.mp3"},
+        {"title": "JT Two", "url": "https://www.jungletapes.com/media/two.mp3"},
+    ]
+
+    def setUp(self):
+        del xbmc.PLAYED[:]
+        env = mock.patch.dict(os.environ, {"RTP_EGRESS_HOSTS": "ravetapepacks.com"})
+        env.start()
+        self.addCleanup(env.stop)
+        self.dns = mock.patch.object(routes.http.socket, "getaddrinfo",
+                                     return_value=PUBLIC_INFOS)
+        self.dns.start()
+        self.addCleanup(self.dns.stop)
+
+    def test_bridge_hosts_are_queued_as_play_routes_not_raw_urls(self):
+        routes._play_tracks(self.BRIDGE_TRACKS, album="Bridge pack")
+        playlist = xbmc.PLAYED[-1]
+        urls = [url for url, _item in playlist.items]
+        self.assertEqual(len(urls), 2)
+        for url in urls:
+            # In Kodi the base is plugin://...; in the test harness url_for()
+            # uses sys.argv[0]. The invariant is the play-route, not the base.
+            self.assertIn("mode=play", url)
+            self.assertNotIn(url, ("https://www.ravetapepacks.com/music/pack/a.mp3",))
+            self.assertFalse(url.startswith("https://www.ravetapepacks.com"), url)
+            self.assertFalse(url.startswith("https://www.jungletapes.com"), url)
+            self.assertNotIn("ravetapepacks.com", url.split("url=")[0])
+        self.assertTrue(all("mode=play" in url for url in urls))
