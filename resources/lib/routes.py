@@ -968,6 +968,10 @@ def archive_list(handle, params):
     rows = _rows_per_page()
     docs, total = archive.search(section["query"], page=page, rows=rows)
     pages = max(1, (total + rows - 1) // rows)
+    if page > pages:
+        # A hand-built ?page=N+1 must clamp, not render "Page 5 of 4" empty.
+        page = pages
+        docs, total = archive.search(section["query"], page=page, rows=rows)
 
     if not docs and page == 1:
         kodi.notify("Nothing came back from the Archive. Try another section.")
@@ -1266,6 +1270,9 @@ def rave_list(handle, params):
     if entry.get("query") and entry.get("count"):
         docs, total = archive.search(entry["query"], page=page, rows=rows)
         pages = max(1, (total + rows - 1) // rows)
+        if page > pages:
+            page = pages
+            docs, total = archive.search(entry["query"], page=page, rows=rows)
         _page_header(handle, page, pages, total, "items")
         _archive_items(handle, docs)
         _page_nav(handle, "rave_list",
@@ -1336,6 +1343,9 @@ def filter_list(handle, params):
 
     docs, total = archive.search(entry["query"], page=page, rows=rows)
     pages = max(1, (total + rows - 1) // rows)
+    if page > pages:
+        page = pages
+        docs, total = archive.search(entry["query"], page=page, rows=rows)
     if not docs and page == 1:
         kodi.notify("Nothing in the archive for %s." % entry["name"])
     _page_header(handle, page, pages, total, "items")
@@ -1510,6 +1520,9 @@ def year_list(handle, params):
     rows = _rows_per_page()
     docs, total = archive.search(latest.year_query(year), page=page, rows=rows)
     pages = max(1, (total + rows - 1) // rows)
+    if page > pages:
+        page = pages
+        docs, total = archive.search(latest.year_query(year), page=page, rows=rows)
     if not docs and page == 1:
         kodi.notify("Nothing in the archive for %s." % year)
     _page_header(handle, page, pages, total, "items")
@@ -2499,6 +2512,11 @@ def search(handle, params):
     # rips, audiobooks and sound-effect records before any actual rave tape.
     docs, total = archive.search("%s AND %s" % (query, latest.RAVE_COLLECTION),
                                  page=page, rows=rows)
+    pages = max(1, (total + rows - 1) // rows)
+    if page > pages:
+        page = pages
+        docs, total = archive.search("%s AND %s" % (query, latest.RAVE_COLLECTION),
+                                     page=page, rows=rows)
     if page == 1 and total < 10:
         # Title-scoped widen: an unscoped mediatype:audio search returns
         # audiobooks and sound effects before the rave tapes.
