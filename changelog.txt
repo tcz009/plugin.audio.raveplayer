@@ -1,3 +1,10 @@
+Rave Player 3.9.48
+- Round-face fallback for Kodi’s player/Now Playing: playable tracks with no
+  cover now use resources/art/icon.png instead of the generic eye; genuine
+  cover art is preserved. Applied in play/playlist resolution, ui.track_item
+  and RaveTapePacks/Toronto/Moxser track rows.
+- Tests: 524 OK. No playback/autoplay changes.
+
 Rave Player 3.9.43
 - Merged feat/rtp-egress: per-host RaveTapePacks HTTP CONNECT proxy via
   rtp_egress_proxy (default 192.168.1.142:8888) / RTP_EGRESS_PROXY; only RTP

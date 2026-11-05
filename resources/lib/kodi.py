@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Kodi wrappers kept in one place so the rest of the add-on stays testable."""
 
+import os
+
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -13,6 +15,8 @@ ADDON_VERSION = ADDON.getAddonInfo("version")
 ADDON_PATH = ADDON.getAddonInfo("path")
 ICON = ADDON.getAddonInfo("icon")
 FANART = ADDON.getAddonInfo("fanart")
+# Absolute round-face sticker used when a playable item has no real cover.
+ROUND_FACE = os.path.join(ADDON_PATH, "resources", "art", "icon.png")
 
 
 def _kodi_major():

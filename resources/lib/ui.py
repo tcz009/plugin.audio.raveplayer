@@ -110,8 +110,8 @@ def end_marker(handle, label="End of list", plot=None):
 def track_item(handle, url, label, thumb=None, fanart=None, plot=None, artist=None, album=None,
                duration=None, context=None, title=None):
     art = {
-        "icon": thumb or kodi.ICON,
-        "thumb": thumb or kodi.ICON,
+        "icon": thumb or kodi.ROUND_FACE,
+        "thumb": thumb or kodi.ROUND_FACE,
         "fanart": fanart or DEFAULT_FANART,
     }
     # Kodi 22 rejects the music "plot" key; kodi.music_info keeps "comment"

@@ -758,7 +758,7 @@ class ArtUrlGuardTests(unittest.TestCase):
                                   return_value="https://stream.example.test/a"), \
                 mock.patch.object(routes.http.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
             routes._station_items(1, [station], "Live")
-        self.assertEqual(xbmcplugin.ITEMS[0]["art"].get("thumb"), routes.kodi.ICON)
+        self.assertEqual(xbmcplugin.ITEMS[0]["art"].get("thumb"), routes.kodi.ROUND_FACE)
 
     def test_play_drops_local_file_thumb_and_keeps_public_stream(self):
         with mock.patch.object(routes.http.socket, "getaddrinfo", return_value=PUBLIC_INFOS):
@@ -766,7 +766,7 @@ class ArtUrlGuardTests(unittest.TestCase):
                             "thumb": "file:///etc/passwd"})
         resolved = xbmcplugin.RESOLVED[-1]
         self.assertTrue(resolved["ok"])
-        self.assertEqual(resolved["art"]["thumb"], routes.kodi.ICON)
+        self.assertEqual(resolved["art"]["thumb"], routes.kodi.ROUND_FACE)
 
 
 if __name__ == "__main__":
