@@ -262,7 +262,7 @@ def open_screen(window_factory=None, monitor_factory=None):
         window.show()
         xbmc.sleep(250)
         current = xbmcgui.getCurrentWindowId()
-        if current >= 13000:               # add-on window range
+        if 13000 <= current < 14000:       # Kodi add-on window range
             activated = True
             break
 
