@@ -167,8 +167,10 @@ Previous good release:
 Before the tag is pushed (main fast-forwarded, release rejected):
 
 ```sh
-# Preferred when main allows force-with-lease; requires owner approval
-git push --force-with-lease=main:437bcfa origin 22cbf4d:main
+# Preferred when main allows force-with-lease; requires owner approval.
+# <main-sha> = the value of `git rev-parse origin/main` immediately before this
+# rollback (i.e. the fast-forwarded release commit, the tag's commit).
+git push --force-with-lease=main:<main-sha> origin 22cbf4d:main
 ```
 
 If force-pushing `main` is not allowed, revert the range instead:
