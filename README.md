@@ -229,17 +229,19 @@ ordinary `DialogProgress` if the window cannot be created. See
 [`docs/SPINNER-3.9.19.md`](docs/SPINNER-3.9.19.md) for the spec, preview/GIF,
 cost/risks and the opt-in recommendation. Default is **off**.
 
-## Performance (3.9.20)
+## Performance (3.9.20 → 3.9.49)
 
-Warm root import+dispatch is ~0.08 s (was 0.78 s), the root route itself is
-~0.0001 s, Latest cold is ~6 s / warm ~0.04 s, and cached pack open ~0.003 s.
-Full methodology, before/after table and residual risks:
-[`docs/PERF-3.9.20.md`](docs/PERF-3.9.20.md); reproduce with
-<<<<<<< HEAD
-`python3 scripts/benchmark.py`. RTP egress + loopback playback bridge; 542 tests in 3.9.44.
-=======
-`python3 scripts/benchmark.py`. Round-face fallback for coverless tracks; 524 tests in 3.9.48.
->>>>>>> hardening/3.9.48
+Warm root import+dispatch is ~0.10 s, the root route itself is ~0.0002 s, and
+cached pack open is ~0.002 s. The 3.9.49 overhaul (parsed-page disk caches for
+Toronto/Moxser/feeds, a one-entry DNB stream map, a concurrent JungleTapes
+catalogue and no-fsync body writes) took warm Latest from ~120 ms to ~12 ms and
+warm Toronto from ~169 ms to ~82 ms.
+Full methodology, before/after tables and residual risks:
+[`docs/PERF-3.9.20.md`](docs/PERF-3.9.20.md) and
+[`docs/PERF-OVERHAUL.md`](docs/PERF-OVERHAUL.md); reproduce with
+`python3 scripts/benchmark.py`, `scripts/bench_routes.py` and
+`scripts/bench_sources.py`. RTP egress + loopback playback bridge; 664 offline
+tests in 3.9.49 (645 at integration/3.9.48).
 
 ## Why it was rebuilt rather than patched
 

@@ -1,0 +1,192 @@
+{
+  "replay": "auto",
+  "latency_ms": 350.0,
+  "cold_samples": 1,
+  "samples": 5,
+  "routes": [
+    {
+      "name": "root",
+      "cold_p50": 0.2,
+      "cold_p95": 0.2,
+      "warm_p50": 0.1,
+      "warm_p95": 0.1
+    },
+    {
+      "name": "screen",
+      "cold_p50": 0.0,
+      "cold_p95": 0.0,
+      "warm_p50": 0.0,
+      "warm_p95": 0.0
+    },
+    {
+      "name": "packs_menu",
+      "cold_p50": 0.8,
+      "cold_p95": 0.8,
+      "warm_p50": 0.3,
+      "warm_p95": 0.3
+    },
+    {
+      "name": "shows_menu",
+      "cold_p50": 5.1,
+      "cold_p95": 5.1,
+      "warm_p50": 0.1,
+      "warm_p95": 0.2
+    },
+    {
+      "name": "radio_menu",
+      "cold_p50": 0.1,
+      "cold_p95": 0.1,
+      "warm_p50": 0.1,
+      "warm_p95": 0.1
+    },
+    {
+      "name": "about",
+      "cold_p50": 0.1,
+      "cold_p95": 0.1,
+      "warm_p50": 0.1,
+      "warm_p95": 0.1
+    },
+    {
+      "name": "latest",
+      "cold_p50": 2906.7,
+      "cold_p95": 2906.7,
+      "warm_p50": 119.5,
+      "warm_p95": 201.1
+    },
+    {
+      "name": "search",
+      "cold_p50": 1431.1,
+      "cold_p95": 1431.1,
+      "warm_p50": 1.9,
+      "warm_p95": 2.6
+    },
+    {
+      "name": "legacy_menu",
+      "cold_p50": 0.4,
+      "cold_p95": 0.4,
+      "warm_p50": 0.2,
+      "warm_p95": 0.2
+    },
+    {
+      "name": "rtp_index",
+      "cold_p50": 370.3,
+      "cold_p95": 370.3,
+      "warm_p50": 2.0,
+      "warm_p95": 2.2
+    },
+    {
+      "name": "rtp_all",
+      "cold_p50": 408.8,
+      "cold_p95": 408.8,
+      "warm_p50": 3.8,
+      "warm_p95": 7.2
+    },
+    {
+      "name": "rtp_pack",
+      "cold_p50": 397.8,
+      "cold_p95": 397.8,
+      "warm_p50": 4.1,
+      "warm_p95": 6.4
+    },
+    {
+      "name": "rtp_category",
+      "cold_p50": 369.4,
+      "cold_p95": 369.4,
+      "warm_p50": 12.2,
+      "warm_p95": 20.1
+    },
+    {
+      "name": "rtp_post",
+      "cold_p50": 411.2,
+      "cold_p95": 411.2,
+      "warm_p50": 14.5,
+      "warm_p95": 18.9
+    },
+    {
+      "name": "jt_index",
+      "cold_p50": 2710.2,
+      "cold_p95": 2710.2,
+      "warm_p50": 17.6,
+      "warm_p95": 18.0
+    },
+    {
+      "name": "jt_show",
+      "cold_p50": 914.3,
+      "cold_p95": 914.3,
+      "warm_p50": 2.5,
+      "warm_p95": 4.1
+    },
+    {
+      "name": "toronto",
+      "cold_p50": 435.6,
+      "cold_p95": 435.6,
+      "warm_p50": 0.6,
+      "warm_p95": 0.9
+    },
+    {
+      "name": "toronto_genre",
+      "cold_p50": 1265.2,
+      "cold_p95": 1265.2,
+      "warm_p50": 169.0,
+      "warm_p95": 264.2
+    },
+    {
+      "name": "moxser",
+      "cold_p50": 2232.5,
+      "cold_p95": 2232.5,
+      "warm_p50": 61.4,
+      "warm_p95": 62.8
+    },
+    {
+      "name": "moxser_mix",
+      "cold_p50": 916.3,
+      "cold_p95": 916.3,
+      "warm_p50": 10.0,
+      "warm_p95": 12.2
+    },
+    {
+      "name": "hardscore",
+      "cold_p50": 759.0,
+      "cold_p95": 759.0,
+      "warm_p50": 16.8,
+      "warm_p95": 46.5
+    },
+    {
+      "name": "archive_list",
+      "cold_p50": 962.5,
+      "cold_p95": 962.5,
+      "warm_p50": 3.9,
+      "warm_p95": 4.4
+    },
+    {
+      "name": "archive_item",
+      "cold_p50": 805.0,
+      "cold_p95": 805.0,
+      "warm_p50": 2.1,
+      "warm_p95": 3.6
+    },
+    {
+      "name": "filter_live",
+      "cold_p50": 781.2,
+      "cold_p95": 781.2,
+      "warm_p50": 1.7,
+      "warm_p95": 2.0
+    },
+    {
+      "name": "play_archive",
+      "cold_p50": 22.2,
+      "cold_p95": 22.2,
+      "warm_p50": 1.5,
+      "warm_p95": 1.9
+    },
+    {
+      "name": "play_all",
+      "cold_p50": 755.6,
+      "cold_p95": 755.6,
+      "warm_p50": 4.7,
+      "warm_p95": 5.3
+    }
+  ],
+  "import_ms": 118.0,
+  "import_and_root_ms": 119.0
+}
