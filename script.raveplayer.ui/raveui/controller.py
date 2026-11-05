@@ -7,7 +7,11 @@ service.  Every screen is a state of the same window:
 
 * home -> room -> folder -> track list -> playback
 * a list can be paged (25/50/100) with explicit previous/next rows
-* search is an in-window keyboard, results are paged, Back restores the keys
+* search is an in-window keyboard; Search/Favourites/Downloads/About rows and
+  actions come from :mod:`raveui.screens.library`
+* Live Radio rows, ON AIR state and the footer come from
+  :mod:`raveui.screens.live` and :mod:`raveui.nowplaying`
+* Spinning Surprise uses one pick policy from :mod:`raveui.surprise_pick`
 * a context menu (long-press OK) carries Play all / Shuffle / Download /
   Favourite / rows-per-page / Stop / Refresh
 * loading, empty and error states are painted plates, not modal dialogs
@@ -19,11 +23,21 @@ raises into Kodi: every failure becomes a quiet status line or a plate.
 """
 
 import threading
+import time
 from dataclasses import dataclass
 
+from . import nowplaying
 from .animation import FPS, MIN_DURATION, SpinnerAnimator
-from .data import (DEFAULT_PAGE_SIZE, PAGE_SIZES, SEARCH_SCOPES, SearchTarget,
+from .data import (DEFAULT_PAGE_SIZE, PAGE_SIZES, Entry, SearchTarget, Track,
                    _page_local)
+from .screens.library import (
+    ACTION_OPEN, ACTION_PLAY, ACTION_PLAY_ALL, ACTION_REMOVE, ACTION_RETRY,
+    ACTION_SHUFFLE, KIND_ACTION, KIND_ROOM, KIND_TRACK, LibraryScreens,
+    PluginBackend, ROUTE_ABOUT, ROUTE_DOWNLOADS, ROUTE_FAVOURITES,
+    ROUTE_SEARCH, ROUTES as LIBRARY_ROUTES, Screen, TITLES,
+)
+from .screens.live import LiveRadio
+from .surprise_pick import PackCache, from_plugin, pick_and_handoff
 from .tasks import TaskCancelled, TaskTimeout, ThreadTaskRunner
 
 HOME_TITLE = "RAVE SCREEN"
@@ -36,7 +50,7 @@ KEY_GROUPS = (
     ("S T U V W X Y Z".split(), "LETTERS"),
     ("0 1 2 3 4 5 6 7 8 9".split(), "DIGITS"),
 )
-KEY_ACTIONS = ("SPACE", "DELETE", "CLEAR", "SCOPE", "SEARCH NOW", "CANCEL")
+KEY_ACTIONS = ("SPACE", "DELETE", "CLEAR", "SEARCH NOW", "CANCEL")
 
 
 @dataclass
@@ -51,6 +65,7 @@ class _Frame:
     rows: list
     index: int
     keyboard: object = None
+    screen: object = None
 
 
 @dataclass
@@ -65,7 +80,10 @@ class _Plate:
 class RaveScreenController(object):
     def __init__(self, view, data, playback, *, animator_factory=None,
                  task_runner=None, sleep=None, clock=None, monitor=None,
-                 frames=None, logger=None, download_queue=None):
+                 frames=None, logger=None, download_queue=None,
+                 library=None, live=None, surprise_picker=None,
+                 surprise_cache=None, surprise_sleep=None,
+                 player_snapshot=None):
         self.view = view
         self.data = data
         self.playback = playback
@@ -103,6 +121,23 @@ class RaveScreenController(object):
         self._loading_cancel = threading.Event()
         self._loading_thread = None
         self._download_queue = download_queue
+        # One implementation per concern.  The screen modules own the four
+        # library rooms, Live Radio and the Surprise policy; the shell only
+        # adapts their rows and actions and keeps the navigation stack.
+        self._library_ui = library
+        self._live_ui = live
+        self._surprise_picker = surprise_picker
+        self._surprise_cache = surprise_cache or PackCache()
+        self._surprise_sleep = surprise_sleep
+        self._player_snapshot = player_snapshot
+        self._library_screen = None
+        self._footer = None
+        self._footer_at = None
+        self._surprise_played = False
+        try:
+            self.data.surprise_cache = self._surprise_cache
+        except Exception:  # noqa: BLE001 - read-only test double
+            pass
         try:
             self.data.rows_per_page = self._rows_per_page
         except Exception:  # noqa: BLE001 - read-only test double
@@ -122,6 +157,7 @@ class RaveScreenController(object):
         self._page_rows = list(rows)
         self._render(rows)
         self.view.set_status("")
+        self._paint_footer()
         self._trace("home rows=%d" % len(rows))
         return rows
 
@@ -190,6 +226,9 @@ class RaveScreenController(object):
         entry = self._selected()
         if entry is not None:
             self.view.set_hero(entry)
+            if not self._is_playing():
+                self._paint_footer(nowplaying.standby(
+                    room=entry.label, fact=getattr(entry, "fact", "")))
         return entry
 
     def on_horizontal(self, delta):
@@ -202,10 +241,6 @@ class RaveScreenController(object):
             return True
         row = self._selected_keyboard_row()
         if row is None:
-            return True
-        if getattr(row, "action", "") == "scope":
-            self._cycle_scope(1 if delta > 0 else -1)
-            self._render_keyboard()
             return True
         action = getattr(row, "action", "")
         if not str(action).startswith("char:"):
@@ -238,6 +273,17 @@ class RaveScreenController(object):
             self.view.set_status("Nothing selected.")
             return False
         kind = getattr(entry, "kind", "")
+        action = getattr(entry, "action", None)
+        if isinstance(action, dict):
+            # Live Radio rows are dicts from raveui.screens.live; the module
+            # owns play/stop and the shell only routes the action.
+            return self._run_live_action(entry, action)
+        if kind == "library_room":
+            return self._open_library_room(entry)
+        if kind == "library_track":
+            return self._run_library_play(entry)
+        if kind == "library_action":
+            return self._run_library_action(entry)
         if kind == "section":
             return self._load_target(getattr(entry, "target", "") or
                                      getattr(entry, "key", None), 1, push=True)
@@ -335,13 +381,22 @@ class RaveScreenController(object):
         """Remote Stop: the only explicit way this app stops audio."""
         if self._closed:
             return False
-        stopped = False
-        try:
-            stopped = bool(self.playback.stop())
-        except Exception:  # noqa: BLE001 - player unavailable
-            stopped = False
+        live = self._live_ui
+        if live is not None and live.on_air:
+            try:
+                stopped = bool(live.stop())
+            except Exception:  # noqa: BLE001 - player unavailable
+                stopped = False
+        else:
+            try:
+                stopped = bool(self.playback.stop())
+            except Exception:  # noqa: BLE001 - player unavailable
+                stopped = False
         self._playing_live = False
         self._call_view("set_live", False)
+        if self._target == "live":
+            self._paint_live_rows()
+        self._paint_footer(nowplaying.standby())
         self.view.set_status("Stopped." if stopped else "Nothing playing.")
         return stopped
 
@@ -351,6 +406,13 @@ class RaveScreenController(object):
             return False
         if self._plate is not None:
             self._clear_plate()
+        # The picker's single-play guard is reset for a new user gesture only.
+        # A retry inside one pick series (or Back then OK on the same plate) is
+        # explicitly *not* a new gesture.
+        picker = self._surprise_picker_for()
+        if picker is not None:
+            picker.guard.reset()
+        self._surprise_played = False
         self._busy = True
         self._surprising = True
         self._surprise_cancel.clear()
@@ -364,6 +426,24 @@ class RaveScreenController(object):
         worker.start()
         return True
 
+    def _surprise_picker_for(self):
+        """The one Surprise policy, wired to the plugin's latest/archive."""
+        if self._surprise_picker is not None:
+            return self._surprise_picker
+        modules = None
+        try:
+            modules = self.data.modules
+        except Exception as exc:  # noqa: BLE001 - missing plugin fails clearly
+            self._log("surprise: plugin unavailable: %s" % exc)
+        kwargs = {}
+        if self._surprise_sleep is not None:
+            kwargs["sleep"] = self._surprise_sleep
+        self._surprise_picker = from_plugin(
+            modules, cache=self._surprise_cache, logger=self._logger,
+            should_stop=lambda: self._closed or self._surprise_cancel.is_set(),
+            **kwargs)
+        return self._surprise_picker
+
     def surprise(self, prepared=False):
         """Pick one pack + track, spin for >=1.2s, then hand off once."""
         if self._closed:
@@ -372,45 +452,34 @@ class RaveScreenController(object):
             if not self._start_surprise():
                 return False
             return True
+        self._surprise_played = False
         try:
-            pick = self._task_runner.run(self.data.random_pick)
+            picker = self._surprise_picker_for()
+
+            def handoff(track):
+                # This runs inside pick_and_handoff's one-shot guard: it is
+                # tripped before this callback, so no path can play twice.
+                if not self._spin_surprise():
+                    return False
+                if self._handoff(track):
+                    self._surprise_played = True
+                    return True
+                return False
+
+            result = self._task_runner.run(
+                lambda: pick_and_handoff(
+                    picker, handoff, on_result=self._surprise_result))
             if self._closed or self._surprise_cancel.is_set():
                 return False
-            if pick is None:
-                reason = getattr(self.data, "last_surprise_reason", "") or \
-                    "the Archive returned no playable pack"
-                self._surprise_failed("NO PACK FOUND",
-                                      "The random pick found nothing. %s" % reason,
-                                      retry=True)
+            if not result:
+                if getattr(result, "cancelled", False):
+                    return False
+                self._surprise_failed(
+                    "NO PACK FOUND",
+                    getattr(result, "message", "") or
+                    "The random pick found nothing.", retry=True)
                 return False
-            self.view.set_spinner_label("RANDOM PACK · RP-02")
-            if not self._frames:
-                self._surprise_failed("ART UNAVAILABLE",
-                                      "The spinning-head frames are missing; "
-                                      "playback was not started.", retry=False)
-                return False
-            animator = self._animator_factory(
-                frames=self._frames,
-                set_image=self.view.set_spinner_image,
-                duration=MIN_DURATION,
-                fps=FPS,
-                sleep=self._sleep_ms,
-                clock=self._clock,
-                cancelled=lambda: self._closed or self._surprise_cancel.is_set(),
-            )
-            try:
-                completed = animator.run()
-            except Exception as exc:  # noqa: BLE001 - dead control / bad frame
-                completed = False
-                self._log("surprise animation failed: %s" % exc)
-            if self._closed or self._surprise_cancel.is_set():
-                return False
-            if not completed:
-                self._surprise_failed("REVEAL FAILED",
-                                      "The spin could not finish; playback was "
-                                      "not started.", retry=True)
-                return False
-            return self._handoff(pick)
+            return self._surprise_played
         except TaskCancelled:
             return False
         except TaskTimeout as exc:
@@ -429,6 +498,44 @@ class RaveScreenController(object):
             self._hide_splash()
             self._surprising = False
             self._busy = False
+
+    def _surprise_result(self, result):
+        """Status line while the worker owns the pick; failures wait for the plate."""
+        if result is None or getattr(result, "cancelled", False):
+            return
+        if result:
+            self.view.set_status("Random pack: %s" % result.title)
+
+    def _spin_surprise(self):
+        """The one >=1.2 s reveal.  False means playback must not start."""
+        self.view.set_spinner_label("RANDOM PACK · RP-02")
+        if not self._frames:
+            self._surprise_failed("ART UNAVAILABLE",
+                                  "The spinning-head frames are missing; "
+                                  "playback was not started.", retry=False)
+            return False
+        animator = self._animator_factory(
+            frames=self._frames,
+            set_image=self.view.set_spinner_image,
+            duration=MIN_DURATION,
+            fps=FPS,
+            sleep=self._sleep_ms,
+            clock=self._clock,
+            cancelled=lambda: self._closed or self._surprise_cancel.is_set(),
+        )
+        try:
+            completed = animator.run()
+        except Exception as exc:  # noqa: BLE001 - dead control / bad frame
+            completed = False
+            self._log("surprise animation failed: %s" % exc)
+        if self._closed or self._surprise_cancel.is_set():
+            return False
+        if not completed:
+            self._surprise_failed("REVEAL FAILED",
+                                  "The spin could not finish; playback was "
+                                  "not started.", retry=True)
+            return False
+        return True
 
     def _surprise_failed(self, title, detail, retry=True):
         self._hide_splash()
@@ -465,6 +572,10 @@ class RaveScreenController(object):
         text = getattr(result, "text", None) or "Now playing: %s" % track.title
         self.view.set_now_playing(text)
         self.view.set_status("%s · Back leaves audio playing" % text)
+        self._paint_footer(nowplaying.playing(
+            getattr(track, "title", "") or "Untitled",
+            artist=getattr(track, "pack", "") or "",
+            live=is_live))
         self._trace("play %s live=%s" % (getattr(track, "url", ""), is_live))
         return True
 
@@ -513,6 +624,9 @@ class RaveScreenController(object):
         text = getattr(result, "text", None) or "Queued %d tracks" % len(tracks)
         self.view.set_now_playing(text)
         self.view.set_status("%s · Back leaves audio playing" % text)
+        first = getattr(tracks[0], "title", "") or "Untitled"
+        self._paint_footer(nowplaying.playing(
+            first, album="%d tracks" % len(tracks)))
         self._trace("queue %d shuffle=%s" % (len(tracks), shuffle))
         return True
 
@@ -551,6 +665,13 @@ class RaveScreenController(object):
     def _load_target(self, target, page=1, push=True):
         if self._closed or self._busy:
             return False
+        if isinstance(target, SearchTarget):
+            return self._load_library_search(target.query, page, push=push)
+        if isinstance(target, str):
+            if target == "live":
+                return self._open_live_room(push=push)
+            if target in LIBRARY_ROUTES:
+                return self._load_library_screen(target, page, push=push)
         self._busy = True
         label = self._label_for(target)
         self._start_loading("PLEASE WAIT", "Loading %s…" % label)
@@ -590,6 +711,452 @@ class RaveScreenController(object):
         self._trace("loaded %r page=%s/%s rows=%s total=%s" %
                     (target, self._page, self._pages, len(self._rows), self._total))
         return True
+
+    # ------------------------------------------------- module-owned rooms
+    def _library_handlers(self):
+        """The one library-screen implementation, lazily wired to the plugin."""
+        if self._library_ui is None:
+            modules = None
+            try:
+                modules = self.data.modules
+            except Exception as exc:  # noqa: BLE001 - plugin missing is a plate
+                self._log("library: plugin unavailable: %s" % exc)
+            self._library_ui = LibraryScreens(
+                backend=PluginBackend(modules=modules),
+                playback=None,  # the controller keeps the single playback path
+                logger=self._logger)
+        return self._library_ui
+
+    def _load_library_screen(self, route, page=1, push=True):
+        handlers = self._library_handlers()
+        route = route if route in LIBRARY_ROUTES else ROUTE_SEARCH
+        if route == ROUTE_SEARCH:
+            return self._load_library_search("", page, push=push)
+        function = {
+            ROUTE_FAVOURITES: lambda: handlers.favourites(page),
+            ROUTE_DOWNLOADS: lambda: handlers.downloads(page),
+            ROUTE_ABOUT: lambda: handlers.about(),
+        }.get(route, lambda: handlers.favourites(page))
+        return self._run_library(route, "", page, push, function)
+
+    def _load_library_search(self, query, page=1, push=True):
+        query = " ".join(str(query or "").split())
+        handlers = self._library_handlers()
+        return self._run_library(
+            ROUTE_SEARCH, query, page, push,
+            lambda: handlers.search(query, page))
+
+    def _run_library(self, route, query, page, push, function):
+        """Paint a library loading plate, run its handler, then adopt the Screen."""
+        if self._closed or self._busy:
+            return False
+        self._busy = True
+        label = TITLES.get(route, route or "library").title()
+        self._start_loading("PLEASE WAIT", "Loading %s…" % label)
+        try:
+            screen = self._task_runner.run(function)
+        except TaskCancelled:
+            return False
+        except TaskTimeout as exc:
+            self._show_error(
+                "SOURCE TIMEOUT",
+                "%s took too long to answer. Try again." % label,
+                retry=lambda: self._run_library(route, query, page, push, function))
+            self._log("library timeout for %r: %s" % (route, exc))
+            return False
+        except Exception as exc:  # noqa: BLE001 - never crash the window
+            self._show_error(
+                "SOURCE ERROR", "Could not load %s: %s" % (label, exc),
+                retry=lambda: self._run_library(route, query, page, push, function))
+            self._log("library load failed for %r: %s" % (route, exc))
+            return False
+        finally:
+            self._busy = False
+            self._finish_loading()
+        if self._closed:
+            return False
+        if not isinstance(screen, Screen):
+            self._show_error("SCREEN ERROR",
+                             "%s returned no screen." % label)
+            return False
+        if push:
+            self._push_current()
+        self._paint_library_screen(screen, route, query)
+        self._trace("library %s page=%s/%s rows=%s total=%s state=%s" % (
+            route, screen.page, screen.pages, len(screen.rows),
+            screen.total, screen.state))
+        return screen.is_ready
+
+    def _paint_library_screen(self, screen, route, query=""):
+        rows = [self._adopt_row(row) for row in screen.rows]
+        self._library_screen = screen
+        self._target = (SearchTarget(query)
+                        if route == ROUTE_SEARCH and query else route)
+        self._title = screen.title
+        self._subtitle = screen.subtitle
+        self._page = max(1, int(getattr(screen, "page", 1) or 1))
+        self._pages = max(1, int(getattr(screen, "pages", 1) or 1))
+        self._total = max(0, int(getattr(screen, "total", 0) or 0))
+        self._rows_per_page = max(1, int(
+            getattr(screen, "page_size", DEFAULT_PAGE_SIZE) or DEFAULT_PAGE_SIZE))
+        self._page_has_next = bool(getattr(screen, "has_next", False))
+        self._page_rows = rows
+        self._view_kind = "list"
+        index = 1 if (screen.has_previous and rows) else 0
+        self._render_page(index=index)
+        if screen.has_error:
+            self.view.set_status(screen.error or "Could not load this room.")
+        elif screen.is_empty:
+            self.view.set_status(screen.subtitle or "")
+        self._paint_footer()
+
+    def _reload_library(self):
+        screen = self._library_screen
+        if screen is None:
+            return False
+        if screen.route == ROUTE_SEARCH:
+            return self._load_library_search(screen.query, self._page, push=False)
+        return self._load_library_screen(screen.route, self._page, push=False)
+
+    def _run_library_play(self, entry):
+        result = self._library_handlers().play(entry)
+        if not result.ok:
+            self.view.set_status(result.message)
+            return False
+        if result.track is None:
+            self.view.set_status("That row has no playable stream.")
+            return False
+        return self._handoff(result.track)
+
+    def _run_library_action(self, entry):
+        action = str(getattr(entry, "action", "") or "")
+        if action == ACTION_PLAY:
+            return self._run_library_play(entry)
+        if action == ACTION_REMOVE:
+            result = self._library_handlers().remove(entry)
+            self.view.set_status(result.message)
+            if result.ok and self._target in (ROUTE_FAVOURITES,
+                                              ROUTE_DOWNLOADS):
+                return self._reload_library()
+            return bool(result.ok)
+        if action == ACTION_RETRY:
+            return self._retry_library(entry)
+        if action == ACTION_OPEN:
+            url = str((getattr(entry, "payload", None) or {}).get("url") or "")
+            self.view.set_status(
+                "Source: %s" % url if url else "Read-only credit — Back returns.")
+            return False
+        return False
+
+    def _retry_library(self, entry):
+        payload = dict(getattr(entry, "payload", None) or {})
+        route = str(payload.get("route") or "")
+        query = str(payload.get("query") or "")
+        page = int(payload.get("page") or 1)
+        if route not in LIBRARY_ROUTES:
+            return False
+        handlers = self._library_handlers()
+        return self._run_library(
+            route, query, page, False,
+            lambda: handlers.retry(entry))
+
+    def _open_library_room(self, entry):
+        """Map a library room payload onto the shell's existing room routes."""
+        payload = dict(getattr(entry, "payload", None) or {})
+        mode = str(payload.get("mode") or "")
+        title = getattr(entry, "label", "") or "Untitled"
+        base = dict(
+            subtitle=getattr(entry, "subtitle", "") or "",
+            art=getattr(entry, "art", "") or "",
+            hero=getattr(entry, "hero", "") or getattr(entry, "art", "") or "",
+            fact=getattr(entry, "fact", "") or "",
+            code=getattr(entry, "code", "") or "",
+            plot=getattr(entry, "plot", "") or title,
+        )
+        if mode == "archive_item":
+            identifier = str(payload.get("identifier") or payload.get("target") or "")
+            if not identifier:
+                self.view.set_status("That pack has no identifier.")
+                return False
+            target = Entry(key=identifier, label=title, kind="pack",
+                           source="latest", target=identifier, **base)
+        elif mode == "legacy_pack":
+            key = str(payload.get("pack") or payload.get("target") or "")
+            if not key:
+                return False
+            target = Entry(key="library-pack-%s" % key, label=title,
+                           kind="pack", source="ravetapepacks", target=key,
+                           **base)
+        elif mode == "legacy_post":
+            key = str(payload.get("post") or payload.get("target") or "")
+            if not key:
+                return False
+            target = Entry(key="library-post-%s" % key, label=title,
+                           kind="rtp_post", source="ravetapepacks", target=key,
+                           **base)
+        elif mode == "legacy_jt_show":
+            key = str(payload.get("key") or payload.get("target") or "")
+            if not key:
+                return False
+            target = Entry(key="library-jt-%s" % key, label=title,
+                           kind="show", source="jungletapes", target=key,
+                           **base)
+        elif mode == "dnb_play":
+            show_id = str(payload.get("id") or payload.get("target") or "")
+            if not show_id:
+                return False
+            target = Entry(key="library-dnb-%s" % show_id, label=title,
+                           kind="dnb_show", source="dnb", target=show_id,
+                           **base)
+        elif mode == "handoff":
+            link = str(payload.get("target") or "")
+            path = ""
+            try:
+                path = str(self.data.modules.handoff.target(link, title) or "")
+            except Exception as exc:  # noqa: BLE001 - no matching add-on
+                self._log("library hand-off failed for %s: %s" % (link, exc))
+            if not link or not path:
+                self.view.set_status("That link has no matching Kodi add-on.")
+                return False
+            target = Entry(
+                key="library-external-%s" % link, label=title, kind="external",
+                source="handoff", target=link,
+                track=Track(title, str(payload.get("platform") or "add-on"),
+                            link, getattr(entry, "art", "") or "",
+                            source="handoff", path=path), **base)
+        else:
+            self.view.set_status("That saved row cannot be opened.")
+            return False
+        return self._load_target(target, 1, push=True)
+
+    # --------------------------------------------------------------- live
+    def _live_radio(self):
+        """The one Live Radio implementation, wired to the controller handoff."""
+        if self._live_ui is None:
+            modules = None
+            art_root = None
+            try:
+                modules = self.data.modules
+                art_root = self.data.root
+            except Exception as exc:  # noqa: BLE001 - fallback URLs still render
+                self._log("live: plugin unavailable: %s" % exc)
+            self._live_ui = LiveRadio(
+                modules=modules, playback=_LiveHandoff(self),
+                stopper=self._stop_player, art_root=art_root,
+                logger=self._logger)
+        elif getattr(self._live_ui, "playback", None) is None:
+            # An injected screen still plays through the controller's one
+            # handoff path; the live module never owns a second player.
+            self._live_ui.playback = _LiveHandoff(self)
+        if getattr(self._live_ui, "stopper", None) is None:
+            self._live_ui.stopper = self._stop_player
+        return self._live_ui
+
+    def _stop_player(self):
+        try:
+            return bool(self.playback.stop())
+        except Exception:  # noqa: BLE001 - player unavailable
+            return False
+
+    def _open_live_room(self, push=True):
+        if self._closed or self._busy:
+            return False
+        live = self._live_radio()
+        if push:
+            self._push_current()
+        self._target = "live"
+        self._title = "LIVE RADIO"
+        self._subtitle = "Kool FM · Rinse FM · Centreforce · pirate"
+        rows = [self._adopt_row(row) for row in live.rows()]
+        self._page = 1
+        self._pages = 1
+        self._total = len(rows)
+        self._page_has_next = False
+        self._page_rows = rows
+        self._view_kind = "list"
+        self._render_page(index=0)
+        self.view.set_status(live.status or "STANDBY")
+        self._paint_footer(live.footer())
+        self._trace("live rows=%d" % len(rows))
+        return True
+
+    def _paint_live_rows(self, index=0):
+        live = self._live_ui
+        if live is None:
+            return
+        rows = [self._adopt_row(row) for row in live.rows()]
+        self._rows = rows
+        self._page_rows = rows
+        self._total = len(rows)
+        self._render_page(index=max(0, min(int(index or 0), len(rows) - 1))
+                          if rows else 0)
+
+    def _run_live_action(self, entry, action):
+        action_type = str(action.get("type") or "")
+        if action_type == "open" and action.get("source") == "pirate":
+            return self._open_pirate_room(entry)
+        live = self._live_radio()
+        ok = live.perform(action)
+        self.view.set_status(live.status)
+        if self._target == "live":
+            self._paint_live_rows(index=self._current_index())
+        self._paint_footer(live.footer())
+        return bool(ok)
+
+    def _open_pirate_room(self, entry):
+        art = getattr(entry, "art", "") or ""
+        target = Entry(
+            key="pirate_source", label="Pirate Radio Archives",
+            subtitle="1990s pirate-radio recordings", art=art,
+            kind="folder", source="pirate_source", target="pirate_source",
+            hero=art, fact="1990s", code="RP-32",
+            plot="Curated 1990s pirate-radio recordings")
+        return self._load_target(target, 1, push=True)
+
+    # ------------------------------------------------------- row normalisation
+    def _adopt_row(self, row):
+        """One normalisation for library Rows, live dicts and shell Entries."""
+        if isinstance(row, Entry):
+            return row
+        payload = getattr(row, "payload", None)
+        if isinstance(payload, dict):
+            return self._adopt_library_row(row, payload)
+        if isinstance(row, dict):
+            return self._adopt_live_row(row)
+        # Generic duck row: never crash on a foreign row shape.
+        return _EntryLike(
+            key=str(getattr(row, "key", "") or ""),
+            label=str(getattr(row, "label", "") or getattr(row, "title", "")),
+            subtitle=str(getattr(row, "subtitle", "") or ""),
+            art=str(getattr(row, "art", "") or getattr(row, "icon", "")),
+            kind=str(getattr(row, "kind", "") or ""),
+            target=str(getattr(row, "target", "") or ""),
+            hero=str(getattr(row, "hero", "") or ""),
+            fact=str(getattr(row, "fact", "") or ""),
+            code=str(getattr(row, "code", "") or ""),
+            plot=str(getattr(row, "plot", "") or ""),
+            meta=str(getattr(row, "meta", "") or ""))
+
+    def _adopt_library_row(self, row, payload):
+        payload = dict(payload or {})
+        kind = {
+            KIND_ROOM: "library_room",
+            KIND_TRACK: "library_track",
+            KIND_ACTION: "library_action",
+        }.get(str(getattr(row, "kind", "") or ""), "library_action")
+        art = str(getattr(row, "icon", "") or getattr(row, "art", "") or "")
+        hero = str(getattr(row, "fanart", "") or
+                   getattr(row, "hero", "") or art)
+        subtitle = str(getattr(row, "subtitle", "") or
+                       payload.get("source") or payload.get("mode") or "")
+        plot = str(getattr(row, "plot", "") or subtitle)
+        target = str(payload.get("identifier") or payload.get("target") or
+                     payload.get("url") or getattr(row, "label", ""))
+        fact = str(getattr(row, "fact", "") or "")
+        code = str(getattr(row, "code", "") or "")
+        meta = "%s · %s" % (fact, code) if fact and code else (fact or code)
+        return _EntryLike(
+            key="library-%s" % target,
+            label=str(getattr(row, "label", "") or ""),
+            subtitle=subtitle,
+            art=art,
+            kind=kind,
+            source="library",
+            target=target,
+            hero=hero,
+            fact=fact,
+            code=code,
+            plot=plot,
+            meta=meta,
+            payload=payload,
+            action=str(getattr(row, "action", "") or ""))
+
+    def _adopt_live_row(self, row):
+        row = dict(row or {})
+        title = str(row.get("title") or "")
+        fact = str(row.get("fact") or "")
+        code = str(row.get("code") or "")
+        action = row.get("action")
+        action = dict(action) if isinstance(action, dict) else {}
+        art = str(row.get("art") or "")
+        kind = str(row.get("kind") or "station")
+        target = str(action.get("station") or action.get("target") or title)
+        subtitle = ("Live radio · no duration" if kind == "station"
+                    else "Pirate Radio Archives")
+        meta = "%s · %s" % (fact, code) if fact and code else (fact or code)
+        return _EntryLike(
+            key="live-%s" % target, label=title, subtitle=subtitle,
+            art=art, kind=kind, source="live", target=target, hero=art,
+            fact=fact, code=code, plot=subtitle, meta=meta,
+            action=action)
+
+    # ------------------------------------------------------------- footer
+    def _paint_footer(self, footer=None):
+        if footer is None:
+            footer = self._footer_for_current()
+        self._footer = footer
+        self._footer_at = time.monotonic()
+        self._call_view("set_footer", footer)
+
+    def _footer_for_current(self):
+        if self._live_ui is not None and self._live_ui.on_air:
+            return self._live_ui.footer()
+        if (self._footer is not None and self._footer.has_media
+                and self._is_playing()):
+            return self._footer
+        entry = self._selected()
+        if entry is None:
+            return nowplaying.standby()
+        return nowplaying.standby(room=getattr(entry, "label", ""),
+                                  fact=getattr(entry, "fact", ""))
+
+    def tick(self):
+        """Refresh the footer at ~1 Hz; the window's idle loop calls this."""
+        if self._closed:
+            return
+        now = time.monotonic()
+        if self._footer_at is not None and now - self._footer_at < 0.9:
+            return
+        snapshot = self._read_player_snapshot()
+        if self._live_ui is not None and self._live_ui.on_air:
+            paused = bool(snapshot and snapshot.get("paused"))
+            if paused != self._live_ui.paused:
+                self._live_ui.set_paused(paused)
+                if self._target == "live":
+                    self._paint_live_rows(index=self._current_index())
+            self._paint_footer(self._live_ui.footer())
+            return
+        if not snapshot:
+            if (self._footer is not None and self._footer.has_media
+                    and not self._is_playing()):
+                self._paint_footer()
+            return
+        self._paint_footer(nowplaying.from_player(
+            snapshot, live=self._playing_live))
+
+    def _read_player_snapshot(self):
+        if self._player_snapshot is not None:
+            try:
+                return self._player_snapshot()
+            except Exception:  # noqa: BLE001 - a probe is advisory
+                return None
+        try:
+            import xbmc
+
+            player = xbmc.Player()
+            if not player.isPlaying():
+                return None
+            return {
+                "title": xbmc.getInfoLabel("Player.Title"),
+                "artist": xbmc.getInfoLabel("Player.Artist"),
+                "album": xbmc.getInfoLabel("Player.Album"),
+                "elapsed": player.getTime(),
+                "duration": player.getTotalTime(),
+                "paused": bool(xbmc.getCondVisibility("Player.Paused")),
+                "playing": True,
+            }
+        except Exception:  # noqa: BLE001 - outside Kodi / player not ready
+            return None
 
     def _load_page(self, target, page):
         if hasattr(self.data, "load"):
@@ -727,6 +1294,7 @@ class RaveScreenController(object):
         self.view.set_status("")
         self._call_view("set_key_hints", "OPEN", "BACK")
         self._call_view("set_live", self._playing_live)
+        self._paint_footer()
 
     def _render(self, rows, index=0):
         """Compatibility renderer used by ``start`` and restored frames."""
@@ -744,6 +1312,7 @@ class RaveScreenController(object):
         self._call_view("set_page_info", self._page_info())
         self._call_view("set_key_hints", "OPEN", "BACK")
         self._call_view("set_live", self._playing_live)
+        self._paint_footer()
 
     def _set_rows(self, rows, index):
         setter = self.view.set_rows
@@ -800,16 +1369,7 @@ class RaveScreenController(object):
         if target is None or target == "":
             return self._home_subtitle()
         if isinstance(target, SearchTarget):
-            scope = dict((key, label) for key, label, _p in SEARCH_SCOPES).get(
-                target.scope, "Tape packs")
-            total = max(0, int(getattr(page_obj, "total", 0) or 0))
-            page = max(1, int(getattr(page_obj, "page", 1) or 1))
-            pages = max(0, int(getattr(page_obj, "pages", 0) or 0))
-            if pages > 1 and total:
-                return _clip("“%s” · %s · p%d/%d" % (
-                    target.query, scope, page, pages), 40)
-            return _clip("“%s” · %s · %s results" % (
-                target.query, scope, _thousands(total)), 40)
+            return _clip("“%s” · Tape packs" % target.query, 40)
         base = getattr(target, "subtitle", "") or ""
         return self._paged_subtitle(base, page_obj)
 
@@ -834,13 +1394,12 @@ class RaveScreenController(object):
         return _clip(base, 40) if base else ""
 
     # ---------------------------------------------------------------- keyboard
-    def _open_keyboard(self, query="", scope="archive"):
+    def _open_keyboard(self, query=""):
         if self._closed or self._busy:
             return False
         self._push_current()
         self._view_kind = "keyboard"
-        self._keyboard = {"query": str(query or ""), "scope": scope,
-                          "row": 0, "cols": {}}
+        self._keyboard = {"query": str(query or ""), "row": 0, "cols": {}}
         self._render_keyboard()
         return True
 
@@ -853,9 +1412,7 @@ class RaveScreenController(object):
         selected = max(0, min(selected, len(rows) - 1)) if rows else 0
         self._rows = rows
         self._title = "SEARCH"
-        scope_label = dict((key, label) for key, label, _p in SEARCH_SCOPES).get(
-            (self._keyboard or {}).get("scope", "archive"), "Tape packs")
-        self._subtitle = "Scope: %s · OK types · long-press OK actions" % scope_label
+        self._subtitle = "Tape packs · OK types · search now to run"
         self.view.set_title(self._title)
         self.view.set_subtitle(_clip(self._subtitle, 40))
         self._set_rows(rows, selected)
@@ -888,14 +1445,7 @@ class RaveScreenController(object):
                 fact=fact, code="KEY", plot="In-window keyboard",
                 meta="%s · RP-33" % fact))
         for action_index, action in enumerate(KEY_ACTIONS):
-            if action == "SCOPE":
-                scope_label = dict(
-                    (key, label) for key, label, _p in SEARCH_SCOPES).get(
-                        (keyboard.get("scope") or "archive"), "Tape packs")
-                label = "SCOPE: %s  ›" % scope_label
-                target = "scope"
-                fact = "CHANGE"
-            elif action == "SEARCH NOW":
+            if action == "SEARCH NOW":
                 label = "SEARCH NOW"
                 target = "search"
                 fact = "GO"
@@ -949,25 +1499,11 @@ class RaveScreenController(object):
             self._keyboard["query"] = ""
             self._render_keyboard()
             return True
-        if action == "scope":
-            self._cycle_scope(1)
-            self._render_keyboard()
-            return True
         if action == "search":
             return self._submit_search()
         if action == "cancel":
             return self.on_back()
         return False
-
-    def _cycle_scope(self, delta):
-        if self._keyboard is None:
-            return
-        keys = [key for key, _label, _plot in SEARCH_SCOPES]
-        try:
-            index = keys.index(self._keyboard.get("scope", "archive"))
-        except ValueError:
-            index = 0
-        self._keyboard["scope"] = keys[(index + delta) % len(keys)]
 
     def _submit_search(self):
         query = " ".join(str(self._keyboard.get("query", "")).split())
@@ -975,16 +1511,49 @@ class RaveScreenController(object):
             self.view.set_status("Type a search first — letters, digits or SPACE.")
             return False
         self._push_current()
-        target = SearchTarget(query, self._keyboard.get("scope", "archive"))
-        return self._load_target(target, 1, push=False)
+        return self._load_library_search(query, 1, push=False)
 
     # ----------------------------------------------------------------- context
     def _build_context(self, entry):
         kind = getattr(entry, "kind", "")
         actions = []
+        payload = getattr(entry, "payload", None)
+        if isinstance(payload, dict) and payload.get("action") in (
+                ACTION_REMOVE, ACTION_RETRY, ACTION_OPEN):
+            mapped = str(payload.get("action"))
+            labels = {
+                ACTION_REMOVE: ("Remove", "DELETE", "Remove this saved row"),
+                ACTION_RETRY: ("Retry", "AGAIN", "Run this room again"),
+                ACTION_OPEN: ("Source link", "OPEN", "Show the source URL"),
+            }
+            label, fact, plot = labels[mapped]
+            actions.append({"action": "library_" + mapped, "label": label,
+                            "fact": fact, "plot": plot})
+        if kind in ("library_room", "library_track"):
+            if kind == "library_room":
+                actions.append({"action": "open", "label": "Open",
+                                "fact": "OPEN", "plot": "Open this row"})
+            else:
+                actions.append({"action": "play", "label": "Play",
+                                "fact": "PLAY", "plot": "Play this row"})
+            if self._library_has_tracks():
+                actions.append({"action": "play_all", "label": "Play all",
+                                "fact": "QUEUE",
+                                "plot": "Queue this page's playable rows"})
+                actions.append({"action": "shuffle_all", "label": "Shuffle all",
+                                "fact": "RANDOM",
+                                "plot": "Queue this page's playable rows shuffled"})
+            if isinstance(payload, dict) and (
+                    payload.get("favourite_key") or payload.get("download_key")):
+                actions.append({"action": "library_remove", "label": "Remove",
+                                "fact": "REMOVE", "plot": "Remove this saved row"})
+        if (kind in ("station", "section")
+                and isinstance(getattr(entry, "action", None), dict)):
+            actions.append({"action": "live", "label": "Play / stop",
+                            "fact": "LIVE", "plot": "Play or stop this station"})
         if kind in ("section", "pack", "genre", "show", "rtp_index", "rtp_post",
                     "rtp_category", "feed", "folder", "hardscore_post",
-                    "live_genre", "download_missing"):
+                    "download_missing") and not isinstance(payload, dict):
             actions.append({"action": "open", "label": "Open",
                             "fact": "OPEN", "plot": "Open this row"})
         collection = self._collection_target(entry)
@@ -1037,6 +1606,16 @@ class RaveScreenController(object):
         self._pop()
         if subject is None:
             return False
+        subject_kind = getattr(subject, "kind", "")
+        if subject_kind.startswith("library_"):
+            return self._library_context(action, subject)
+        if subject_kind in ("station", "section") and isinstance(
+                getattr(subject, "action", None), dict):
+            if action == "live":
+                return self._run_live_action(subject, dict(subject.action))
+            if action == "refresh":
+                return self._open_live_room(push=False)
+            return False
         if action == "open":
             return self._load_target(subject, 1, push=True)
         if action == "play":
@@ -1073,6 +1652,68 @@ class RaveScreenController(object):
         if action == "refresh":
             return self._reload_current(keep_index=True)
         return False
+
+    def _library_has_tracks(self):
+        screen = self._library_screen
+        if screen is None:
+            return False
+        return any(getattr(row, "kind", "") == KIND_TRACK for row in screen.rows)
+
+    def _library_context(self, action, subject):
+        if action == "open":
+            return self._open_library_room(subject)
+        if action in ("play", "library_play"):
+            if getattr(subject, "kind", "") == "library_track":
+                return self._run_library_play(subject)
+            return self._run_library_action(subject)
+        if action == "library_remove":
+            result = self._library_handlers().remove(subject)
+            self.view.set_status(result.message)
+            if result.ok:
+                return self._reload_library()
+            return False
+        if action == "library_retry":
+            return self._retry_library(subject)
+        if action == "library_open":
+            url = str((getattr(subject, "payload", None) or {}).get("url") or "")
+            self.view.set_status(
+                "Source: %s" % url if url else "Read-only credit — Back returns.")
+            return False
+        if action == "refresh":
+            return self._reload_library()
+        if action in ("play_all", "shuffle_all"):
+            screen = self._library_screen
+            if screen is None:
+                return False
+            shuffle = action == "shuffle_all"
+            handlers = self._library_handlers()
+            result = (handlers.shuffle(screen) if shuffle
+                      else handlers.play_all(screen))
+            return self._queue_library(result, shuffle)
+        return False
+
+    def _queue_library(self, result, shuffle=False):
+        tracks = list(getattr(result, "tracks", ()) or ())
+        if not tracks:
+            self.view.set_status(getattr(result, "message", "") or
+                                 "Nothing to play on this page.")
+            return False
+        try:
+            self.playback.play_collection(tracks, shuffle=shuffle)
+        except Exception as exc:  # noqa: BLE001 - quiet failure
+            self.view.set_status("Could not queue those tracks — see the log.")
+            self._log("library play_all failed: %s" % exc)
+            return False
+        self._handed_off = True
+        self._playing_live = False
+        self._call_view("set_live", False)
+        message = getattr(result, "message", "") or "Queued %d tracks" % len(tracks)
+        self.view.set_now_playing(message)
+        self.view.set_status("%s · Back leaves audio playing" % message)
+        self._paint_footer(nowplaying.playing(
+            getattr(tracks[0], "title", "") or "Untitled",
+            album="%d tracks" % len(tracks)))
+        return True
 
     def _cycle_rows_per_page(self):
         sizes = list(PAGE_SIZES)
@@ -1192,7 +1833,8 @@ class RaveScreenController(object):
             total=self._total,
             rows=list(self._rows),
             index=self._current_index(),
-            keyboard=dict(self._keyboard) if self._keyboard is not None else None))
+            keyboard=dict(self._keyboard) if self._keyboard is not None else None,
+            screen=self._library_screen if self._view_kind == "list" else None))
 
     def _pop(self):
         if self._stack:
@@ -1210,6 +1852,7 @@ class RaveScreenController(object):
         self._page_rows = list(frame.rows)
         self._rows = list(frame.rows)
         self._keyboard = frame.keyboard
+        self._library_screen = frame.screen
         self._view_kind = frame.kind
         if frame.kind == "keyboard" and self._keyboard is not None:
             self._render_keyboard()
@@ -1281,19 +1924,34 @@ class RaveScreenController(object):
             pass
 
 
+class _LiveHandoff(object):
+    """Playback port for ``LiveRadio``: every play goes through the controller."""
+
+    def __init__(self, controller):
+        self.controller = controller
+
+    def play(self, track):
+        if not self.controller._handoff(track):
+            raise RuntimeError("live handoff failed")
+        return True
+
+    def stop(self):
+        return self.controller._stop_player()
+
+
 class _EntryLike(object):
     """Minimal row object for navigation/keyboard/action rows."""
 
     __slots__ = ("key", "label", "subtitle", "art", "kind", "source", "target",
                  "track", "hero", "fact", "code", "plot", "meta", "year",
                  "genre", "duration", "download_source", "downloadable",
-                 "fav_key", "action", "chars")
+                 "fav_key", "action", "chars", "payload")
 
     def __init__(self, key="", label="", subtitle="", art="", kind="",
                  source="", target="", track=None, hero="", fact="", code="",
                  plot="", meta="", year="", genre="", duration="",
                  download_source="", downloadable=False, fav_key="",
-                 action="", chars=None):
+                 action="", chars=None, payload=None):
         self.key = key
         self.label = label
         self.subtitle = subtitle
@@ -1315,6 +1973,7 @@ class _EntryLike(object):
         self.fav_key = fav_key
         self.action = action
         self.chars = list(chars or [])
+        self.payload = dict(payload) if isinstance(payload, dict) else None
 
 
 def _clip(text, limit):

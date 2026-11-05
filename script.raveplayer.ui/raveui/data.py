@@ -10,9 +10,15 @@ Rooms are ordinary paged collections.  The controller owns paging mechanics
 (previous/next rows, 25/50/100), focus and Back; this module only knows how to
 produce one page for a target:
 
-* a room key (``latest``, ``toronto`` ... ``about``)
+* a shell room key (``latest``, ``toronto``, ``jungletapes``,
+  ``ravetapepacks``, ``mixes``)
 * an ``Entry`` folder (pack / genre / show / RTP index / post / feed ...)
-* a :class:`SearchTarget` (query + scope)
+
+Search, Favourites, Downloads and About are owned by
+:mod:`raveui.screens.library`; Live Radio by :mod:`raveui.screens.live`;
+Spinning Surprise by :mod:`raveui.surprise_pick`.  :class:`SearchTarget` is
+still the shell's navigation marker, but reaching it here is a programming
+error: the library module owns that request.
 
 Network work happens only when the controller asks for a page; opening the
 window is static.  No notification, dialog or warning is raised here: a source
@@ -22,7 +28,6 @@ STANDBY/ERROR plate quietly (owner rule: no RTP warnings).
 
 import hashlib
 import os
-import random as _random
 import xml.etree.ElementTree as _ET
 from dataclasses import dataclass
 
@@ -37,13 +42,6 @@ MAX_FACT_CHARS = 16
 ROOM_ORDER = (
     "latest", "toronto", "jungletapes", "ravetapepacks", "live", "mixes",
     "search", "favourites", "downloads", "about", "surprise",
-)
-
-SEARCH_SCOPES = (
-    ("archive", "Tape packs", "Internet Archive · relevance"),
-    ("jungletapes", "JungleTapes", "cassette shows"),
-    ("live", "Live radio", "stations on air now"),
-    ("favourites", "Favourites", "the sets you saved"),
 )
 
 # Plugin download source labels (resources/lib/downloads.py ALLOWED_SOURCES).
@@ -129,13 +127,13 @@ class Page:
 
 @dataclass(frozen=True)
 class SearchTarget:
-    query: str
-    scope: str = "archive"
+    """The one Search room's query, handed to ``raveui.screens.library``.
 
-    @property
-    def label(self):
-        return dict((key, label) for key, label, _plot in SEARCH_SCOPES).get(
-            self.scope, "Tape packs")
+    The screen module owns the Archive scope and paging policy, so the shell
+    target carries no scope of its own: there is one Search implementation.
+    """
+
+    query: str
 
 
 def _text(value, fallback=""):
@@ -242,12 +240,11 @@ class RaveData(object):
     """Adapter over the plugin modules. Lazily imports them on first data use."""
 
     def __init__(self, modules=None, addon_factory=None, root=None,
-                 random_module=None, script_root=None, download_queue=None,
+                 script_root=None, download_queue=None,
                  screen_version="", plugin_version=""):
         self._modules = modules
         self._addon_factory = addon_factory
         self._root = root
-        self._random = random_module or _random
         self._script_root = script_root or os.path.dirname(
             os.path.dirname(os.path.abspath(__file__)))
         self._download_queue = download_queue
@@ -255,7 +252,9 @@ class RaveData(object):
         self._plugin_version = plugin_version
         self.rows_per_page = DEFAULT_PAGE_SIZE
         self.load_error = ""
-        self.last_surprise_reason = ""
+        # The controller assigns the shared Surprise pack cache; a Latest load
+        # seeds it so the picker can answer from cache when Archive hiccups.
+        self.surprise_cache = None
 
     @property
     def modules(self):
@@ -383,12 +382,12 @@ class RaveData(object):
             room("favourites", "Favourites",
                  "The sets you saved — play or remove",
                  "favourites.png", "fanart-favourites.jpg",
-                 "%d saved" % self._fav_count(), "RP-34",
+                 "saved", "RP-34",
                  "Saved packs, shows and streams."),
             room("downloads", "Downloads",
                  "Offline copies, progress and removal",
                  "downloads.png", "neutral",
-                 "%d saved" % self._download_count(), "RP-35",
+                 "offline", "RP-35",
                  "Files saved for offline playback."),
             room("about", "About",
                  "Version, sources and the app's real facts",
@@ -413,18 +412,8 @@ class RaveData(object):
             return _page_local(self._jungletapes_entries(), page, rows)
         if key == "ravetapepacks":
             return _page_local(self._ravetapepacks_entries(), page, rows)
-        if key == "live":
-            return _page_local(self._live_entries(), page, rows)
         if key == "mixes":
             return _page_local(self._mixes_entries(), page, rows)
-        if key == "favourites":
-            return _page_local(self._favourite_rows(), page, rows)
-        if key == "downloads":
-            return _page_local(self._download_rows(), page, rows)
-        if key == "about":
-            return _page_local(self.about_rows(), page, rows)
-        if key == "search":
-            return _page_local([], page, rows)
         raise ValueError("unknown Rave Screen room %r" % key)
 
     def load(self, target, page=1, rows=None):
@@ -433,7 +422,7 @@ class RaveData(object):
             entries = list(self.home_rows())
             return Page(entries, len(entries), 1, 1, len(entries) or 1)
         if isinstance(target, SearchTarget):
-            return self.search(target, page, rows)
+            raise ValueError("Search is owned by raveui.screens.library")
         if isinstance(target, str):
             return self.room(target, page, rows)
         return self.children(target, page, rows)
@@ -452,6 +441,12 @@ class RaveData(object):
             packs = self.modules.latest.recent_packs(rows=100)
         except Exception:  # noqa: BLE001 - quiet empty plate
             return []
+        cache = self.surprise_cache
+        if cache is not None:
+            try:
+                cache.remember_latest(packs)
+            except Exception:  # noqa: BLE001 - a cache miss is never fatal
+                pass
         entries = []
         for row in packs or []:
             identifier = _text(row.get("identifier"))
@@ -715,83 +710,6 @@ class RaveData(object):
                 hero=self._art("fanart-tapepacks.jpg"), code="RP-03",
                 plot="UK rave tape pack · RaveTapePacks.com"))
         return _page_local([e for e in entries if e is not None], page, rows)
-
-    # ----------------------------------------------------------------- live
-    def _live_entries(self):
-        entries = []
-        try:
-            for token in ("kool", "rinse", "centreforce"):
-                for station in self.modules.radio.curated(token) or []:
-                    entry = self._station_entry(station)
-                    if entry is not None:
-                        entries.append(entry)
-        except Exception:  # noqa: BLE001 - one missing station must not empty the room
-            pass
-        for tag, label, art in (
-                ("hardcore", "Hardcore", "radio-hardcore.png"),
-                ("jungle", "Jungle", "radio-jungle.png"),
-                ("drum and bass", "Drum & Bass", "radio-dnb.png"),
-                ("house", "House", "radio-house.png"),
-                ("uk garage", "UK Garage", "radio-uk-garage.png"),
-                ("dubstep", "Dubstep & Grime", "radio-dubstep-grime.png")):
-            entries.append(Entry(
-                key="live-genre-%s" % tag.replace(" ", "-"),
-                label=label,
-                subtitle="Live stations tagged %s" % tag,
-                art=self._art(art),
-                kind="live_genre", source="live", target=tag,
-                hero=self._art("fanart-live.jpg"),
-                fact="stations", code="RP-31",
-                plot="Stations on air now, tagged %s" % tag,
-                meta=_meta("LIVE DIRECTORY", "ON AIR", "RP-31")))
-        return entries
-
-    def _live_genre_children(self, entry, page, rows):
-        tag = _text(entry.target)
-        try:
-            stations = self.modules.radio.stations(tag, limit=100) or []
-        except Exception:  # noqa: BLE001 - quiet empty plate
-            return _page_local([], page, rows)
-        entries = []
-        seen = set()
-        for station in stations:
-            if not isinstance(station, dict):
-                continue
-            candidate = self._station_entry(station)
-            if candidate is None or candidate.target in seen:
-                continue
-            seen.add(candidate.target)
-            entries.append(candidate)
-        return _page_local(entries, page, rows)
-
-    def _station_entry(self, station):
-        if not isinstance(station, dict):
-            return None
-        try:
-            url = self._safe_url(self.modules.radio.stream_url(station))
-        except Exception:  # noqa: BLE001 - station without a stream
-            return None
-        if not url:
-            return None
-        try:
-            name, meta = self.modules.radio.display(station)
-        except Exception:  # noqa: BLE001 - plain fallback
-            name, meta = _text(station.get("name"), "Live radio"), ""
-        name = _text(name, "Live radio")
-        fact = _fact(meta or "live", "live")
-        return Entry(
-            key=url,
-            label=name,
-            subtitle="Live radio · no duration",
-            art=self._art("radio.png"),
-            kind="station", source="live",
-            track=Track(name, "Live radio", url, self._art("radio.png"), live=True,
-                        source="live"),
-            hero=self._art("fanart-live.jpg"),
-            fact=fact, code="RP-31",
-            plot="Live radio · ON AIR while playing · no duration or progress",
-            meta=_meta(meta, "LIVE RADIO", "RP-31"),
-            download_source="")
 
     # ---------------------------------------------------------------- mixes
     def _mixes_entries(self):
@@ -1070,107 +988,6 @@ class RaveData(object):
         return _page_local([e for e in out if e is not None], page, rows)
 
     # ----------------------------------------------------------- favourites
-    def _fav_count(self):
-        try:
-            return len(self.modules.favourites.load())
-        except Exception:  # noqa: BLE001 - optional module
-            return 0
-
-    def _download_count(self):
-        try:
-            return len(self.modules.downloads.list_downloads())
-        except Exception:  # noqa: BLE001 - optional module
-            return 0
-
-    def _favourite_rows(self):
-        try:
-            rows = self.modules.favourites.load() or []
-        except Exception:  # noqa: BLE001 - quiet empty plate
-            return []
-        entries = []
-        for row in rows:
-            if not isinstance(row, dict):
-                continue
-            kind = _text(row.get("kind"), "stream")
-            target = _text(row.get("target"))
-            title = _text(row.get("title"), target)
-            source = _text(row.get("source"))
-            fav_key = ""
-            try:
-                fav_key = self.modules.favourites.key(row)
-            except Exception:  # noqa: BLE001 - display only
-                fav_key = "%s:%s" % (kind, target)
-            if not target:
-                continue
-            if kind == "pack":
-                entry = Entry(
-                    key="fav-%s" % target, label=title,
-                    subtitle="Favourite pack · %s" % (source or "Archive.org"),
-                    art=self._archive_thumb(target), kind="pack", source="latest",
-                    target=target, hero=self._art("fanart-favourites.jpg"),
-                    fact="pack", code="RP-34",
-                    plot="Saved tape pack", fav_key=fav_key,
-                    meta=_meta("FAVOURITE", "ARCHIVE.ORG", "RP-34"))
-            elif kind == "legacy_pack":
-                entry = Entry(
-                    key="fav-%s" % target, label=title,
-                    subtitle="Favourite pack · RaveTapePacks.com",
-                    art=self._art("ravetapepacks.png"), kind="pack",
-                    source="ravetapepacks", target=target,
-                    hero=self._art("fanart-favourites.jpg"), fact="pack",
-                    code="RP-34", plot="Saved RaveTapePacks pack", fav_key=fav_key,
-                    meta=_meta("FAVOURITE", "RAVETAPEPACKS.COM", "RP-34"))
-            elif kind == "legacy_post":
-                entry = Entry(
-                    key="fav-%s" % target, label=title,
-                    subtitle="Favourite pack · RaveTapePacks.com",
-                    art=self._art("ravetapepacks.png"), kind="rtp_post",
-                    source="ravetapepacks", target=target,
-                    hero=self._art("fanart-favourites.jpg"), fact="pack",
-                    code="RP-34", plot="Saved RaveTapePacks pack", fav_key=fav_key,
-                    meta=_meta("FAVOURITE", "RAVETAPEPACKS.COM", "RP-34"))
-            elif kind == "legacy_jt":
-                entry = Entry(
-                    key="fav-%s" % target, label=title,
-                    subtitle="Favourite show · JungleTapes.com",
-                    art=self._art("jungletapes.png"), kind="show",
-                    source="jungletapes", target=target,
-                    hero=self._art("fanart-favourites.jpg"), fact="show",
-                    code="RP-34", plot="Saved JungleTapes show", fav_key=fav_key,
-                    meta=_meta("FAVOURITE", "JUNGLETAPES.COM", "RP-34"))
-            elif kind == "dnb":
-                entry = Entry(
-                    key="fav-dnb-%s" % target, label=title,
-                    subtitle="Favourite show · DNB Radio",
-                    art=self._art("dnb.png"), kind="dnb_show", source="dnb",
-                    target=target, hero=self._art("fanart-favourites.jpg"),
-                    fact="show", code="RP-34", plot="Saved DNBRADIO show",
-                    fav_key=fav_key,
-                    meta=_meta("FAVOURITE", "DNB RADIO", "RP-34"))
-            else:
-                live = "live radio" in source.lower()
-                try:
-                    live = live or self.modules.live.is_live_stream(target)
-                except Exception:  # noqa: BLE001 - plain stream
-                    pass
-                entry = Entry(
-                    key="fav-%s" % target, label=title,
-                    subtitle="Saved stream · %s" % (source or "Rave Player"),
-                    art=self._art("radio.png"),
-                    kind="station" if live else "track", source="favourites",
-                    target=target,
-                    track=Track(title, "Favourites", target,
-                                self._art("radio.png"), live=live,
-                                source="favourites"),
-                    hero=self._art("fanart-favourites.jpg"),
-                    fact="live" if live else "saved",
-                    code="RP-34",
-                    plot="Saved stream · %s" % (source or "Rave Player"),
-                    fav_key=fav_key,
-                    meta=_meta("LIVE" if live else "STREAM", source.upper(), "RP-34"))
-            entries.append(entry)
-        return entries
-
     def favourite_payload(self, entry):
         """Map a row to the plugin's favourites JSON contract, or ``None``."""
         kind = getattr(entry, "kind", "")
@@ -1224,62 +1041,6 @@ class RaveData(object):
         return saved
 
     # ------------------------------------------------------------ downloads
-    def _download_rows(self):
-        entries = []
-        queue = self._download_queue
-        if queue is not None:
-            try:
-                active = queue.rows()
-            except Exception:  # noqa: BLE001 - queue is advisory
-                active = []
-            for item in active:
-                percent = int(item.get("percent") or 0)
-                status = _text(item.get("status"), "queued").lower()
-                entries.append(Entry(
-                    key="dl-active-%s" % item.get("key", ""),
-                    label=_text(item.get("title"), "Download"),
-                    subtitle="Downloading · %s" % status,
-                    art=self._art("downloads.png"),
-                    kind="download_active", source="downloads",
-                    target=_text(item.get("key")),
-                    hero=self._art("fanart-favourites.jpg"),
-                    fact=_fact("%d%% · %s" % (percent, status), "download"),
-                    code="RP-35",
-                    plot="Download in progress · %s" % _text(item.get("detail")),
-                    meta=_meta("%d%%" % percent, status.upper(), "RP-35")))
-        try:
-            rows = self.modules.downloads.list_downloads() or []
-        except Exception:  # noqa: BLE001 - quiet empty plate
-            rows = []
-        for row in rows:
-            if not isinstance(row, dict):
-                continue
-            key = _text(row.get("key")) or _text(row.get("url"))
-            title = _text(row.get("title"), "Downloaded set")
-            exists = bool(row.get("exists"))
-            try:
-                size = self.modules.downloads.format_size(row.get("size") or 0)
-            except Exception:  # noqa: BLE001 - metadata only
-                size = ""
-            added = _text(row.get("added"))[:10]
-            entries.append(Entry(
-                key="dl-%s" % key,
-                label=title,
-                subtitle="Downloaded · %s" % (_text(row.get("source")) or "Rave Player"),
-                art=self._art("downloads.png"),
-                kind="file" if exists else "download_missing",
-                source="downloads", target=key,
-                track=Track(title, "Downloads", _text(row.get("path")),
-                            self._art("downloads.png"), local=True,
-                            source="downloads") if exists else None,
-                hero=self._neutral_hero(),
-                fact=_fact(size if exists else "missing", "missing"),
-                code="RP-35",
-                plot="Offline copy · %s" % (_text(row.get("source")) or "Rave Player"),
-                meta=_meta(size, added, "RP-35" if exists else "MISSING"),
-                fav_key=key))
-        return entries
-
     def start_download(self, entry):
         queue = self._download_queue
         if queue is None:
@@ -1311,71 +1072,6 @@ class RaveData(object):
             return bool(self.modules.downloads.delete(key))
         except Exception:  # noqa: BLE001 - file/profile unavailable
             return False
-
-    # ---------------------------------------------------------------- about
-    def about_rows(self):
-        try:
-            import xbmc
-
-            build = _text(xbmc.getInfoLabel("System.BuildVersion"), "Kodi")
-        except Exception:  # noqa: BLE001 - tests/outside Kodi
-            build = "Kodi"
-        try:
-            fav_count = self._fav_count()
-            download_count = self._download_count()
-            saved = self.modules.downloads.format_size(
-                self.modules.downloads.total_saved_bytes())
-        except Exception:  # noqa: BLE001 - optional modules
-            fav_count, download_count, saved = 0, 0, "0 B"
-        rows = [
-            ("Rave Player %s" % (self.plugin_version() or "?"),
-             "plugin", "The data and playback backend this screen drives.",
-             "Backend"),
-            ("Rave Screen %s" % (self.screen_version() or "?"),
-             "screen", "The full-screen app shell (this window).", "Shell"),
-            ("Kodi %s" % build, "kodi", "Kodi build on this device.", "Player"),
-            ("Audio policy", "audio",
-             "One audio owner: Kodi's player. Remote streams resolve through "
-             "the plugin's mode=play route (RTP egress/bridge included). "
-             "Downloaded files play from disk. Leaving the screen keeps audio "
-             "playing; Stop (or the context menu) stops it.", "Kodi player"),
-            ("Rows per page", "paging",
-             "Section lists page at 25, 50 or 100 rows. Change it from any "
-             "list's context menu.", "%d rows" % self.rows_per_page),
-            ("Sources", "sources",
-             "Internet Archive · Toronto Rave Mixtape Archive · JungleTapes.com "
-             "· RaveTapePacks.com · radio-browser.info · DNBRADIO · Moxser · "
-             "Hardscore · GetDarker · RSS feeds · Pirate Radio Archives.",
-             "11 sources"),
-            ("Favourites", "favourites", "Saved packs, shows and streams.",
-             "%d saved" % fav_count),
-            ("Downloads", "downloads",
-             "Offline copies in the add-on profile. %s saved." % saved,
-             "%d files" % download_count),
-            ("Licence", "licence",
-             "GNU General Public License v3.0 or later. Rave Player does not "
-             "host or distribute any content.", "GPL-3.0"),
-            ("Repository", "repo",
-             "github.com/tcz009/plugin.audio.raveplayer", "github.com"),
-        ]
-        entries = []
-        for index, (label, art_key, plot, fact) in enumerate(rows):
-            entries.append(Entry(
-                key="about-%d" % index,
-                label=label,
-                subtitle=plot,
-                art=self._art({
-                    "plugin": "rave.png", "screen": "screen.png",
-                    "kodi": "about.png", "audio": "radio.png",
-                    "paging": "sets.png", "sources": "tapepacks.png",
-                    "favourites": "favourites.png", "downloads": "downloads.png",
-                    "licence": "about.png", "repo": "about.png",
-                }.get(art_key, "about.png")),
-                kind="info", source="about",
-                hero=self._art("fanart-about.jpg"),
-                fact=_fact(fact), code="RP-36", plot=plot,
-                meta=_meta(fact.upper(), "ABOUT", "RP-36")))
-        return entries
 
     # -------------------------------------------------------------- children
     def children(self, entry, page=1, rows=None):
@@ -1430,8 +1126,6 @@ class RaveData(object):
             return self._feed_children(entry, page, rows)
         if kind == "folder":
             return self._mixes_children(entry, page, rows)
-        if kind == "live_genre":
-            return self._live_genre_children(entry, page, rows)
         if kind == "hardscore_post":
             return self._mixes_children(entry, page, rows)
         return _page_local([], page, rows)
@@ -1545,198 +1239,6 @@ class RaveData(object):
                          _text(page.get("flyer")) or self._art("moxser.png"),
                          year=_text(page.get("date")), source="moxser",
                          download_source="Moxser.com")
-        return None
-
-    # ----------------------------------------------------------------- search
-    def search(self, target, page=1, rows=None):
-        rows = rows or self.rows_per_page
-        query = _text(getattr(target, "query", ""))
-        scope = _text(getattr(target, "scope", "archive"), "archive")
-        if not query:
-            return _page_local([], page, rows)
-        if scope == "jungletapes":
-            return self._search_jungletapes(query, page, rows)
-        if scope == "live":
-            return self._search_live(query, page, rows)
-        if scope == "favourites":
-            return self._search_favourites(query, page, rows)
-        return self._search_archive(query, page, rows)
-
-    def _search_archive(self, query, page, rows):
-        rows = max(1, _as_int(rows, DEFAULT_PAGE_SIZE))
-        scoped = "%s AND %s" % (query, self.modules.latest.RAVE_COLLECTION)
-        try:
-            docs, total = self.modules.archive.search(
-                scoped, page=page, rows=rows, sort="")
-        except Exception:  # noqa: BLE001 - quiet empty plate
-            return _page_server([], page, rows, 0)
-        entries = [self._archive_pack_entry(doc) for doc in docs or []]
-        entries = [entry for entry in entries if entry is not None]
-        if page == 1 and total < 10:
-            # Same bounded title-scoped widen as the plugin route: an unscoped
-            # mediatype:audio search surfaces audiobooks/SFX before rave tapes.
-            try:
-                wider, _wider_total = self.modules.archive.search(
-                    'title:(%s) AND mediatype:audio AND '
-                    '(collection:ravetapes OR collection:cassettetapes OR '
-                    'subject:(rave OR jungle OR hardcore OR "drum and bass" OR '
-                    '"old skool" OR garage))' % query, rows=rows)
-            except Exception:  # noqa: BLE001 - first page is still valid
-                wider = []
-            seen = set(entry.target for entry in entries)
-            for doc in wider or []:
-                entry = self._archive_pack_entry(doc)
-                if entry is not None and entry.target not in seen:
-                    seen.add(entry.target)
-                    entries.append(entry)
-        return _page_server(entries, page, rows, total,
-                            has_next=bool(total) and page * rows < total)
-
-    def _archive_pack_entry(self, doc):
-        if not isinstance(doc, dict):
-            return None
-        identifier = _text(doc.get("identifier"))
-        if not identifier:
-            return None
-        title = _text(doc.get("title"), identifier)
-        year = _text(doc.get("year")) or _year_from_text(doc.get("date"))
-        return Entry(
-            key=identifier, label=title,
-            subtitle="Internet Archive · search result",
-            art=self._archive_thumb(identifier),
-            kind="pack", source="latest", target=identifier,
-            hero=self._art("fanart-search.jpg"),
-            fact=_fact(year or "pack", "pack"), code="RP-33",
-            plot="Internet Archive search result",
-            meta=_meta(year, "SEARCH", "RP-33"), year=year)
-
-    def _search_jungletapes(self, query, page, rows):
-        try:
-            shows = self.modules.legacy.jungle_shows() or []
-        except Exception:  # noqa: BLE001 - quiet empty plate
-            return _page_local([], page, rows)
-        terms = [part for part in query.lower().split() if part]
-        scored = []
-        for show in shows:
-            name = _text(show.get("name"), show.get("key"))
-            score = self._match_score(name, terms)
-            if score is not None:
-                scored.append((score, name, show))
-        scored.sort(key=lambda item: (item[0], item[1].lower()))
-        entries = []
-        for _score, name, show in scored:
-            key = _text(show.get("key"))
-            if not key:
-                continue
-            entries.append(Entry(
-                key=key, label=name, subtitle="JungleTapes.com show",
-                art=self._art("jungletapes.png"), kind="show",
-                source="jungletapes", target=key,
-                hero=self._art("fanart-search.jpg"), fact="show",
-                code="RP-33", plot="JungleTapes.com search result",
-                meta=_meta("SEARCH", "JUNGLETAPES.COM", "RP-33")))
-        return _page_local(entries, page, rows)
-
-    def _search_live(self, query, page, rows):
-        try:
-            entries = self._live_entries()
-        except Exception:  # noqa: BLE001 - quiet empty plate
-            return _page_local([], page, rows)
-        terms = [part for part in query.lower().split() if part]
-        matches = [row for row in entries if row.track is not None
-                   and self._match_score(row.label + " " + row.subtitle, terms) is not None]
-        return _page_local(matches, page, rows)
-
-    def _search_favourites(self, query, page, rows):
-        terms = [part for part in query.lower().split() if part]
-        matches = [row for row in self._favourite_rows()
-                   if self._match_score(row.label + " " + row.subtitle, terms) is not None]
-        return _page_local(matches, page, rows)
-
-    @staticmethod
-    def _match_score(text, terms):
-        text = str(text or "").lower()
-        if not terms:
-            return 0
-        score = 0
-        for term in terms:
-            found = text.find(term)
-            if found < 0:
-                return None
-            score += 0 if found == 0 else (1 if text[found - 1] == " " else 2)
-        return score
-
-    # ------------------------------------------------------------- surprise
-    def random_pick(self):
-        """Pick one pack + one playable track, bounded and retried.
-
-        The old single attempt surfaced "No random pack found" whenever the
-        Archive search returned an empty page or the picked identifier had no
-        playable derivative. Four bounded attempts plus a recent-packs
-        fallback remove the intermittent failure without an unbounded loop.
-        """
-        self.last_surprise_reason = ""
-        attempts = 0
-        while attempts < 4:
-            attempts += 1
-            try:
-                pack = self.modules.latest.random_pack()
-            except Exception as exc:  # noqa: BLE001 - try the next bounded pick
-                self.last_surprise_reason = "pick failed: %s" % exc
-                continue
-            if not pack or not _text(pack.get("identifier")):
-                self.last_surprise_reason = "empty pack"
-                continue
-            identifier = _text(pack.get("identifier"))
-            try:
-                tracks = self.modules.archive.audio_files(identifier) or []
-            except Exception as exc:  # noqa: BLE001 - try another pack
-                self.last_surprise_reason = "tracks failed: %s" % exc
-                continue
-            playable = []
-            for track in tracks:
-                if not isinstance(track, dict):
-                    continue
-                url = self._safe_url(track.get("url"))
-                if url:
-                    playable.append((track, url))
-            if not playable:
-                self.last_surprise_reason = "no playable tracks"
-                continue
-            track, url = self._random.choice(playable)
-            pack_title = _text(pack.get("title"), identifier)
-            title = _text(track.get("title") or track.get("name"), "Untitled")
-            return Track(title, pack_title, url,
-                         self._archive_thumb(identifier), live=False,
-                         duration=_duration_fact(track.get("duration")),
-                         genre=_text(track.get("genre")), source="latest",
-                         download_source="Archive.org")
-        # Bounded fallback: one of the 20 newest packs, still through plugin data.
-        try:
-            for doc in self.modules.latest.recent_packs(rows=20) or []:
-                identifier = _text(doc.get("identifier"))
-                if not identifier:
-                    continue
-                try:
-                    tracks = self.modules.archive.audio_files(identifier) or []
-                except Exception:  # noqa: BLE001 - next candidate
-                    continue
-                playable = []
-                for track in tracks:
-                    if not isinstance(track, dict):
-                        continue
-                    url = self._safe_url(track.get("url"))
-                    if url:
-                        playable.append((track, url))
-                if not playable:
-                    continue
-                track, url = self._random.choice(playable)
-                title = _text(track.get("title") or track.get("name"), "Untitled")
-                return Track(title, _text(doc.get("title"), identifier), url,
-                             self._archive_thumb(identifier), source="latest",
-                             download_source="Archive.org")
-        except Exception as exc:  # noqa: BLE001 - final quiet failure
-            self.last_surprise_reason = "fallback failed: %s" % exc
         return None
 
     # ---------------------------------------------------------------- thumbs

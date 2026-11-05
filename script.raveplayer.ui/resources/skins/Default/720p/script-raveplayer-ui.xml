@@ -87,7 +87,7 @@
             <shadowcolor>0xFF07070B</shadowcolor>
             <align>right</align>
             <aligny>center</aligny>
-            <visible>String.IsEmpty(Player.Title)</visible>
+            <visible>String.IsEqual(Window.Property(rp_now_on_air),0)</visible>
         </control>
         <control type="label" id="116">
             <description>Room count, on air</description>
@@ -101,7 +101,7 @@
             <shadowcolor>0xFF07070B</shadowcolor>
             <align>right</align>
             <aligny>center</aligny>
-            <visible>!String.IsEmpty(Player.Title)</visible>
+            <visible>String.IsEqual(Window.Property(rp_now_on_air),1)</visible>
         </control>
         <control type="label" id="119">
             <description>Current view title</description>
@@ -491,17 +491,20 @@
             <height>29</height>
             <aspectratio>keep</aspectratio>
             <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/sticker-on-air.png</texture>
-            <visible>Player.Playing</visible>
+            <visible>String.IsEqual(Window.Property(rp_now_on_air),1)</visible>
         </control>
-        <control type="image" id="602">
-            <description>Baked NOW PLAYING kicker</description>
+        <control type="label" id="602">
+            <description>Footer kicker from the nowplaying model</description>
             <posx>156</posx>
             <posy>624</posy>
-            <width>118</width>
+            <width>240</width>
             <height>18</height>
-            <aspectratio>keep</aspectratio>
-            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/label-now-playing.png</texture>
-            <visible>!String.IsEmpty(Player.Title)</visible>
+            <label>$INFO[Window.Property(rp_now_kicker)]</label>
+            <font>font10</font>
+            <textcolor>0xFFE8FF00</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
+            <visible>!String.IsEqual(Window.Property(rp_now_mode),idle)</visible>
         </control>
         <control type="label" id="603">
             <description>Now playing title</description>
@@ -509,12 +512,12 @@
             <posy>636</posy>
             <width>350</width>
             <height>28</height>
-            <label>$INFO[Player.Title]</label>
+            <label>$INFO[Window.Property(rp_now_title)]</label>
             <font>font12</font>
             <textcolor>0xFFF2EEE3</textcolor>
             <shadowcolor>0xFF07070B</shadowcolor>
             <aligny>center</aligny>
-            <visible>!String.IsEmpty(Player.Title)</visible>
+            <visible>!String.IsEqual(Window.Property(rp_now_mode),idle)</visible>
         </control>
         <control type="label" id="604">
             <description>Now playing artist and album</description>
@@ -522,12 +525,12 @@
             <posy>660</posy>
             <width>350</width>
             <height>20</height>
-            <label>$INFO[Player.Artist]  ·  $INFO[Player.Album]</label>
+            <label>$INFO[Window.Property(rp_now_meta)]</label>
             <font>font10</font>
             <textcolor>0xFFA8A399</textcolor>
             <shadowcolor>0xFF07070B</shadowcolor>
             <aligny>center</aligny>
-            <visible>!String.IsEmpty(Player.Title)</visible>
+            <visible>!String.IsEqual(Window.Property(rp_now_mode),idle)</visible>
         </control>
         <control type="label" id="31">
             <description>Now playing fallback when the stream has no InfoTag title</description>
@@ -548,12 +551,12 @@
             <posy>622</posy>
             <width>60</width>
             <height>18</height>
-            <label>$INFO[Player.Time]</label>
+            <label>$INFO[Window.Property(rp_now_elapsed)]</label>
             <font>font10</font>
             <textcolor>0xFFE8FF00</textcolor>
             <shadowcolor>0xFF07070B</shadowcolor>
             <aligny>center</aligny>
-            <visible>!String.IsEmpty(Player.Duration) + !String.IsEqual(Window.Property(rp_live),1)</visible>
+            <visible>String.IsEqual(Window.Property(rp_now_show_duration),1)</visible>
         </control>
         <control type="label" id="606">
             <description>Total duration; hidden for live radio</description>
@@ -561,13 +564,13 @@
             <posy>622</posy>
             <width>60</width>
             <height>18</height>
-            <label>$INFO[Player.Duration]</label>
+            <label>$INFO[Window.Property(rp_now_duration)]</label>
             <font>font10</font>
             <textcolor>0xFFA8A399</textcolor>
             <shadowcolor>0xFF07070B</shadowcolor>
             <align>right</align>
             <aligny>center</aligny>
-            <visible>!String.IsEmpty(Player.Duration) + !String.IsEqual(Window.Property(rp_live),1)</visible>
+            <visible>String.IsEqual(Window.Property(rp_now_show_duration),1)</visible>
         </control>
         <control type="image" id="607">
             <description>Static now-playing waveform</description>
@@ -577,7 +580,7 @@
             <height>28</height>
             <aspectratio>stretch</aspectratio>
             <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/np-wave-340x28.png</texture>
-            <visible>!String.IsEmpty(Player.Title)</visible>
+            <visible>!String.IsEqual(Window.Property(rp_now_mode),idle)</visible>
         </control>
         <control type="progress" id="608">
             <description>Now playing progress, acid fill</description>
@@ -588,7 +591,7 @@
             <info>progress</info>
             <texturebg>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/progress-track-340x3.png</texturebg>
             <texturemid>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/progress-fill-2x3.png</texturemid>
-            <visible>!String.IsEmpty(Player.Duration) + !String.IsEqual(Window.Property(rp_live),1)</visible>
+            <visible>String.IsEqual(Window.Property(rp_now_show_progress),1)</visible>
         </control>
         <control type="image" id="609">
             <description>Idle mark</description>
@@ -598,7 +601,7 @@
             <height>36</height>
             <aspectratio>keep</aspectratio>
             <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/mark.png</texture>
-            <visible>String.IsEmpty(Player.Title) + !Player.Playing</visible>
+            <visible>String.IsEqual(Window.Property(rp_now_mode),idle)</visible>
         </control>
         <control type="label" id="610">
             <description>Idle kicker</description>
@@ -606,12 +609,12 @@
             <posy>624</posy>
             <width>300</width>
             <height>16</height>
-            <label>NOTHING PLAYING</label>
+            <label>$INFO[Window.Property(rp_now_title)]</label>
             <font>font10</font>
             <textcolor>0xFFA8A399</textcolor>
             <shadowcolor>0xFF07070B</shadowcolor>
             <aligny>center</aligny>
-            <visible>String.IsEmpty(Player.Title) + !Player.Playing</visible>
+            <visible>String.IsEqual(Window.Property(rp_now_mode),idle)</visible>
         </control>
         <control type="label" id="611">
             <description>Idle selected row label</description>
@@ -619,12 +622,12 @@
             <posy>640</posy>
             <width>350</width>
             <height>24</height>
-            <label>$INFO[Container(50).ListItem.Label]</label>
+            <label>$INFO[Window.Property(rp_now_room)]</label>
             <font>font12</font>
             <textcolor>0xFFF2EEE3</textcolor>
             <shadowcolor>0xFF07070B</shadowcolor>
             <aligny>center</aligny>
-            <visible>String.IsEmpty(Player.Title) + !Player.Playing</visible>
+            <visible>String.IsEqual(Window.Property(rp_now_mode),idle)</visible>
         </control>
         <control type="label" id="616">
             <description>Idle selected row fact and code</description>
@@ -632,12 +635,12 @@
             <posy>664</posy>
             <width>350</width>
             <height>18</height>
-            <label>$INFO[Container(50).ListItem.Property(rp_meta)]</label>
+            <label>$INFO[Window.Property(rp_now_fact)]</label>
             <font>font10</font>
             <textcolor>0xFFA8A399</textcolor>
             <shadowcolor>0xFF07070B</shadowcolor>
             <aligny>center</aligny>
-            <visible>String.IsEmpty(Player.Title) + !Player.Playing</visible>
+            <visible>String.IsEqual(Window.Property(rp_now_mode),idle)</visible>
         </control>
         <control type="label" id="617">
             <description>Page indicator (set by the controller)</description>

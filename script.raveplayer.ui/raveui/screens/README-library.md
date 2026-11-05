@@ -2,8 +2,10 @@
 
 **Branch:** `feat/screens-library` (worktree
 `raveplayer-worktrees/screens-library`, base commit `22cbf4d`).
-**Scope:** new modules only. No edit to `window.py`, `controller.py`, the
-`windowing` layer, the main XML or `raveui/data.py`; the lead integrates.
+**Integrated:** yes — `feat/app-integration` routes Search/Favourites/Downloads/
+About through `LibraryScreens`; `raveui.controller` adapts the `Screen`/`Row`
+protocol and keeps only navigation, the in-window keyboard and the playback
+handoff. `raveui.data` no longer implements these rooms.
 
 This package adds four rooms to the full-screen Rave UI:
 

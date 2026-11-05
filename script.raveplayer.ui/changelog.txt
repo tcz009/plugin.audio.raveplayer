@@ -1,5 +1,13 @@
 # Rave Player 3.9.50
 
+- **App integration (3.9.51 shell pass).** Search, Favourites, Downloads and
+  About now run from `raveui/screens/library.py`; Live Radio from
+  `raveui/screens/live.py`; the footer from `raveui/nowplaying.py`; Spinning
+  Surprise from the one `raveui/surprise_pick.py` policy. The shell keeps
+  navigation, the in-window keyboard, row normalisation and the single
+  playback handoff. The duplicate search/favourites/downloads/about/live and
+  random-pick code was removed from `raveui/data.py`.
+
 - **The Rave Screen is the app.** Every room from the owner's 02 language is a
   state of the same window: Latest, Toronto, JungleTapes, RaveTapePacks, Live
   Radio, Mixes & Shows, Search, Favourites, Downloads, About and Spinning

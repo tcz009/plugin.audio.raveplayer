@@ -37,6 +37,10 @@ from raveui.data import (Entry, Page, RaveData, SearchTarget, Track,  # noqa: E4
                          ROOM_ORDER)
 from raveui.downloadqueue import DownloadQueue  # noqa: E402
 from raveui.playback import PlaybackService  # noqa: E402
+from raveui.screens.library import (ActionResult, PlayItem,
+                                    Row as LibraryRow,
+                                    Screen as LibraryScreen)
+from raveui.surprise_pick import PickedTrack, SurprisePicker  # noqa: E402
 from raveui.tasks import (DirectTaskRunner, TaskCancelled, TaskFailed, TaskTimeout,
                           ThreadTaskRunner)  # noqa: E402
 from raveui import window as ravewindow  # noqa: E402
@@ -64,6 +68,8 @@ class FakeView(object):
         self.live = False
         self.plate = None
         self.plate_heads = []
+        self.footers = []
+        self.footer = None
 
     def set_title(self, text):
         self.title = text
@@ -107,6 +113,10 @@ class FakeView(object):
         self.plate_heads = getattr(self, "plate_heads", [])
         self.plate_heads.append(path)
 
+    def set_footer(self, footer):
+        self.footer = footer
+        self.footers.append(footer)
+
     def selected_index(self):
         return self.index
 
@@ -135,8 +145,6 @@ class FakeData(object):
             Entry("surprise", "Spinning Surprise", "random", "", "surprise"),
         ]
         self.loaded = []
-        self.picks = 0
-        self.pick = Track("Tape 1 - Brockie", "Dreamscape 19", "https://example.test/1.mp3")
         self.section_rows = [Entry("pack-1", "Dreamscape 19", "Rave Tape Packs",
                                    "", "pack", "latest", "pack-1")]
         self.child_rows = [Entry("child-1", "Tape 1 - Brockie", "Dreamscape 19",
@@ -158,10 +166,6 @@ class FakeData(object):
 
     def spinner_frames(self):
         return list(self.frames)
-
-    def random_pick(self):
-        self.picks += 1
-        return self.pick
 
     def collection(self, entry):
         self.collection_calls = getattr(self, "collection_calls", [])
@@ -185,6 +189,106 @@ class FakeData(object):
     def favourite_payload(self, entry):
         return {"kind": "stream", "target": entry.target or entry.key,
                 "title": entry.label}
+
+
+class FakeLibrary(object):
+    """Scripted LibraryScreens double using the real Row/Screen protocol."""
+
+    def __init__(self):
+        self.calls = []
+        self.play_calls = []
+        self.removed = []
+
+    def _room(self, route, title, rows=(), subtitle="", page=1, pages=1,
+              total=None, query=""):
+        return LibraryScreen(
+            route=route, title=title, subtitle=subtitle, rows=tuple(rows),
+            state="ready" if rows else "empty", page=page, pages=pages,
+            total=len(rows) if total is None else total, page_size=50,
+            query=query, noun="items")
+
+    def search(self, query, page=1):
+        self.calls.append(("search", query, page))
+        if query == "nothing":
+            return self._room("search", "SEARCH", (), "No matching packs",
+                              query=query)
+        rows = [
+            LibraryRow(
+                label="Found Pack", kind="room", fact="1995",
+                icon="found.png", fanart="found-hero.jpg", code="RP-33",
+                payload={"room": "pack", "mode": "archive_item",
+                         "identifier": "found-1", "source": "Archive.org",
+                         "target": "found-1", "title": "Found Pack"},
+                subtitle="Internet Archive", plot="A tape pack"),
+            LibraryRow(
+                label="Other Pack", kind="room", fact="1994",
+                icon="other.png", fanart="other-hero.jpg", code="RP-33",
+                payload={"room": "pack", "mode": "archive_item",
+                         "identifier": "found-2", "source": "Archive.org",
+                         "target": "found-2", "title": "Other Pack"},
+                subtitle="Internet Archive", plot="A tape pack"),
+        ]
+        return self._room("search", "SEARCH", rows, "“%s” · 2 packs" % query,
+                          total=2, query=query)
+
+    def favourites(self, page=1):
+        self.calls.append(("favourites", page))
+        row = LibraryRow(
+            label="Saved Set", kind="track", fact="Archive.org",
+            icon="fav.png", fanart="fav-hero.jpg", code="RP-34",
+            payload={"action": "play", "url": "https://example.test/saved.mp3",
+                     "title": "Saved Set", "source": "Archive.org",
+                     "favourite_key": "stream:https://example.test/saved.mp3",
+                     "target": "https://example.test/saved.mp3"},
+            subtitle="Archive.org", plot="A saved set")
+        return self._room("favourites", "FAVOURITES", [row], "1 saved")
+
+    def downloads(self, page=1):
+        self.calls.append(("downloads", page))
+        row = LibraryRow(
+            label="Saved File", kind="track", fact="1 MB",
+            icon="dl.png", fanart="dl-hero.jpg", code="RP-35",
+            payload={"action": "play", "url": "/tmp/saved.mp3",
+                     "title": "Saved File", "local": True,
+                     "download_key": "dl-1", "target": "/tmp/saved.mp3"},
+            subtitle="Offline copy", plot="A download")
+        return self._room("downloads", "DOWNLOADS", [row], "1 files")
+
+    def about(self):
+        self.calls.append(("about",))
+        row = LibraryRow(
+            label="Rave Player", kind="action", fact="3.9.51",
+            icon="about.png", fanart="about-hero.jpg", code="RP-36",
+            payload={"action": "open", "url": "https://example.test"},
+            subtitle="About & Sources", plot="Version")
+        return self._room("about", "ABOUT", [row], "Rave Player 3.9.51")
+
+    def play(self, row):
+        self.play_calls.append(row)
+        payload = dict(getattr(row, "payload", None) or {})
+        title = str(payload.get("title") or "Untitled")
+        return ActionResult(True, "play", "Playing %s" % title,
+                            track=PlayItem(title, str(payload.get("url") or ""),
+                                           album=str(payload.get("source") or ""),
+                                           local=bool(payload.get("local"))))
+
+    def play_all(self, screen, shuffle=False):
+        tracks = [PlayItem(row.label, str((row.payload or {}).get("url") or ""))
+                  for row in screen.rows
+                  if getattr(row, "kind", "") == "track"]
+        return ActionResult(True, "shuffle" if shuffle else "play_all",
+                            "Queued %d tracks" % len(tracks),
+                            tracks=tuple(tracks))
+
+    def shuffle(self, screen):
+        return self.play_all(screen, shuffle=True)
+
+    def remove(self, row):
+        self.removed.append(row)
+        return ActionResult(True, "remove", "Removed", refresh="favourites")
+
+    def retry(self, target):
+        return self.favourites()
 
 
 class FakePlayback(object):
@@ -235,11 +339,18 @@ class FakeClock(object):
         self.now += float(milliseconds) / 1000.0
 
 
-def controller(view=None, data=None, playback=None, **kwargs):
+def controller(view=None, data=None, playback=None, library=None, **kwargs):
     view = view or FakeView()
     data = data or FakeData()
     playback = playback or FakePlayback()
     kwargs.setdefault("task_runner", DirectTaskRunner())
+    kwargs.setdefault("library", library or FakeLibrary())
+    kwargs.setdefault("surprise_picker", SurprisePicker(
+        pick=lambda: {"identifier": "pack-1", "title": "Dreamscape 19"},
+        resolve=lambda identifier: PickedTrack(
+            title="Tape 1 - Brockie", url="https://example.test/1.mp3",
+            identifier=identifier, pack="Dreamscape 19"),
+        sleep=lambda seconds: None))
     ctl = RaveScreenController(view, data, playback, **kwargs)
     return ctl, view, data, playback
 
@@ -468,7 +579,8 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(view.rows[0].label, "Pack 00")
 
     def test_in_window_keyboard_types_searches_and_back_restores_query(self):
-        ctl, view, data, _ = controller(data=AppData())
+        library = FakeLibrary()
+        ctl, view, data, _ = controller(data=AppData(), library=library)
         ctl.start()
         view.index = 1            # Search row
         self.assertTrue(ctl.on_click())
@@ -481,12 +593,13 @@ class ControllerTests(unittest.TestCase):
         ctl.on_click()            # B
         self.assertEqual(ctl.search_query, "AB")
         self.assertIn("\u00abB\u00bb", view.rows[0].label)
-        view.index = 8            # SEARCH NOW
+        view.index = 7            # SEARCH NOW (SCOPE is gone: one scope)
         self.assertTrue(ctl.on_click())
         self.assertEqual(ctl.view_kind, "list")
-        self.assertEqual(data.search_calls[0].query, "AB")
-        self.assertEqual(data.search_calls[0].scope, "archive")
+        self.assertEqual(library.calls[0], ("search", "AB", 1))
         self.assertEqual(view.rows[0].label, "Found Pack")
+        self.assertEqual(view.rows[0].kind, "library_room")
+        self.assertEqual(view.rows[0].payload["mode"], "archive_item")
 
         self.assertFalse(ctl.on_back())   # results -> keyboard
         self.assertEqual(ctl.view_kind, "keyboard")
@@ -494,17 +607,6 @@ class ControllerTests(unittest.TestCase):
         self.assertIn("\u00abB\u00bb", view.rows[0].label)
         self.assertFalse(ctl.on_back())   # keyboard -> home
         self.assertEqual(view.rows[0].label, "Latest")
-
-    def test_keyboard_scope_cycling(self):
-        ctl, view, _, _ = controller(data=AppData())
-        ctl.start()
-        view.index = 1
-        ctl.on_click()
-        self.assertEqual(ctl._keyboard["scope"], "archive")
-        view.index = 7            # SCOPE row
-        ctl.on_click()
-        self.assertEqual(ctl._keyboard["scope"], "jungletapes")
-        self.assertIn("JungleTapes", view.rows[7].label)
 
     def test_context_play_all_and_shuffle_queue_the_collection(self):
         ctl, view, data, playback = controller(data=AppData())
@@ -586,7 +688,6 @@ class ControllerTests(unittest.TestCase):
         playback.result = types.SimpleNamespace(
             text="Now playing: Tape 1 - Brockie — Dreamscape 19")
         self.assertTrue(ctl.surprise(True))
-        self.assertEqual(data.picks, 1)
         self.assertEqual(animator.ran, 1)
         self.assertEqual(len(playback.calls), 1)
         self.assertEqual(view.now_playing,
@@ -611,12 +712,13 @@ class ControllerTests(unittest.TestCase):
 
     def test_surprise_no_pick_never_animates_or_plays(self):
         animator = RecordingAnimator()
+        picker = SurprisePicker(pick=lambda: None, sleep=lambda seconds: None)
         ctl, view, data, playback = controller(
-            animator_factory=lambda **kwargs: animator)
-        data.pick = None
+            animator_factory=lambda **kwargs: animator,
+            surprise_picker=picker)
         ctl.start()
         self.assertFalse(ctl.surprise(True))
-        self.assertEqual(data.picks, 1)
+        self.assertEqual(picker.attempts, 3)
         self.assertEqual(animator.ran, 0)
         self.assertEqual(playback.calls, [])
         self.assertFalse(view.spinner_visible)
@@ -625,8 +727,10 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(view.plate[1], "NO PACK FOUND")
 
     def test_surprise_pick_exception_never_plays_and_resets_busy(self):
-        ctl, view, data, playback = controller()
-        data.random_pick = lambda: (_ for _ in ()).throw(RuntimeError("offline"))
+        picker = SurprisePicker(
+            pick=lambda: (_ for _ in ()).throw(RuntimeError("offline")),
+            sleep=lambda seconds: None)
+        ctl, view, data, playback = controller(surprise_picker=picker)
         ctl.start()
         self.assertFalse(ctl.surprise(True))
         self.assertEqual(playback.calls, [])
@@ -1126,11 +1230,10 @@ class DataTests(unittest.TestCase):
         self.assertEqual(data.section_entries("latest")[0].fact, "pack")
         self.assertEqual(data.section_entries("toronto")[0].fact, "genre")
         self.assertEqual(data.section_entries("jungletapes")[0].fact, "show")
-        self.assertEqual(data.section_entries("live")[0].fact, "GB · AAC · 128…")
         self.assertTrue(all(row.kind == "rtp_index"
                             for row in data.section_entries("ravetapepacks")))
         for key in ("latest", "toronto", "jungletapes", "ravetapepacks",
-                    "live", "mixes", "favourites", "downloads", "about"):
+                    "mixes"):
             page = data.room(key, 1, 50)
             self.assertTrue(page.rows, key)
             for row in page.rows:
@@ -1218,13 +1321,26 @@ class DataTests(unittest.TestCase):
         self.assertEqual(len(page.rows), 25)
         self.assertTrue(page.has_next)
 
-    def test_live_rows_are_stations_plus_genre_doors(self):
+    def test_module_owned_rooms_are_not_in_ravedata(self):
+        """One implementation per concern: the shell data layer owns no library/live room."""
         data = self.data()
-        rows = data.section_entries("live")
-        self.assertEqual(sum(1 for row in rows if row.kind == "station"), 3)
-        self.assertEqual(sum(1 for row in rows if row.kind == "live_genre"), 6)
-        self.assertTrue(rows[0].track.live)
-        self.assertIn("no duration", rows[0].subtitle)
+        for key in ("live", "favourites", "downloads", "about", "search"):
+            with self.subTest(key=key):
+                with self.assertRaises(ValueError):
+                    data.room(key, 1, 25)
+        for name in ("random_pick", "search", "about_rows",
+                     "_favourite_rows", "_download_rows", "_live_entries"):
+            with self.subTest(name=name):
+                self.assertFalse(hasattr(data, name))
+
+    def test_latest_seeds_the_one_surprise_cache(self):
+        from raveui.surprise_pick import PackCache
+
+        data = self.data()
+        data.surprise_cache = PackCache()
+        data.section_entries("latest")
+        self.assertIn("pack-1", data.surprise_cache)
+        self.assertEqual(data.surprise_cache.choose().get("identifier"), "pack-1")
 
     def test_mixes_room_covers_every_source(self):
         data = self.data()
@@ -1234,91 +1350,6 @@ class DataTests(unittest.TestCase):
             "GetDarker", "Pirate Radio Archives"])
         dnb = data.entries_for(data.section_entries("mixes")[0])
         self.assertEqual(dnb[0].kind, "dnb_show")
-
-    def test_favourites_room_maps_every_saved_kind(self):
-        data = self.data()
-        rows = data.section_entries("favourites")
-        self.assertEqual([row.kind for row in rows],
-                         ["pack", "show", "station"])
-        self.assertEqual(rows[0].fav_key, "pack:pack-1")
-        self.assertTrue(rows[2].track.live)
-
-    def test_downloads_room_lists_completed_files(self):
-        data = self.data()
-        rows = data.section_entries("downloads")
-        self.assertEqual(rows[0].kind, "file")
-        self.assertTrue(rows[0].track.local)
-        self.assertEqual(rows[0].fact, "1024 B")
-
-    def test_about_has_real_versions_counts_and_policy(self):
-        data = self.data()
-        rows = data.section_entries("about")
-        text = "\n".join(row.label + " " + row.subtitle for row in rows)
-        self.assertIn("Rave Player 3.9.51", text)
-        self.assertIn("Rave Screen 3.9.50", text)
-        self.assertIn("Audio policy", text)
-        self.assertIn("Rows per page", text)
-        self.assertIn("Favourites", text)
-        self.assertEqual(rows[6].fact, "3 saved")
-        self.assertEqual(rows[7].fact, "1 files")
-
-    def test_search_is_scoped_paged_and_relevance_ordered(self):
-        data = self.data()
-        page = data.search(SearchTarget("dreamscape", "archive"), 1, 25)
-        self.assertEqual(page.total, 120)
-        self.assertEqual(page.pages, 5)
-        self.assertEqual(page.rows[0].kind, "pack")
-        query = data.modules.archive.search.call_args_list[0][0][0]
-        self.assertIn("collection:ravetapes", query)
-        self.assertEqual(data.modules.archive.search.call_args_list[0][1]["sort"], "")
-
-        jt = data.search(SearchTarget("show 01", "jungletapes"), 1, 25)
-        self.assertEqual(jt.rows[0].label, "Show 01")
-        live = data.search(SearchTarget("kool", "live"), 1, 25)
-        self.assertEqual(live.rows[0].kind, "station")
-        fav = data.search(SearchTarget("kool", "favourites"), 1, 25)
-        self.assertTrue(fav.rows)
-
-    def test_random_pick_calls_each_source_once_on_success(self):
-        modules = fake_modules()
-        random_module = FakeRandom()
-        data = RaveData(modules=modules, root=ROOT, script_root=SCREEN,
-                        random_module=random_module)
-        pick = data.random_pick()
-        self.assertEqual(pick.pack, "Dreamscape 19")
-        self.assertEqual(pick.title, "Tape 1 - Brockie")
-        self.assertEqual(modules.latest.random_pack.call_count, 1)
-        self.assertEqual(modules.archive.audio_files.call_count, 1)
-        self.assertEqual(modules.archive.audio_files.call_args[0], ("pack-1",))
-        self.assertEqual(random_module.calls, 1)
-
-    def test_random_pick_retries_a_pack_with_no_playable_tracks(self):
-        modules = fake_modules()
-        modules.archive.audio_files.side_effect = [[], [
-            {"title": "Good", "url": "https://archive.test/good.mp3"}]]
-        data = RaveData(modules=modules, root=ROOT, script_root=SCREEN,
-                        random_module=FakeRandom())
-        pick = data.random_pick()
-        self.assertEqual(pick.title, "Good")
-        self.assertEqual(modules.latest.random_pack.call_count, 2)
-
-    def test_random_pick_falls_back_to_recent_packs(self):
-        modules = fake_modules()
-        modules.latest.random_pack.return_value = None
-        data = RaveData(modules=modules, root=ROOT, script_root=SCREEN,
-                        random_module=FakeRandom())
-        pick = data.random_pick()
-        self.assertIsNotNone(pick)
-        self.assertEqual(modules.latest.random_pack.call_count, 4)
-        self.assertEqual(modules.latest.recent_packs.call_count, 1)
-
-    def test_random_pick_all_empty_returns_none_without_looping(self):
-        modules = fake_modules()
-        modules.latest.random_pack.return_value = None
-        modules.latest.recent_packs.return_value = []
-        data = RaveData(modules=modules, root=ROOT, script_root=SCREEN)
-        self.assertIsNone(data.random_pick())
-        self.assertIn("empty", data.last_surprise_reason)
 
     def test_spinner_frames_are_bundled_with_the_script(self):
         data = RaveData(modules=fake_modules(), root="/nonexistent",
@@ -1696,13 +1727,18 @@ class RaveScreenXMLTests(unittest.TestCase):
         self.assertIn(("fade", "120"), effects)
         self.assertIn(("slide", "150"), effects)
 
-    def test_footer_uses_player_bindings_and_the_waveform(self):
+    def test_footer_uses_the_nowplaying_model_and_the_waveform(self):
         self.assertEqual(by_id(self.root, 603).findtext("label"),
-                         "$INFO[Player.Title]")
+                         "$INFO[Window.Property(rp_now_title)]")
         self.assertEqual(by_id(self.root, 605).findtext("label"),
-                         "$INFO[Player.Time]")
+                         "$INFO[Window.Property(rp_now_elapsed)]")
         self.assertEqual(by_id(self.root, 606).findtext("label"),
-                         "$INFO[Player.Duration]")
+                         "$INFO[Window.Property(rp_now_duration)]")
+        kicker = by_id(self.root, 602)
+        self.assertEqual(kicker.get("type"), "label")
+        self.assertEqual(kicker.findtext("label"),
+                         "$INFO[Window.Property(rp_now_kicker)]")
+        self.assertIn("rp_now_on_air", by_id(self.root, 601).findtext("visible"))
         progress = by_id(self.root, 608)
         self.assertEqual(progress.get("type"), "progress")
         self.assertEqual(progress.findtext("info"), "progress")
@@ -1716,11 +1752,9 @@ class RaveScreenXMLTests(unittest.TestCase):
                       by_id(self.root, 612).findtext("texture"))
         self.assertIn("keycap-b.png",
                       by_id(self.root, 614).findtext("texture"))
-        # Idle footer follows the focused row; playing footer follows Player.*.
-        self.assertIn("Container(50).ListItem.Label",
-                      by_id(self.root, 611).findtext("label"))
-        self.assertIn("Container(50).ListItem.Property(rp_meta)",
-                      by_id(self.root, 616).findtext("label"))
+        # Idle footer follows the same Footer model (room + fact).
+        self.assertIn("rp_now_room", by_id(self.root, 611).findtext("label"))
+        self.assertIn("rp_now_fact", by_id(self.root, 616).findtext("label"))
 
     def test_surprise_state_matches_the_control_map(self):
         self.assertEqual(box(by_id(self.root, 700)), (0, 0, 1280, 720))
@@ -2164,11 +2198,16 @@ class ScreenStateXMLTests(unittest.TestCase):
         self.assertEqual(control.get("type"), "label")
 
     def test_live_hides_duration_and_progress(self):
-        for control_id in (605, 606, 608):
+        for control_id, prop in ((605, "rp_now_show_duration"),
+                                 (606, "rp_now_show_duration"),
+                                 (608, "rp_now_show_progress")):
             control = by_id(self.root, control_id)
             visible = control.findtext("visible") or ""
-            self.assertIn("rp_live", visible, control_id)
-            self.assertIn("Player.Duration", visible, control_id)
+            self.assertIn(prop, visible, control_id)
+            # The model hides both for live; the skin never guesses from
+            # Player.Duration (which grows on a live stream).
+            self.assertIn("String.IsEqual", visible, control_id)
+            self.assertNotIn("Player.Duration", visible, control_id)
 
     def test_plate_scrim_is_bundled_and_full_bleed(self):
         control = by_id(self.root, 720)

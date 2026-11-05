@@ -1,8 +1,9 @@
 # Live Radio + footer + Surprise reliability — integration notes
 
 **Branch:** `feat/screens-live` · **Worktree:** `raveplayer-worktrees/screens-live`
-**Base:** `22cbf4d` (3.9.50) · **Status:** new modules only; not integrated, not
-built, not deployed.
+**Base:** `22cbf4d` (3.9.50) · **Integrated:** `feat/app-integration` routes the
+Live Radio room through `LiveRadio`, paints `nowplaying.Footer` for every state
+and uses `SurprisePicker`/`pick_and_handoff` as the only pick policy.
 
 This branch adds three pure-Python pieces for the full-screen Rave app
 (Rave Screen 02 look). It deliberately does **not** edit `window.py`,
@@ -139,10 +140,9 @@ if action and action.get("type") == "open" and action.get("source") == "pirate":
 
 ### Current shell note
 
-`feat/fullscreen-app-3.9.51` already has its own `_live_entries()` and a
-4-attempt `data.random_pick()`. That work is compatible, but do not run two
-retry policies: either keep the shell implementation or delegate to these
-modules. If the shell's `Entry` shape stays, map fields once:
+The shell's old `_live_entries()` and 4-attempt `data.random_pick()` were
+removed on `feat/app-integration`; there is one implementation per concern.
+The historical mapping note below is kept for reference:
 
 ```python
 Entry(key=action.get("station", row["title"]), label=row["title"],
@@ -288,12 +288,10 @@ gesture (after a completed or failed one), never on a retry.
 
 ### Note on the current shell
 
-`RaveData.random_pick()` in `feat/fullscreen-app-3.9.51` now has its own
-4-attempt loop plus recent-packs fallback. That covers the same symptom, but
-the two policies must not stack. Recommended: replace the body with
-`surprise_pick.from_plugin(self.modules).pick_once()` or call the picker from
-the controller. The module adds the cache-first path and the single-play gate;
-the shell loop does not.
+The old `RaveData.random_pick()` loop is gone. `RaveScreenController` builds
+one `surprise_pick.from_plugin(...)` picker, seeds its `PackCache` from the
+single Latest load, resets the shared `PlayOnce` guard only on a new gesture,
+and calls `pick_and_handoff` after the reveal.
 
 ---
 

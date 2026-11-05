@@ -1,6 +1,6 @@
 # Full-screen Rave Player app (3.9.51)
 
-**Branch:** `feat/fullscreen-app-3.9.51`
+**Branch:** `feat/app-integration` (from `feat/fullscreen-app-3.9.51`)
 **Add-ons:** `plugin.audio.raveplayer` **3.9.51**, `script.raveplayer.ui` **3.9.50**
 **Device:** NVIDIA Shield TV, Android 11, Kodi `22.0-BETA1 (21.90.801)`, Estuary 4.1.0
 **Status:** implemented, full offline suite green (2×), installed on the Shield.
@@ -37,7 +37,12 @@ script.raveplayer.ui/
 ├── raveui/
 │   ├── window.py              # one WindowXML, all controls, input adapter
 │   ├── controller.py          # view stack, paging, keyboard, context, states
-│   ├── data.py                # plugin adapters + Page/Entry/Track model
+│   ├── data.py                # shell rooms + Page/Entry/Track model
+│   ├── screens/
+│   │   ├── library.py         # Search/Favourites/Downloads/About (one impl)
+│   │   └── live.py            # Live Radio rows/state (one impl)
+│   ├── nowplaying.py          # Footer model for idle/playing/paused/live
+│   ├── surprise_pick.py       # one bounded pick + single-play gate
 │   ├── pluginbridge.py        # imports the plugin tree read-only under an alias
 │   ├── downloadqueue.py       # worker + progress rows via the plugin's downloads
 │   ├── playback.py            # the single audio policy
@@ -54,7 +59,7 @@ state of the same 1280×720 `WindowXML`:
 | State | Controls | What the user sees |
 |---|---|---|
 | Home / list | bed, header, hero, list 50, footer | the 02 design unchanged |
-| In-window keyboard | list 50 + header/status | letter/digit rows, scope, SPACE/DELETE/CLEAR, SEARCH NOW, CANCEL |
+| In-window keyboard | list 50 + header/status | letter/digit rows, SPACE/DELETE/CLEAR, SEARCH NOW, CANCEL |
 | Context menu | list 50 + header/status | Play all, Shuffle all, Download, Favourite, rows per page, Stop, Refresh |
 | Loading | plate 720-727 (`rp_plate=1`, `rp_plate_head=1`) | dimmed screen, spinning head, PLEASE WAIT, detail |
 | STANDBY / ERROR | plate 720-727 (`rp_plate=1`, `rp_plate_head=0`) | STANDBY/ERROR, reason, OK retry / BACK |
@@ -76,13 +81,13 @@ home
  ├── JungleTapes      → 310 shows (paged) → show → tapes → playback
  ├── RaveTapePacks    → Event/DJ/MC/Year index → categories → pack/post
  │                     → tracks → playback
- ├── Live Radio       → curated stations (play) + genre doors → station list
+ ├── Live Radio       → three curated stations (play/stop) + pirate door
  ├── Mixes & Shows    → DNBRADIO / podcasts / Moxser / Hardscore /
  │                     GetDarker / Pirate Radio → lists → playback
- ├── Search           → in-window keyboard → scoped paged results
- ├── Favourites       → play / open / remove
- ├── Downloads        → active progress rows, completed files, delete
- ├── About            → version, sources, policy, counts
+ ├── Search           → in-window keyboard → library.Search (scoped, paged)
+ ├── Favourites       → library.Favourites (play / open / remove)
+ ├── Downloads        → library.Downloads (play / remove)
+ ├── About            → library.About (versions, licence, links, policy)
  └── Spinning Surprise → one bounded pick → reveal → one playback
 ```
 
@@ -94,9 +99,9 @@ load is in flight closes and the late worker result is ignored.
 ### Paging (25 / 50 / 100)
 
 `RaveData` returns a `Page(rows, total, page, pages, rows_per_page, has_next,
-cursor)`. Local collections (`jungle_shows`, categories, favourites, downloads)
-are sliced; Archive searches and RaveTapePacks category/all pages use the
-source's own page/cursor. The controller adds explicit **PREVIOUS / NEXT**
+cursor)` for the shell-owned rooms. `raveui.screens.library` returns a `Screen`
+with the same paging fields for Search/Favourites/Downloads/About.
+RaveTapePacks category/all pages use the source's own page/cursor. The controller adds explicit **PREVIOUS / NEXT**
 rows, shows `Page n of m · N items` in the header, and a `P1/7` indicator in
 the footer. Long-press OK → *Rows per page* cycles 25/50/100 and reloads near
 the same position.
@@ -116,20 +121,19 @@ A B C D E F G H I      ← left/right moves the selected letter
 J K L M N O P Q R
 S T U V W X Y Z
 0 1 2 3 4 5 6 7 8 9
-SPACE / DELETE / CLEAR / SCOPE / SEARCH NOW / CANCEL
+SPACE / DELETE / CLEAR / SEARCH NOW / CANCEL
 ```
 
 - Up/down is native list movement; left/right is handled by the controller
   (`on_horizontal`) so the same list stays focused.
 - The selected letter is marked with `«X»` (not `[X]`, which Kodi would parse
   as label markup).
-- Scopes: **Tape packs** (Internet Archive, relevance order), **JungleTapes**
-  shows, **Live radio** stations, **Favourites**. Scope cycles from the SCOPE
-  row.
-- Results are paged. The Archive query is scoped to
-  `collection:ravetapes AND mediatype:audio` (with the same bounded
-  title-scoped widen as the plugin route when the first page is thin) and is
-  sorted by the Archive's relevance, not `downloads desc`.
+- One scope, owned by the library module: **Tape packs** (Internet Archive,
+  relevance order). The shell keyboard only collects the query; scope cycling
+  was removed so there is one search implementation.
+- Results are paged by `LibraryScreens.search`, always scoped to
+  `collection:ravetapes AND mediatype:audio` and sorted by the Archive's
+  relevance. Empty results are the module's retry row, not a shell state.
 - Back from results restores the keyboard with the query and selected row
   intact; Back again returns to the previous room.
 
@@ -144,7 +148,7 @@ the same window. Nothing is modal and nothing is drawn over a plugin list.
 |---|---|
 | folder (pack/genre/show/RTP/feed/source) | Open, Play all, Shuffle all, Favourite, Rows per page, Stop, Refresh |
 | track | Play, Play all, Shuffle all, Download (approved source only), Favourite, Rows, Stop, Refresh |
-| live station | Play, Favourite, Rows, Stop, Refresh |
+| live station | Play / stop (module state), Refresh |
 | saved row | Remove favourite |
 | active download | Cancel download |
 | completed download | Play, Delete download |
@@ -255,7 +259,7 @@ The app is audio-first and 1280×720/720p control space; it uses only
 ## 9. Tests and artifacts
 
 ```sh
-python3 -m unittest discover -s test        # 759 tests, OK (run 2×)
+python3 -m unittest discover -s test        # 921 tests, OK (run 2×)
 ./scripts/build.sh                          # dist zips 3.9.51 / 3.9.50
 ./scripts/build-repo.sh                     # repo/ catalogue + zips
 ./scripts/check-repo-artifacts.sh           # after committing repo/
@@ -265,7 +269,7 @@ Coverage added/updated in `test/test_rave_screen.py`:
 
 - room/data model (11 rooms, all source adapters, favourites/downloads/about);
 - paging (local slice, server page, cursor, previous/next rows, Back focus);
-- in-window keyboard: typing, scope cycling, submit, results, Back restore;
+- in-window keyboard: typing, submit, results, Back restore;
 - context actions: play all/shuffle, download, favourite, rows-per-page;
 - loading/empty/error plates and retry; Back during load; no busy leak;
 - Surprise: one pick, one animation, one handoff, no-pick/exception/reveal

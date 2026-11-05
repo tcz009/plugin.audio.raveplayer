@@ -250,6 +250,21 @@ class KodiView(object):
         except Exception:
             pass
 
+    def set_footer(self, footer):
+        """Paint the one footer model (idle / playing / paused / live)."""
+        if footer is None:
+            return
+        try:
+            for key, value in footer.properties().items():
+                self.window.setProperty(key, value)
+        except Exception:
+            pass
+        self._label(CONTROL_NOW_KICKER, footer.kicker)
+        self._label(CONTROL_NOW_TITLE, footer.title)
+        self._label(CONTROL_NOW_META, footer.meta)
+        self._visible(CONTROL_ON_AIR, footer.on_air)
+        self.set_now_playing(footer.status_line())
+
     @staticmethod
     def _is_art(path):
         path = str(path or "")
@@ -623,12 +638,19 @@ def open_screen(window_factory=None, monitor_factory=None):
             _notify("Could not open Rave Screen. Close any dialog and try again.")
             return window
         monitor = monitor_factory() if monitor_factory else xbmc.Monitor()
+        controller = getattr(window, "_controller", None)
         while not getattr(window, "closed", False):
             try:
                 if monitor.abortRequested():
                     break
             except Exception:
                 pass
+            tick = getattr(controller, "tick", None)
+            if callable(tick):
+                try:
+                    tick()
+                except Exception:  # noqa: BLE001 - a footer probe never closes
+                    pass
             xbmc.sleep(100)
     finally:
         _cleanup(window)
