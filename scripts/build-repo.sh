@@ -5,6 +5,7 @@
 #   repo/addons.xml
 #   repo/addons.xml.md5
 #   repo/plugin.audio.raveplayer/plugin.audio.raveplayer-<ver>.zip
+#   repo/script.raveplayer.ui/script.raveplayer.ui-<ver>.zip
 #   repo/repository.raveplayer/repository.raveplayer-<ver>.zip
 set -eu
 cd "$(dirname "$0")/.."
@@ -12,12 +13,14 @@ cd "$(dirname "$0")/.."
 ./scripts/build.sh >/dev/null
 
 VERSION=$(python3 -c "import xml.etree.ElementTree as E;print(E.parse('addon.xml').getroot().get('version'))")
+SCREEN_VERSION=$(python3 -c "import xml.etree.ElementTree as E;print(E.parse('script.raveplayer.ui/addon.xml').getroot().get('version'))")
 REPO_VERSION=$(python3 -c "import xml.etree.ElementTree as E;print(E.parse('repository.raveplayer/addon.xml').getroot().get('version'))")
 
 rm -rf repo
-mkdir -p repo/plugin.audio.raveplayer repo/repository.raveplayer
+mkdir -p repo/plugin.audio.raveplayer repo/script.raveplayer.ui repo/repository.raveplayer
 
 cp "dist/plugin.audio.raveplayer-${VERSION}.zip" repo/plugin.audio.raveplayer/
+cp "dist/script.raveplayer.ui-${SCREEN_VERSION}.zip" repo/script.raveplayer.ui/
 
 # The repository add-on itself, zipped the way Kodi expects to install it.
 tmp=$(mktemp -d)
@@ -26,13 +29,14 @@ cp -R repository.raveplayer/addon.xml repository.raveplayer/icon.png repository.
 (cd "$tmp" && zip -qr "$OLDPWD/repo/repository.raveplayer/repository.raveplayer-${REPO_VERSION}.zip" repository.raveplayer)
 rm -rf "$tmp"
 
-# addons.xml is the catalogue Kodi downloads: both add-ons, full XML bodies.
+# addons.xml is the catalogue Kodi downloads: every add-on, full XML bodies.
 python3 - <<'PY'
 import hashlib
 import xml.etree.ElementTree as ET
 
 entries = []
-for path in ("addon.xml", "repository.raveplayer/addon.xml"):
+for path in ("addon.xml", "script.raveplayer.ui/addon.xml",
+             "repository.raveplayer/addon.xml"):
     root = ET.parse(path).getroot()
     ET.indent(root)
     entries.append(ET.tostring(root, encoding="unicode"))
@@ -47,4 +51,4 @@ open("repo/addons.xml.md5", "w").write(hashlib.md5(data).hexdigest())
 print("addons.xml entries:", len(entries))
 PY
 
-echo "repo built: addons.xml (+md5), plugin ${VERSION}, repository ${REPO_VERSION}"
+echo "repo built: addons.xml (+md5), plugin ${VERSION}, screen ${SCREEN_VERSION}, repository ${REPO_VERSION}"

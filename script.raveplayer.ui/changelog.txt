@@ -1,0 +1,31 @@
+# Rave Player 3.9.47
+
+- **New add-on `script.raveplayer.ui` ("Rave Screen")** — a proper full-screen
+  Kodi `WindowXML` window, not an overlay stuck on top of a plugin directory.
+  1280×720, 2026 sticker styling, big hero art, a vertical D-pad row list,
+  OK/Back handling and skin `<animation>` focus transitions.
+- **Spinning Surprise** — picks exactly one random tape pack and one track,
+  spins the big Rave Player head for at least 1.2 seconds on the GUI thread
+  (`xbmc.sleep` + `setImage`, letting Kodi repaint), then hands playback to
+  Kodi with a one-item music playlist and shows
+  “Now playing: track — pack”. There is no re-pick loop and no repeated
+  playback: a second OK while playing is a no-op.
+- **Data, read-only** — the screen imports `plugin.audio.raveplayer`'s existing
+  `resources/lib` modules under a private alias and calls only public helpers.
+  Home rows: Latest, Toronto Rave Mixtape Archive, JungleTapes.com,
+  RaveTapePacks.com, Live Radio, Spinning Surprise.
+- **Entry point** — `plugin.audio.raveplayer` root gains a leading
+  **Rave Screen** row (`mode=screen`) that closes the plugin directory and runs
+  `script.raveplayer.ui`. If the script add-on is not installed the row tells
+  the user and the normal lists remain fully usable.
+- **Kodi 19–22** — the script manifest requires `xbmc.python 3.0.0` (Kodi 19).
+  Because it depends on the plugin, the combined pair currently installs on
+  Kodi 20–22; see `docs/RAVE-SCREEN.md` for the exact dependency note and the
+  untested-on-device risk list.
+- **Tests** — 47 new offline tests cover window open/close, focus movement,
+  source loading, single-pick surprise, ≥1.2 s animation timing, playback
+  handoff, no replay, Back pop/exit and the plugin launcher. Stub-based; no
+  Shield or network access.
+- **Artifacts** — both zips are built by `scripts/build.sh` and listed in
+  `repo/addons.xml` by `scripts/build-repo.sh`; the current version is 3.9.47.
+  No push, tag or deploy.

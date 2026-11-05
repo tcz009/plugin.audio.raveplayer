@@ -1,3 +1,25 @@
+Rave Player 3.9.47
+- New full-screen Rave Screen: script.raveplayer.ui owns a 1280x720 WindowXML
+  window (not an overlay on the plugin list, which can freeze or be refused on
+  Kodi 22). Big hero art, vertical D-pad rows, OK/Back, skin <animation>
+  focus transitions and 2026 sticker styling.
+- Spinning Surprise: one random pack + track, a >=1.2 s spinning-head loop on
+  the GUI thread (xbmc.sleep + setImage so Kodi repaints), then playback handed
+  to Kodi via a one-item music playlist. Shows "Now playing: track — pack".
+  No repeated playback and no re-pick loop; a second OK is a no-op.
+- Reads plugin.audio.raveplayer's resources/lib modules read-only under a
+  private import alias. Rows: Latest, Toronto, JungleTapes, RaveTapePacks,
+  Live Radio and Spinning Surprise.
+- New root row "Rave Screen" (mode=screen) closes the plugin directory and runs
+  script.raveplayer.ui. If the script is missing, one notification explains and
+  the normal root list is rebuilt as the fallback.
+- Build/repo now ships both add-ons; 47 new offline tests cover open/close,
+  focus, load, single pick, animation timing, playback handoff, no replay and
+  Back exit. Version 3.9.47; no push, tag or deploy.
+- Kodi 19-22: the script manifest requires xbmc.python 3.0.0. The combined
+  plugin+script pair currently installs on Kodi 20-22 because the plugin still
+  declares 3.0.1; docs/RAVE-SCREEN.md lists this and the device-test risks.
+
 Rave Player 3.9.44
 - Look-and-feel pass 1–3 from docs/LOOK-AND-FEEL-2026.md, no playback changes.
 - Label2 everywhere: a plain ≤16-character fact on every row it helps —

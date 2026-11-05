@@ -9,8 +9,12 @@ PROFILE = os.path.join(tempfile.gettempdir(), "raveplayer-test-profile")
 
 
 class Addon(object):
+    def __init__(self, addon_id="plugin.audio.raveplayer"):
+        self.addon_id = addon_id
+
     def getAddonInfo(self, key):
-        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        root = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))))
         values = {
             "id": "plugin.audio.raveplayer",
             "name": "Rave Player",

@@ -130,6 +130,33 @@ lowercase kebab-case and `test/test_naming.py` enforces it.
 **"Curated Gems" keeps that exact label** — the proposed Pirate & Rave Archives
 rename is rejected.
 
+## Rave Screen (3.9.47)
+
+The first root row, **Rave Screen**, launches a second add-on:
+`script.raveplayer.ui`. It owns a real full-screen Kodi `WindowXML` window at
+1280×720 — big hero art, a vertical D-pad list, OK/Back, 2026 sticker styling
+and skin `<animation>` focus transitions — instead of painting an overlay on a
+plugin directory (which can freeze or be refused on Kodi 22).
+
+- **Spinning Surprise** picks one random pack and track, spins the head for at
+  least 1.2 s on the GUI thread (`xbmc.sleep` + `setImage`, letting Kodi
+  repaint), then hands playback to Kodi with a one-item music playlist and
+  shows “Now playing: track — pack”. A second OK is a no-op; there is no
+  re-pick loop.
+- **Rows:** Latest, Toronto Rave Mixtape Archive, JungleTapes.com,
+  RaveTapePacks.com, Live Radio and Spinning Surprise. Source data comes from
+  the plugin's existing `resources/lib` modules, imported read-only under a
+  private alias.
+- **Fallback:** if `script.raveplayer.ui` is not installed, the root row says
+  so and falls back to the normal root list.
+- **Install:** install both `plugin.audio.raveplayer-3.9.47.zip` and
+  `script.raveplayer.ui-3.9.47.zip` from the repository.
+
+Architecture, Kodi-22 risk notes and the device test checklist:
+[`docs/RAVE-SCREEN.md`](docs/RAVE-SCREEN.md). The visual assets are
+placeholders from `scripts/make-screen-art.py`; the parallel design specialist
+owns the final sticker/hero.
+
 ## Look and feel (3.9.44)
 
 The first three wins from [`docs/LOOK-AND-FEEL-2026.md`](docs/LOOK-AND-FEEL-2026.md),
@@ -235,7 +262,7 @@ Warm root import+dispatch is ~0.08 s (was 0.78 s), the root route itself is
 ~0.0001 s, Latest cold is ~6 s / warm ~0.04 s, and cached pack open ~0.003 s.
 Full methodology, before/after table and residual risks:
 [`docs/PERF-3.9.20.md`](docs/PERF-3.9.20.md); reproduce with
-`python3 scripts/benchmark.py`. RTP egress + loopback playback bridge; 542 tests in 3.9.44.
+`python3 scripts/benchmark.py`. RTP egress + loopback playback bridge; 589 tests in 3.9.47.
 
 ## Why it was rebuilt rather than patched
 
@@ -272,6 +299,8 @@ After that, updates arrive through the repository — Kodi re-checks
 
 1. Download `plugin.audio.raveplayer-<version>.zip` from the releases page.
 2. Kodi → Add-ons → Install from zip file.
+3. For the full-screen Rave Screen, also install
+   `script.raveplayer.ui-<version>.zip` from the same release/repository.
 
 ## Development
 
@@ -281,6 +310,7 @@ Everything is standard library plus Kodi's own modules.
 raveplayer/
 ├── addon.xml
 ├── default.py              # entry point
+├── script.raveplayer.ui/   # the 3.9.47 full-screen Rave Screen add-on
 ├── resources/
 │   ├── feeds.json          # podcast feeds (data, not code)
 │   ├── filters.json        # quick filters (data, not code)

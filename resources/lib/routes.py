@@ -170,6 +170,7 @@ RADIO_SECTIONS = [
 # repeats and are listed in the test's shared-art exceptions.
 MENU_ART = {
     # root
+    "screen": "screen.png",
     "latest": "rave.png",
     "surprise": "surprise.png",
     "packs": "tapepacks.png",
@@ -577,6 +578,9 @@ def root(handle, params):
     """Top-level 2026 taxonomy: product, pirate radio, shows, live, saved, find."""
     menu_item = ui.menu_item
     root_rows = [
+        ("screen", "Rave Screen", MENU_ART["screen"], "fanart-screen.jpg",
+         "Full-screen 2026 Rave UI — big art, D-pad rows and Spinning Surprise.",
+         "full screen"),
         ("latest", "Latest", MENU_ART["latest"], "fanart-latest.jpg",
          "Newest packs, shows and radio rips — start here.", "newest"),
         ("packs_menu", "Tape Packs", MENU_ART["packs"], "fanart-tapepacks.jpg",
@@ -601,6 +605,26 @@ def root(handle, params):
                   icon=art(icon), fanart=art(fan), plot=plot, label2=label2)
     kodi.end_directory(handle, "files")
 
+
+
+def rave_screen(handle, params):
+    """Launch the full-screen script add-on, never an overlay on this folder.
+
+    The plugin directory is closed first so Kodi has a clean window stack. If
+    the optional Rave Screen add-on is missing, one notification explains it and
+    the normal root list is rebuilt instead of leaving a dead row.
+    """
+    try:
+        installed = bool(xbmc.getCondVisibility("System.HasAddon(script.raveplayer.ui)"))
+    except Exception:
+        installed = False
+    if not installed:
+        kodi.notify("Rave Screen is not installed — install script.raveplayer.ui "
+                    "from the Rave Player repository. Showing the normal lists.")
+        root(handle, params)
+        return
+    kodi.end_directory(handle, "files")
+    xbmc.executebuiltin("RunScript(script.raveplayer.ui)")
 
 
 def packs_menu(handle, params):
@@ -2175,6 +2199,7 @@ def play(handle, params):
 
 HANDLERS = {
     "root": root,
+    "screen": rave_screen,
     "packs_menu": packs_menu,
     "shows_menu": shows_menu,
     "radio_menu": radio_menu,
