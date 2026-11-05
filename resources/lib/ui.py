@@ -6,7 +6,7 @@ import re
 import xbmcgui
 import xbmcplugin
 
-from . import handoff, kodi
+from . import handoff, kodi, look
 
 DEFAULT_FANART = kodi.FANART
 
@@ -174,12 +174,23 @@ def add_item(handle, url, label, is_folder=True, art=None, info=None, playable=F
 
 
 def menu_item(handle, url, label, icon=None, fanart=None, plot=None, context=None, title=None,
-              label2=None, is_folder=True):
+              label2=None, is_folder=True, thumb=None):
+    """A folder row.
+
+    ``icon`` is the destination's 1:1 sticker; ``thumb`` is the real cover when
+    one exists (an Archive pack front, a station favicon).  Kodi skins read
+    different slots — IconWall reads ``poster`` first, the info panel reads
+    ``thumb`` and the skinny list uses ``icon`` — so all three are set
+    explicitly and the 16:9 ``fanart``/``landscape`` never gets a square image.
+    """
+    sticker = icon or kodi.ICON
+    cover = thumb or sticker
     art = {
-        "icon": icon or kodi.ICON,
-        "thumb": icon or kodi.ICON,
+        "icon": sticker,
+        "thumb": cover,
+        "poster": cover,
         "fanart": fanart or DEFAULT_FANART,
-        "poster": icon or kodi.ICON,
+        "landscape": fanart or DEFAULT_FANART,
     }
     info = kodi.music_info(plain(title or label), plot or plain(label),
                            mediatype="music")
@@ -189,11 +200,14 @@ def menu_item(handle, url, label, icon=None, fanart=None, plot=None, context=Non
 
 def info_item(handle, label, plot=None, icon=None, label2=None):
     """A read-only information row (credits/sources) that cannot leave Kodi."""
+    sticker = icon or kodi.ICON
     item = xbmcgui.ListItem(label=label)
     item.setArt({
-        "icon": icon or kodi.ICON,
-        "thumb": icon or kodi.ICON,
+        "icon": sticker,
+        "thumb": sticker,
+        "poster": sticker,
         "fanart": DEFAULT_FANART,
+        "landscape": DEFAULT_FANART,
     })
     item.setInfo("music", kodi.music_info(plain(label), plot or plain(label),
                                          mediatype="music"))
@@ -216,7 +230,9 @@ def end_marker(handle, label="End of list", plot=None):
     item.setArt({
         "icon": kodi.ICON,
         "thumb": kodi.ICON,
+        "poster": kodi.ICON,
         "fanart": DEFAULT_FANART,
+        "landscape": DEFAULT_FANART,
     })
     item.setInfo("music", kodi.music_info(plain(label), plot or plain(label),
                                          mediatype="music"))
@@ -229,11 +245,17 @@ def end_marker(handle, label="End of list", plot=None):
 
 def track_item(handle, url, label, thumb=None, fanart=None, plot=None, artist=None, album=None,
                duration=None, context=None, title=None, label2=None, year=None, genre=None,
-               tracknumber=None):
+               tracknumber=None, icon=None):
+    cover = thumb or kodi.ROUND_FACE
     art = {
-        "icon": thumb or kodi.ROUND_FACE,
-        "thumb": thumb or kodi.ROUND_FACE,
+        # The playable row keeps its square cover in the art slots (Kodi's song
+        # panel wants 1:1) and the brand's 16:9 fanart behind it.  ``icon`` lets
+        # a route keep the source sticker (tape/radio) while the cover is real.
+        "icon": icon or cover,
+        "thumb": cover,
+        "poster": cover,
         "fanart": fanart or DEFAULT_FANART,
+        "landscape": fanart or DEFAULT_FANART,
     }
     # Kodi 22 rejects the music "plot" key; kodi.music_info keeps "comment"
     # (the music-dialog display field) and only adds plot on Kodi < 22.  The
@@ -266,3 +288,29 @@ def track_item(handle, url, label, thumb=None, fanart=None, plot=None, artist=No
             label2 = fact(str(info["year"]))
     return add_item(handle, url, label, is_folder=False, art=art, info=info,
                     playable=True, context=context, label2=label2, plot=plot)
+
+
+def status_item(handle, label, plot=None, fact="empty", kind="empty", retry_url=None,
+                icon=None):
+    """A visible empty/error/loading line for a native directory.
+
+    A toast is four seconds long; an empty screen is permanent.  This row is a
+    status plate that survives on screen, carries the same 2026 spot colour as
+    the Rave Screen's status line (``look.STATUS``), and — when a retry URL is
+    given — is a real folder row, so OK re-runs the route instead of doing
+    nothing.  Without a URL it is an unselectable information row.
+    """
+    colour, tag = look.STATUS.get(str(kind or "empty"), look.STATUS["empty"])
+    prefix = "[COLOR 0xFF%s]%s[/COLOR]  " % (colour, tag)
+    display = prefix + str(label or "")
+    if retry_url:
+        # Pass the context menu through addDirectoryItem: Kodi snapshots the
+        # item at that call, so mutating it afterwards is invisible.
+        return menu_item(handle, retry_url, display,
+                         icon=icon or kodi.ICON,
+                         plot=plot or "Press OK to try again.",
+                         label2=fact or kind,
+                         is_folder=True,
+                         context=[("Retry", "Container.Refresh")])
+    return info_item(handle, display, plot=plot or display,
+                     icon=icon or kodi.ICON, label2=fact or kind)

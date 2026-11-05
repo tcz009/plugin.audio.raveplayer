@@ -450,10 +450,14 @@ def _archive_items(handle, docs):
             handle,
             url_for(mode="archive_item", id=identifier),
             label,
-            icon=archive.thumb(identifier),
+            # 2026 semantics: a tape pack is a tape.  The cassette sticker is
+            # the row icon; the pack front is cover/poster, so IconWall and the
+            # info panel still show real art at the right ratio.
+            icon=art(MENU_ART["packs"]),
+            thumb=archive.thumb(identifier),
             plot=_clean_description(doc.get("description")),
             title=title,
-            label2=venue,
+            label2=venue or "pack",
             context=_pack_context(identifier, title),
         )
 
@@ -468,13 +472,15 @@ def _station_items(handle, stations, plot):
         if not stream:
             continue
         favicon = _safe_art(station.get("favicon"), None)
+        sticker = art(MENU_ART["radio"])
         label = "%s  [I]%s[/I]" % (name, meta) if meta else name
         ui.track_item(
             handle,
-            url_for(mode="play", url=stream, label=name, thumb=favicon or "",
+            url_for(mode="play", url=stream, label=name, thumb=favicon or sticker,
                     live=1, station=name),
             label,
-            thumb=favicon,
+            thumb=favicon or sticker,
+            icon=sticker,
             plot=plot,
             artist=name,
             album="Live radio",
@@ -548,7 +554,11 @@ def _play_tracks(tracks, identifier, start=0, shuffle=False):
         details = nowplaying.parse(pack_title, track["title"])
         plotted = nowplaying.plot("From archive.org item %s" % identifier, details)
         item = xbmcgui.ListItem(path=url)
-        item.setArt({"thumb": thumb, "icon": thumb, "fanart": thumb})
+        # 1:1 cover in the art slots, 16:9 brand fanart behind it.  The old
+        # pass put the square cover in the fanart slot, which every skin
+        # stretched across the whole 16:9 background.
+        item.setArt({"thumb": thumb, "icon": thumb, "poster": thumb,
+                     "fanart": kodi.FANART, "landscape": kodi.FANART})
         info = kodi.music_info(ui.plain(track["title"]), plotted,
                                mediatype="music", album=pack_title)
         if track.get("duration"):
@@ -790,6 +800,12 @@ def station_live(handle, params):
     stations = radio.curated(token)
     if not stations:
         kodi.notify("That station is not listed live right now.")
+        ui.status_item(
+            handle, "This station is off air",
+            plot="The station directory has no working stream for it right now. "
+                 "Press OK to check again.",
+            fact="empty", kind="empty",
+            retry_url=url_for(mode="station_live", token=token))
     _station_items(handle, stations, "Live now")
     kodi.end_directory(handle, "songs")
 
@@ -804,6 +820,12 @@ def radio_tag(handle, params):
     stations = radio.stations(section["tag"], limit=kodi.setting_int("radio_limit", 500))
     if not stations:
         kodi.notify("No working stations for %s right now." % section["label"])
+        ui.status_item(
+            handle, "No working %s stations" % section["label"].lower(),
+            plot="The radio directory returned no stream that passed the "
+                 "public-host check. Press OK to scan again.",
+            fact="empty", kind="empty",
+            retry_url=url_for(mode="radio_tag", key=section["key"]))
     _station_items(handle, stations, "Live radio · %s" % section["label"])
     kodi.end_directory(handle, "songs")
 
@@ -820,6 +842,12 @@ def archive_list(handle, params):
 
     if not docs and page == 1:
         kodi.notify("Nothing came back from the Archive. Try another section.")
+        ui.status_item(
+            handle, "Nothing in %s right now" % section["label"],
+            plot="The Archive returned no items for this section. Press OK to "
+                 "ask again, or pick another room.",
+            fact="empty", kind="empty",
+            retry_url=url_for(mode="archive_list", key=section["key"], page=1))
 
     _archive_items(handle, docs)
 
@@ -843,8 +871,16 @@ def archive_item(handle, params):
     tracks = archive.audio_files(identifier)
     if not tracks:
         kodi.notify("No audio files in that set — try another.")
-    thumb = archive.thumb(identifier)
+    thumb = archive.thumb(identifier) or art(MENU_ART["packs"])
+    sticker = art(MENU_ART["packs"])
     pack_title = archive.item_title(identifier) or identifier.replace("-", " ")
+    if not tracks:
+        ui.status_item(
+            handle, "This pack has no playable audio",
+            plot="The Archive item exists but returned no audio files. Press "
+                 "OK to reload the pack, or go Back and pick another set.",
+            fact="error", kind="error",
+            retry_url=url_for(mode="archive_item", id=identifier))
     for index, track in enumerate(tracks):
         track_title = ui.plain(track["title"])
         details = nowplaying.parse(pack_title, track["title"])
@@ -856,12 +892,13 @@ def archive_item(handle, params):
                 url=track["url"],
                 label=track_title,
                 thumb=thumb,
-                fanart=thumb,
                 plot=plotted,
             ),
             track_title,
             thumb=thumb,
-            fanart=thumb,
+            # The square pack front belongs in the 1:1 art slot; the 16:9
+            # background stays the brand fanart instead of stretching a cover.
+            icon=sticker,
             plot=plotted,
             artist=details["artist"],
             album=pack_title,
@@ -902,7 +939,13 @@ def fav_list(handle, params):
                  "Downloads  [COLOR gray](%d)[/COLOR]" % len(download_rows),
                  icon=art(MENU_ART["downloads"]),
                  plot="Offline downloads — play from the local copy or delete.",
-                 label2="offline")
+                 label2="%d saved" % len(download_rows) if download_rows else "empty")
+    if not entries:
+        ui.status_item(
+            handle, "No favourites yet",
+            plot="Open a pack or show, then use Add to favourites in its context "
+                 "menu. Press OK to refresh this list.",
+            fact="empty", kind="empty", retry_url=url_for(mode="fav_list"))
     for entry in entries:
         entry_key = favourites.key(entry)
         title = ui.plain(entry["title"])
@@ -910,7 +953,8 @@ def fav_list(handle, params):
         source = ui.plain(entry.get("source") or "")
         if entry["kind"] == "pack":
             ui.menu_item(handle, url_for(mode="archive_item", id=entry["target"]), title,
-                         icon=archive.thumb(entry["target"]),
+                         icon=art(MENU_ART["packs"]),
+                         thumb=archive.thumb(entry["target"]),
                          plot="Tape pack · %s" % source if source else "Tape pack",
                          label2=source,
                          context=context)
@@ -1145,6 +1189,11 @@ def latest_view(handle, params):
     live_count = _latest_live_rows(handle)
     if not items and not live_count:
         kodi.notify("Nothing came back from the sources — try again later.")
+        ui.status_item(
+            handle, "Nothing new right now",
+            plot="The sources did not answer. Press OK to fetch Latest again, "
+                 "or try another room while you wait.",
+            fact="empty", kind="empty", retry_url=url_for(mode="latest"))
         kodi.end_directory(handle, "files")
         return
 
@@ -1162,8 +1211,10 @@ def latest_view(handle, params):
             else "%s  [COLOR gray](%s)[/COLOR]" % (title, source)
         if item["kind"] == "pack":
             ui.menu_item(handle, url_for(mode="archive_item", id=item["identifier"]), label,
-                         icon=archive.thumb(item["identifier"]), plot="Tape pack",
-                         title=title,
+                         icon=art(MENU_ART["packs"]),
+                         thumb=archive.thumb(item["identifier"]),
+                         plot="Tape pack from the Internet Archive.",
+                         title=title, label2=stamp or "pack",
                          context=_pack_context(item["identifier"], title))
         elif item["kind"] == "episode":
             if handoff.platform_kind(item["url"]):
@@ -2005,6 +2056,13 @@ def downloads_menu(handle, params):
     rows = downloads.list_downloads()
     if not rows:
         kodi.notify("No downloads yet — use Download in an item's context menu.")
+        ui.status_item(
+            handle, "No downloads yet",
+            plot="Use Download in a pack or track's context menu. Saved files "
+                 "appear here and play without a network connection.",
+            fact="empty", kind="empty",
+            retry_url=url_for(mode="downloads_menu"),
+            icon=art(MENU_ART["downloads"]))
     for row in rows:
         label = ui.plain(row["title"])
         if row.get("exists"):
@@ -2136,6 +2194,12 @@ def search(handle, params):
                  if isinstance(doc, dict) and doc.get("identifier") not in seen]
     if not docs and page == 1:
         kodi.notify("No results for “%s”." % query)
+        ui.status_item(
+            handle, "No results for “%s”" % query,
+            plot="Nothing in the Archive matched that search. Press OK to "
+                 "search again with a different word.",
+            fact="empty", kind="empty",
+            retry_url=url_for(mode="search", q=query, page=1))
     _archive_items(handle, docs)
     if docs and total > page * rows:
         ui.menu_item(
@@ -2183,8 +2247,14 @@ def about(handle, params):
         ("Source: Toronto Rave Mixtape Archive", "toronto.png",
          "1990s Toronto rave mixtapes by genre (jungle, house, studio, X-Static) — direct MP3s."),
     ]
-    for label, icon, plot in rows:
-        ui.info_item(handle, label, plot=plot, icon=art(icon))
+    # The right-hand column finally tells the truth: every About row is a
+    # licence, a host or a delivery mode, never a second title.
+    facts = ("GPL-3.0", "archive.org", "add-on", "web only", "directory",
+             "moxser.com", "hardscore.com", "dnbradio.com", "getdarker.com",
+             "podcast rss", "pirate archive", "live radio", "rave tapes",
+             "jungletapes.com", "toronto")
+    for (label, icon, plot), fact in zip(rows, facts):
+        ui.info_item(handle, label, plot=plot, icon=art(icon), label2=fact)
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -2310,7 +2380,9 @@ def play(handle, params):
     try:
         stream = _playable_url(params.get("url", ""))
         thumb = _safe_art(params.get("thumb"), kodi.ROUND_FACE)
-        fanart = _safe_art(params.get("fanart"), "")
+        # A missing fanart must fall back to the 1920x1080 brand still, not to
+        # the square thumb: Kodi's OSD/background is a 16:9 surface.
+        fanart = _safe_art(params.get("fanart"), kodi.FANART)
         plotted = params.get("plot") or ""
         if not stream:
             _fail_playback(handle,
@@ -2348,9 +2420,9 @@ def play(handle, params):
         station = live.station_name(stream, params.get("station") or label) if is_live else ""
         display_label = station or label
         item = xbmcgui.ListItem(path=stream)
-        art = {"thumb": thumb, "icon": thumb}
-        if fanart:
-            art["fanart"] = fanart
+        art = {"thumb": thumb, "icon": thumb, "poster": thumb,
+               "fanart": fanart or kodi.FANART,
+               "landscape": fanart or kodi.FANART}
         item.setArt(art)
         info = kodi.music_info(ui.plain(display_label), plotted, mediatype="music")
         if is_live:

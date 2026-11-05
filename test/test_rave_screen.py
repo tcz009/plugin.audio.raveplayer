@@ -100,9 +100,9 @@ class FakeView(object):
 class FakeData(object):
     def __init__(self):
         self.home = [
-            Entry("latest", "LATEST", "newest", "", "section"),
-            Entry("toronto", "TORONTO", "tapes", "", "section"),
-            Entry("surprise", "SPINNING SURPRISE", "random", "", "surprise"),
+            Entry("latest", "Latest", "newest", "", "section"),
+            Entry("toronto", "Toronto Rave Mixtape Archive", "tapes", "", "section"),
+            Entry("surprise", "Spinning Surprise", "random", "", "surprise"),
         ]
         self.loaded = []
         self.picks = 0
@@ -215,7 +215,7 @@ class ControllerTests(unittest.TestCase):
         ctl, view, data, _ = controller()
         rows = ctl.start()
         self.assertEqual(len(rows), 3)
-        self.assertEqual(view.rows[0].label, "LATEST")
+        self.assertEqual(view.rows[0].label, "Latest")
         self.assertEqual(view.hero, view.rows[0])
         self.assertEqual(view.title, "RAVE SCREEN")
         self.assertIn("OK opens", view.subtitle)
@@ -225,7 +225,7 @@ class ControllerTests(unittest.TestCase):
         ctl.start()
         view.index = 2
         ctl.on_focus()
-        self.assertEqual(view.hero.label, "SPINNING SURPRISE")
+        self.assertEqual(view.hero.label, "Spinning Surprise")
 
     def test_section_load_then_back_returns_home_then_closes(self):
         ctl, view, data, _ = controller()
@@ -237,7 +237,7 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(ctl.stack_depth, 1)
 
         self.assertFalse(ctl.on_back())
-        self.assertEqual(view.rows[0].label, "LATEST")
+        self.assertEqual(view.rows[0].label, "Latest")
         self.assertEqual(ctl.stack_depth, 0)
 
         self.assertTrue(ctl.on_back())
@@ -259,7 +259,7 @@ class ControllerTests(unittest.TestCase):
         view.index = 0
         data.section_entries = lambda key: (_ for _ in ()).throw(RuntimeError("offline"))
         self.assertFalse(ctl.on_click())
-        self.assertEqual(view.rows[0].label, "LATEST")
+        self.assertEqual(view.rows[0].label, "Latest")
         self.assertIn("Could not load", view.status)
         self.assertFalse(ctl._busy)
 
@@ -656,8 +656,8 @@ class DataTests(unittest.TestCase):
         data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
         labels = [row.label for row in data.home_rows()]
         self.assertEqual(labels, [
-            "LATEST", "TORONTO RAVE MIXTAPE ARCHIVE", "JUNGLETAPES.COM",
-            "RAVETAPEPACKS.COM", "LIVE RADIO", "SPINNING SURPRISE",
+            "Latest", "Toronto Rave Mixtape Archive", "JungleTapes.com",
+            "RaveTapePacks.com", "Live Radio", "Spinning Surprise",
         ])
         rows = data.home_rows()
         self.assertTrue(all(row.art for row in rows))

@@ -83,8 +83,12 @@ class PlayAllTests(unittest.TestCase):
         with mock.patch.object(routes.archive, "audio_files", return_value=TRACKS):
             routes.play_all(1, {"id": "p"})
         _url, listitem = xbmc.PLAYED[-1].items[0]
-        self.assertEqual(listitem.art["fanart"], routes.archive.thumb("p"))
+        # 2026 look: the square cover stays in the square slots; the 16:9
+        # fanart is the brand still, not a stretched cover.
         self.assertEqual(listitem.art["thumb"], routes.archive.thumb("p"))
+        self.assertEqual(listitem.art["poster"], routes.archive.thumb("p"))
+        self.assertEqual(listitem.art["fanart"], routes.kodi.FANART)
+        self.assertEqual(listitem.art["landscape"], routes.kodi.FANART)
         self.assertIn("From archive.org item p", listitem.info["music"]["plot"])
 
     def test_no_tracks_notifies_and_does_not_start_playback(self):
