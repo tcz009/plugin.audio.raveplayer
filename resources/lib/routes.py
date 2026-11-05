@@ -81,6 +81,10 @@ toronto_source = _lazy("toronto")
 
 ROWS_PER_PAGE = 50
 MAX_ROWS_PER_PAGE = 200
+# A pack detail is one of the few lists whose natural size can be thousands
+# (the Helter Skelter pack has 1,645 tracks).  Never build more than 200 rows
+# in one directory; page the rest.
+PACK_ROWS_PER_PAGE = 200
 # JungleTapes has 300+ sitemap shows; page the directory instead of sending one
 # 310-row list (and keep the page size aligned with the web build).
 JT_SHOWS_PER_PAGE = 50
@@ -463,14 +467,24 @@ def _archive_items(handle, docs):
 
 
 def _station_items(handle, stations, plot):
-    """Render live radio stations, with a favourite and play URL each."""
+    """Render live radio stations, with a favourite and play URL each.
+
+    Listing must not resolve DNS per row: 100 stations used to mean 100
+    favicon lookups plus 100 stream lookups, i.e. 28–53 s on the Shield
+    (audit P0-2).  Art and the station stream are checked cheaply here; the
+    chosen station is still resolved by the strict public-host guard in
+    ``play()`` before any media starts.
+    """
     for station in stations:
         name, meta = radio.display(station)
         name = ui.plain(name)
         meta = ui.plain(meta)
-        stream = _playable_url(radio.stream_url(station))
-        if not stream:
+        candidate = str(radio.stream_url(station) or "").strip()
+        if not candidate or handoff.platform_kind(candidate):
             continue
+        if not http.looks_like_public_http_url(candidate.split("|", 1)[0]):
+            continue
+        stream = candidate
         favicon = _safe_art(station.get("favicon"), None)
         sticker = art(MENU_ART["radio"])
         label = "%s  [I]%s[/I]" % (name, meta) if meta else name
@@ -868,19 +882,37 @@ def archive_item(handle, params):
         kodi.end_directory(handle, "songs")
         return
     kodi.notify("Loading set…")
-    tracks = archive.audio_files(identifier)
-    if not tracks:
+    all_tracks = archive.audio_files(identifier)
+    page = _page_number(params)
+    total = len(all_tracks)
+    # Audit P0-4: one Archive pack (helter-skelter-tape-packs) returned 1,645
+    # rows and took 18.7 s.  A pack detail is a normal paginated list now:
+    # at most 200 rows per page, with the total and a Next row.
+    rows = min(_rows_per_page(), PACK_ROWS_PER_PAGE)
+    pages = max(1, (total + rows - 1) // rows)
+    page = min(page, pages)
+    start = (page - 1) * rows
+    tracks = all_tracks[start:start + rows]
+    if not all_tracks:
         kodi.notify("No audio files in that set — try another.")
     thumb = archive.thumb(identifier) or art(MENU_ART["packs"])
     sticker = art(MENU_ART["packs"])
     pack_title = archive.item_title(identifier) or identifier.replace("-", " ")
-    if not tracks:
+    if not all_tracks:
         ui.status_item(
             handle, "This pack has no playable audio",
             plot="The Archive item exists but returned no audio files. Press "
                  "OK to reload the pack, or go Back and pick another set.",
             fact="error", kind="error",
             retry_url=url_for(mode="archive_item", id=identifier))
+    elif pages > 1:
+        ui.info_item(
+            handle,
+            "Page %d of %d · %s tracks" % (page, pages, "{:,}".format(total)),
+            plot="This pack is split across pages. Press OK on a track to play "
+                 "it, or use Next page at the bottom for the rest.",
+            icon=sticker,
+            label2="%s tracks" % "{:,}".format(total))
     for index, track in enumerate(tracks):
         track_title = ui.plain(track["title"])
         details = nowplaying.parse(pack_title, track["title"])
@@ -904,13 +936,20 @@ def archive_item(handle, params):
             album=pack_title,
             year=nowplaying.year(details),
             genre=track.get("genre"),
-            tracknumber=index + 1,
+            tracknumber=start + index + 1,
             duration=track.get("duration"),
             context=[
                 ("Play all from here", "RunPlugin(%s)" % url_for(
-                    mode="play_all", id=identifier, start=index)),
+                    mode="play_all", id=identifier, start=start + index)),
                 _favourite("stream", track["url"], track_title, "Archive.org"),
             ] + _download_context(track["url"], track_title, "Archive.org"),
+        )
+    if tracks and page < pages:
+        ui.menu_item(
+            handle,
+            url_for(mode="archive_item", id=identifier, page=page + 1),
+            "Next page  ›",
+            plot=_page_plot(total, page + 1, rows),
         )
     kodi.end_directory(handle, "songs")
 
@@ -2277,13 +2316,15 @@ def _safe_art(value, fallback=None):
 
     Third-party favicons/thumb parameters otherwise reach Kodi's image loader
     unchanged (A11).  Local add-on paths are replaced by the caller's fallback
-    icon, which is the same image in the normal case.
+    icon, which is the same image in the normal case.  Validation is
+    syntax-only on purpose: art is an image Kodi loads itself, and resolving
+    every favicon host made Live Radio doors take 28–53 s (audit P0-2).
     """
     text = str(value or "").strip()
     if not text:
         return fallback
     if text.lower().startswith(("http://", "https://")):
-        return text if _playable_url(text) else fallback
+        return text if http.safe_art_url(text) else fallback
     return fallback
 
 

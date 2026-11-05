@@ -345,6 +345,64 @@ def safe_stream_url(value):
     return text
 
 
+_PRIVATE_HOST_SUFFIXES = (".local", ".localhost", ".internal", ".home.arpa")
+
+
+def looks_like_public_http_url(value):
+    """Cheap public-URL guard: syntax and literal addresses, **no DNS**.
+
+    Directory routes call this for non-playable art URLs and for optional
+    stream rows.  ``host_is_blocked`` costs one ``getaddrinfo`` per unique
+    host; on a 100-station radio door that was 90+ serial lookups and 28–53 s
+    (audit P0-2).  Art is fetched by Kodi, not by this process, and a stream is
+    validated again — with resolution — by :func:`safe_stream_url` when the
+    user actually plays it.  Literal loopback/private IPs and local-only
+    hostnames are still refused here, so a hostile favicon/stream field cannot
+    point at the LAN.
+    """
+    text = str(value or "").strip()
+    if not text:
+        return False
+    try:
+        split = urllib.parse.urlsplit(text)
+    except ValueError:
+        return False
+    if split.scheme.lower() not in ("http", "https") or not split.netloc:
+        return False
+    if split.username or split.password:
+        return False
+    try:
+        hostname = split.hostname
+    except ValueError:
+        return False
+    host = str(hostname or "").strip().strip("[]").rstrip(".").lower()
+    if not host:
+        return False
+    if host == "localhost" or host.endswith(_PRIVATE_HOST_SUFFIXES):
+        return False
+    import ipaddress
+
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        address = None
+    if address is not None:
+        return not blocked_address(address)
+    return True
+
+
+def safe_art_url(value):
+    """Return an http(s) art URL that cannot point at the LAN, without DNS.
+
+    Third-party favicons/thumbnails are images, not media and not server-side
+    fetches, so resolving their hosts would only add latency (P0-2).
+    """
+    text = str(value or "").strip()
+    if not text or "|" in text:
+        return ""
+    return text if looks_like_public_http_url(text) else ""
+
+
 # --------------------------------------------------------------------- budget
 
 
