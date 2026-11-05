@@ -167,5 +167,23 @@ class ArchivePackPaginationTests(unittest.TestCase):
         self.assertFalse(any("Next page" in item["label"] for item in items))
 
 
+class SearchScopeTests(unittest.TestCase):
+    """P0-1 guard: the device search door stays inside the rave collection."""
+
+    def setUp(self):
+        _reset()
+
+    def test_search_query_carries_the_collection_clause(self):
+        docs = [{"identifier": "pack-%d" % index, "title": "Pack %d" % index}
+                for index in range(12)]
+        with mock.patch.object(routes.archive, "search",
+                               return_value=(docs, 12)) as search:
+            routes.search(1, {"q": "randall"})
+        query = search.call_args[0][0]
+        self.assertIn("randall", query)
+        self.assertIn("collection:ravetapes", query)
+        self.assertIn("mediatype:audio", query)
+
+
 if __name__ == "__main__":
     unittest.main()

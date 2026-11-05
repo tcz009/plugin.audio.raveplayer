@@ -32,8 +32,8 @@ Rave Player 3.9.49
 - P0-5 RaveTapePacks playback: Kodi stays deliberately silent when the source
   is unreachable (owner decision; no blocking warning is re-added). The web
   build shows a non-modal idle line and retries once in the background.
-- Tests: 695 Kodi OK (plus the web build's 531); the new P0 regressions cover
-  zero-DNS station listing and pack pagination.
+- Tests: 696 Kodi OK (plus the web build's 531); the new P0 regressions cover
+  zero-DNS station listing, pack pagination and the scoped search query.
 
 Rave Player 3.9.48
 - Rave Screen (`script.raveplayer.ui` 3.9.48) visual parity pass: the
