@@ -64,12 +64,15 @@ class RootOrderTests(unittest.TestCase):
     def test_root_order_matches_the_web_rail_for_shared_rooms(self):
         routes.root(1, {})
         labels = [item["label"] for item in _items()]
+        self.assertEqual(labels, ["Rave Player", "Classic lists"])
+        _reset()
+        routes.classic_root(1, {})
+        labels = [item["label"] for item in _items()]
         self.assertEqual(labels, [
-            "Rave Screen", "Latest", "Tape Packs", "Pirate Radio",
+            "Latest", "Tape Packs", "Pirate Radio",
             "Mixes & Shows", "Live Radio", "Favourites",
-            "Search the Archive", "Surprise Me", "About & Sources",
+            "Search the Archive", "Surprise Me", "About & Sources", "Back",
         ])
-        # The web rail's order for the shared rooms, in the same positions.
         shared = [label for label in labels if label in (
             "Latest", "Tape Packs", "Pirate Radio", "Mixes & Shows",
             "Live Radio", "Favourites")]
@@ -251,7 +254,8 @@ class RaveScreenXmlTests(unittest.TestCase):
         labels = [row.label for row in data.home_rows()]
         self.assertEqual(labels, [
             "Latest", "Toronto Rave Mixtape Archive", "JungleTapes.com",
-            "RaveTapePacks.com", "Live Radio", "Spinning Surprise",
+            "RaveTapePacks.com", "Live Radio", "Mixes & Shows", "Search",
+            "Favourites", "Downloads", "About", "Spinning Surprise",
         ])
         for label in labels:
             with self.subTest(label=label):

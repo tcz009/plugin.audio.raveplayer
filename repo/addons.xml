@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addons>
-<addon id="plugin.audio.raveplayer" name="Rave Player" version="3.9.50" provider-name="TheYid009">
+<addon id="plugin.audio.raveplayer" name="Rave Player" version="3.9.51" provider-name="TheYid009">
   <requires>
     <import addon="xbmc.python" version="3.0.1" />
   </requires>
@@ -10,8 +10,8 @@
   <extension point="xbmc.addon.metadata">
     <summary lang="en_GB">Oldskool rave, jungle, hardcore and pirate radio — tape packs, live streams and archive sets.</summary>
     <summary lang="en_US">Oldskool rave, jungle, hardcore and pirate radio — tape packs, live streams and archive sets.</summary>
-    <description lang="en_GB">Rave Player is back for 2026.[CR][CR]Stream thousands of oldskool rave tape packs, jungle and drum &amp; bass sets, hardcore, house and garage mixes, and live pirate radio — pulled from the Internet Archive's public collections and a community-maintained live radio directory, so the sources keep working.[CR][CR]Rebuilt from the 2014 original by TheYid009: Python 3, no dead dependencies, proper artwork and search.</description>
-    <description lang="en_US">Rave Player is back for 2026.[CR][CR]Stream thousands of oldskool rave tape packs, jungle and drum &amp; bass sets, hardcore, house and garage mixes, and live pirate radio — pulled from the Internet Archive's public collections and a community-maintained live radio directory, so the sources keep working.[CR][CR]Rebuilt from the 2014 original by TheYid009: Python 3, no dead dependencies, proper artwork and search.</description>
+    <description lang="en_GB">Rave Player is back for 2026 as a full-screen app: the Rave Screen is the primary shell and these normal lists are the Classic lists fallback.[CR][CR]Stream thousands of oldskool rave tape packs, jungle and drum &amp; bass sets, hardcore, house and garage mixes, and live pirate radio — pulled from the Internet Archive's public collections and a community-maintained live radio directory, so the sources keep working.[CR][CR]Rebuilt from the 2014 original by TheYid009: Python 3, no dead dependencies, proper artwork and search.</description>
+    <description lang="en_US">Rave Player is back for 2026 as a full-screen app: the Rave Screen is the primary shell and these normal lists are the Classic lists fallback.[CR][CR]Stream thousands of oldskool rave tape packs, jungle and drum &amp; bass sets, hardcore, house and garage mixes, and live pirate radio — pulled from the Internet Archive's public collections and a community-maintained live radio directory, so the sources keep working.[CR][CR]Rebuilt from the 2014 original by TheYid009: Python 3, no dead dependencies, proper artwork and search.</description>
     <disclaimer lang="en_GB">Rave Player does not host or distribute any content. Everything played is streamed from third-party public archives and radio directories.</disclaimer>
     <platform>all</platform>
     <license>GPL-3.0-or-later</license>
@@ -25,10 +25,10 @@
     </assets>
   </extension>
 </addon>
-<addon id="script.raveplayer.ui" name="Rave Screen" version="3.9.49" provider-name="TheYid009">
+<addon id="script.raveplayer.ui" name="Rave Screen" version="3.9.50" provider-name="TheYid009">
   <requires>
     <import addon="xbmc.python" version="3.0.0" />
-    <import addon="plugin.audio.raveplayer" version="3.9.50" />
+    <import addon="plugin.audio.raveplayer" version="3.9.51" />
   </requires>
   <extension point="xbmc.python.script" library="default.py">
     <provides>executable</provides>
@@ -36,8 +36,8 @@
   <extension point="xbmc.addon.metadata">
     <summary lang="en_GB">Full-screen 2026 Rave UI for Rave Player, with Spinning Surprise.</summary>
     <summary lang="en_US">Full-screen 2026 Rave UI for Rave Player, with Spinning Surprise.</summary>
-    <description lang="en_GB">A proper Kodi window — not an overlay stuck on top of a plugin directory. Big hero art, a vertical D-pad list, 2026 sticker styling and Spinning Surprise: one random tape pack and track, a ≥1.2 second spinning-head reveal, then playback handed to Kodi. Reads the Rave Player add-on's public data modules read-only. Back exits cleanly; the normal plugin lists remain available as the fallback.</description>
-    <description lang="en_US">A proper Kodi window — not an overlay stuck on top of a plugin directory. Big hero art, a vertical D-pad list, 2026 sticker styling and Spinning Surprise: one random tape pack and track, a ≥1.2 second spinning-head reveal, then playback handed to Kodi. Reads the Rave Player add-on's public data modules read-only. Back exits cleanly; the normal plugin lists remain available as the fallback.</description>
+    <description lang="en_GB">The primary Rave Player app: one full-screen Kodi window with all eleven rooms, paged lists, an in-window keyboard search, favourites, downloads, live radio, About and Spinning Surprise. Drives the Rave Player plugin as its data and playback backend. Back exits cleanly; the plugin's Classic lists remain available as the fallback.</description>
+    <description lang="en_US">The primary Rave Player app: one full-screen Kodi window with all eleven rooms, paged lists, an in-window keyboard search, favourites, downloads, live radio, About and Spinning Surprise. Drives the Rave Player plugin as its data and playback backend. Back exits cleanly; the plugin's Classic lists remain available as the fallback.</description>
     <disclaimer lang="en_GB">Rave Screen does not host or distribute any content. Playback is streamed from third-party public archives and radio directories.</disclaimer>
     <platform>all</platform>
     <license>GPL-3.0-or-later</license>

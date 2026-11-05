@@ -1,3 +1,18 @@
+Rave Player 3.9.51
+- Full-screen app: script.raveplayer.ui is now the primary shell. The plugin
+  root is the app launcher plus one "Classic lists" fallback row; the old root
+  lists live behind mode=classic_root unchanged.
+- The screen drives all eleven rooms (Latest, Toronto, JungleTapes,
+  RaveTapePacks, Live Radio, Mixes & Shows, Search, Favourites, Downloads,
+  About, Spinning Surprise), with 25/50/100 paging, in-window keyboard search,
+  context actions and painted loading/empty/error states.
+- Spinning Surprise: bounded pack/track picking with a retry and a recent-packs
+  fallback (latest.random_pack retries three Archive pages); no unbounded loop.
+- Favourites now persist RaveTapePacks posts (`legacy_post`), matching the
+  kind the route context menu already used.
+- No player auto-stop on window exit: Kodi owns audio (one documented policy).
+  RTP playback failures remain silent.
+
 Rave Player 3.9.50
 - Fix pass for the independent 3.9.49 advisor review (NOT SHIP -> fixed).
 - JungleTapes playback (P1-1): the Shield's Kodi/libcurl fetch of a

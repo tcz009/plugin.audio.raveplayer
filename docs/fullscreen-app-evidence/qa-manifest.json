@@ -1,0 +1,4077 @@
+{
+ "schema": 1,
+ "tool": "scripts/qa_fullscreen.py",
+ "created": "2026-11-05T16:24:19+0000",
+ "run_name": "baseline-3.9.51",
+ "expect": {
+  "plugin_version": "3.9.51",
+  "script_version": "3.9.50",
+  "screen_window_range": [
+   13000,
+   13999
+  ],
+  "rooms": [
+   "Latest",
+   "Toronto Rave Mixtape Archive",
+   "JungleTapes.com",
+   "RaveTapePacks.com",
+   "Live Radio",
+   "Spinning Surprise"
+  ]
+ },
+ "device": {
+  "serial": "192.168.1.189:5555",
+  "model": "SHIELD Android TV",
+  "device": "foster",
+  "android": "11",
+  "sdk": "30",
+  "kodi_package": "13961456_4387.0822",
+  "adb_devices": [
+   "List of devices attached",
+   "192.168.1.189:5555\tdevice"
+  ]
+ },
+ "kodi": {
+  "muted": false,
+  "name": "Kodi",
+  "version": {
+   "major": 22,
+   "minor": 0,
+   "revision": "20260621-77395cf42e",
+   "tag": "beta",
+   "tagversion": "1"
+  },
+  "volume": 100
+ },
+ "addons": {
+  "plugin.audio.raveplayer": {
+   "addonid": "plugin.audio.raveplayer",
+   "broken": false,
+   "dependencies": [
+    {
+     "addonid": "xbmc.python",
+     "minversion": "3.0.1",
+     "optional": false,
+     "version": "3.0.1"
+    }
+   ],
+   "enabled": true,
+   "name": "Rave Player",
+   "type": "xbmc.python.pluginsource",
+   "version": "3.9.51"
+  },
+  "script.raveplayer.ui": {
+   "addonid": "script.raveplayer.ui",
+   "broken": false,
+   "dependencies": [
+    {
+     "addonid": "xbmc.python",
+     "minversion": "3.0.0",
+     "optional": false,
+     "version": "3.0.0"
+    },
+    {
+     "addonid": "plugin.audio.raveplayer",
+     "minversion": "3.9.51",
+     "optional": false,
+     "version": "3.9.51"
+    }
+   ],
+   "enabled": true,
+   "name": "Rave Screen",
+   "type": "xbmc.python.script",
+   "version": "3.9.50"
+  },
+  "repository.raveplayer": {
+   "addonid": "repository.raveplayer",
+   "broken": false,
+   "dependencies": [
+    {
+     "addonid": "xbmc.addon",
+     "minversion": "12.0.0",
+     "optional": false,
+     "version": "12.0.0"
+    }
+   ],
+   "enabled": true,
+   "name": "Rave Player Repository",
+   "type": "xbmc.addon.repository",
+   "version": "1.0.0"
+  }
+ },
+ "adb": {
+  "serial": "192.168.1.189:5555",
+  "log_path": "/sdcard/Android/data/org.xbmc.kodi/files/.kodi/temp/kodi.log"
+ },
+ "artifacts": {
+  "dir": "qa-artifacts/baseline-3.9.51",
+  "screens": "qa-artifacts/baseline-3.9.51/screens",
+  "session_log": "qa-artifacts/baseline-3.9.51/kodi-session.log"
+ },
+ "timing": {
+  "preflight": "2026-11-05T17:07:59+0000",
+  "finished": "2026-11-05T17:09:17+0000",
+  "wall_seconds": 82.6
+ },
+ "states": [
+  {
+   "id": "screen_home",
+   "category": "screen",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:25:12+0000",
+   "duration_ms": 15674,
+   "gui": {
+    "currentwindow": {
+     "id": 13001,
+     "label": "Immediate HDD spindown"
+    },
+    "currentcontrol": {
+     "label": "Latest"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 0,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {}
+   },
+   "screenshot": "screens/001-screen_home.png",
+   "screenshot_bytes": 4549327,
+   "screenshot_ms": 12534,
+   "screenshot_sha256": "1099e95675d5914843dc5241b5294c4934879f110efcf9e9443222091973609e",
+   "kodi_restart": false,
+   "rooms": [
+    "Latest",
+    "Toronto Rave Mixtape Archive",
+    "JungleTapes.com",
+    "RaveTapePacks.com",
+    "Live Radio",
+    "Mixes & Shows",
+    "Search",
+    "Favourites",
+    "Downloads",
+    "About",
+    "Spinning Surprise"
+   ],
+   "row_count": 11
+  },
+  {
+   "id": "screen_room_latest",
+   "category": "screen",
+   "ok": true,
+   "note": "room=Latest",
+   "started_at": "2026-11-05T16:25:32+0000",
+   "duration_ms": 16957,
+   "gui": {
+    "currentwindow": {
+     "id": 13001,
+     "label": "Immediate HDD spindown"
+    },
+    "currentcontrol": {
+     "label": "Damon Wild - Sonic Underground 05 - The Synewave Sessions (1999)"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 5,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 2
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:25:11.938 T:25327    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:25:13.779 T:25327    info <general>: [script.raveplayer.ui] loaded 'latest' page=1/2 rows=51 total=100"
+     ]
+    }
+   },
+   "screenshot": "screens/002-screen_room_latest.png",
+   "screenshot_bytes": 4832145,
+   "screenshot_ms": 12433,
+   "screenshot_sha256": "9825260b8f5f0db38e72ef69b1acb448859742b51d350fddeddcc2d530fb30cd",
+   "kodi_restart": false,
+   "room": "Latest",
+   "room_index": 0,
+   "loaded": true,
+   "child": "Damon Wild - Sonic Underground 05 - The Synewave Sessions (1999)"
+  },
+  {
+   "id": "screen_room_toronto",
+   "category": "screen",
+   "ok": true,
+   "note": "room=Toronto Rave Mixtape Archive",
+   "started_at": "2026-11-05T16:25:52+0000",
+   "duration_ms": 17411,
+   "gui": {
+    "currentwindow": {
+     "id": 13001,
+     "label": "Immediate HDD spindown"
+    },
+    "currentcontrol": {
+     "label": "Jungle & Hardcore"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 4,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 2
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:25:32.251 T:25327    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:25:32.761 T:25327    info <general>: [script.raveplayer.ui] loaded 'toronto' page=1/1 rows=4 total=4"
+     ]
+    }
+   },
+   "screenshot": "screens/003-screen_room_toronto.png",
+   "screenshot_bytes": 4425241,
+   "screenshot_ms": 13727,
+   "screenshot_sha256": "e21324360f58d46c0f842ecd629dd094147237a390ce751652176a312af342d9",
+   "kodi_restart": false,
+   "room": "Toronto Rave Mixtape Archive",
+   "room_index": 1,
+   "loaded": true,
+   "child": "Jungle & Hardcore"
+  },
+  {
+   "id": "screen_room_jungletapes",
+   "category": "screen",
+   "ok": true,
+   "note": "room=JungleTapes.com",
+   "started_at": "2026-11-05T16:26:13+0000",
+   "duration_ms": 18315,
+   "gui": {
+    "currentwindow": {
+     "id": 13001,
+     "label": "Immediate HDD spindown"
+    },
+    "currentcontrol": {
+     "label": "Rinse out ckln 881 fm 2000 02 26"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 5,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 2
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:25:52.588 T:25327    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:25:52.838 T:25327    info <general>: [script.raveplayer.ui] loaded 'jungletapes' page=1/7 rows=51 total=310"
+     ]
+    }
+   },
+   "screenshot": "screens/004-screen_room_jungletapes.png",
+   "screenshot_bytes": 4933028,
+   "screenshot_ms": 15301,
+   "screenshot_sha256": "91e9451293fc1889bf196cf01f64a5958272c970a0ac13e53c579c0cad12e887",
+   "kodi_restart": false,
+   "room": "JungleTapes.com",
+   "room_index": 2,
+   "loaded": true,
+   "child": "Rinse out ckln 881 fm 2000 02 26"
+  },
+  {
+   "id": "screen_room_live",
+   "category": "screen",
+   "ok": true,
+   "note": "room=Live Radio",
+   "started_at": "2026-11-05T16:31:54+0000",
+   "duration_ms": 34894,
+   "gui": {
+    "currentwindow": {
+     "id": 13000,
+     "label": "System"
+    },
+    "currentcontrol": {
+     "label": "Kool FM"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 5,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 2
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:31:16.418 T:26631    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:31:16.785 T:26631    info <general>: [script.raveplayer.ui] loaded 'live' page=1/1 rows=9 total=9"
+     ]
+    }
+   },
+   "screenshot": "screens/006-screen_room_live.png",
+   "screenshot_bytes": 4713097,
+   "screenshot_ms": 31412,
+   "screenshot_sha256": "0ddc3f43d244a515c3cbf36009a57ca38213510133889c2b851075c933d5318c",
+   "kodi_restart": false,
+   "room": "Live Radio",
+   "room_index": 4,
+   "loaded": true,
+   "child": "Kool FM"
+  },
+  {
+   "id": "screen_room_ravetapepacks",
+   "category": "screen",
+   "ok": true,
+   "note": "room=RaveTapePacks.com",
+   "started_at": "2026-11-05T16:34:25+0000",
+   "duration_ms": 28522,
+   "gui": {
+    "currentwindow": {
+     "id": 13000,
+     "label": "System"
+    },
+    "currentcontrol": {
+     "label": "By Event (50)"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 7,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 2
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:33:54.141 T:27375    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:33:54.209 T:27375    info <general>: [script.raveplayer.ui] loaded 'ravetapepacks' page=1/1 rows=5 total=5"
+     ]
+    }
+   },
+   "screenshot": "screens/007-screen_room_ravetapepacks.png",
+   "screenshot_bytes": 4628149,
+   "screenshot_ms": 24351,
+   "screenshot_sha256": "82fc47ab882200323e8cc0ff8a03bd6fe686e0a6555b5ccd268cfb7b87e782de",
+   "kodi_restart": false,
+   "room": "RaveTapePacks.com",
+   "room_index": 3,
+   "loaded": true,
+   "child": "By Event (50)"
+  },
+  {
+   "id": "screen_room_favourites",
+   "category": "screen",
+   "ok": true,
+   "note": "room=Favourites",
+   "started_at": "2026-11-05T16:37:07+0000",
+   "duration_ms": 40664,
+   "gui": {
+    "currentwindow": {
+     "id": 13001,
+     "label": "Immediate HDD spindown"
+    },
+    "currentcontrol": {
+     "label": "Brockie - Kool FM 94.5"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 176,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 3
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:36:23.298 T:27743   debug <general>: [script.raveplayer.ui] plate loading title='LOADING'",
+      "2026-11-05 16:36:23.357 T:27743    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:36:23.376 T:27743    info <general>: [script.raveplayer.ui] loaded 'favourites' page=1/1 rows=1 total=1"
+     ]
+    }
+   },
+   "screenshot": "screens/010-screen_room_favourites.png",
+   "screenshot_bytes": 4551457,
+   "screenshot_ms": 34453,
+   "screenshot_sha256": "fcf60b8bcfa07bec24bff9b5402667114e33b11989eaf747cdef24102d987300",
+   "kodi_restart": false,
+   "room": "Favourites",
+   "room_index": 7,
+   "loaded": true,
+   "child": "Brockie - Kool FM 94.5"
+  },
+  {
+   "id": "screen_room_downloads",
+   "category": "screen",
+   "ok": true,
+   "note": "room=Downloads",
+   "started_at": "2026-11-05T16:37:53+0000",
+   "duration_ms": 36403,
+   "gui": {
+    "currentwindow": {
+     "id": 13001,
+     "label": "Immediate HDD spindown"
+    },
+    "currentcontrol": {
+     "label": "Anabolic Frolic - Live at Fusion Oct 3 98 - Side A"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 13,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 3
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:37:14.833 T:27743   debug <general>: [script.raveplayer.ui] plate loading title='LOADING'",
+      "2026-11-05 16:37:14.892 T:27743    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:37:14.929 T:27743    info <general>: [script.raveplayer.ui] loaded 'downloads' page=1/1 rows=7 total=7"
+     ]
+    }
+   },
+   "screenshot": "screens/011-screen_room_downloads.png",
+   "screenshot_bytes": 4886942,
+   "screenshot_ms": 31117,
+   "screenshot_sha256": "bfae515d5647043e66ee432572c1c2414fad6a09212a2ab7bec975ff6d012341",
+   "kodi_restart": false,
+   "room": "Downloads",
+   "room_index": 8,
+   "loaded": true,
+   "child": "Anabolic Frolic - Live at Fusion Oct 3 98 - Side A"
+  },
+  {
+   "id": "screen_room_about",
+   "category": "screen",
+   "ok": true,
+   "note": "room=About",
+   "started_at": "2026-11-05T16:38:41+0000",
+   "duration_ms": 36755,
+   "gui": {
+    "currentwindow": {
+     "id": 13001,
+     "label": "Immediate HDD spindown"
+    },
+    "currentcontrol": {
+     "label": "Rave Player 3.9.51"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 11,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 3
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:38:02.781 T:27743   debug <general>: [script.raveplayer.ui] plate loading title='LOADING'",
+      "2026-11-05 16:38:02.844 T:27743    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:38:02.879 T:27743    info <general>: [script.raveplayer.ui] loaded 'about' page=1/1 rows=10 total=10"
+     ]
+    }
+   },
+   "screenshot": "screens/012-screen_room_about.png",
+   "screenshot_bytes": 4478006,
+   "screenshot_ms": 32386,
+   "screenshot_sha256": "4c0f11dc1dd021e1fffa634df191cd3d1ca9936250640ebe889ecfaa3c3d38f2",
+   "kodi_restart": false,
+   "room": "About",
+   "room_index": 9,
+   "loaded": true,
+   "child": "Rave Player 3.9.51"
+  },
+  {
+   "id": "screen_surprise_splash",
+   "category": "screen",
+   "ok": true,
+   "note": "attempt=1",
+   "started_at": "2026-11-05T16:40:04+0000",
+   "duration_ms": 70246,
+   "gui": {
+    "currentwindow": {
+     "id": 13001,
+     "label": "Immediate HDD spindown"
+    },
+    "currentcontrol": {
+     "label": "Spinning Surprise"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": [
+     {
+      "playerid": 0,
+      "playertype": "internal",
+      "type": "audio"
+     }
+    ],
+    "item": {
+     "album": "",
+     "artist": [],
+     "file": "https://dn801707.us.archive.org/0/items/dj-czech-soundfeer-festival-rekreacni-stredisko-vesin-czech-republic-june-21-2013/DJ%20Czech%20%40%20Soundfeer%20Festival%2C%20Rekrea%C4%8Dn%C3%AD%20St%C5%99edisko%20V%C4%9B%C5%A1%C3%ADn%2C%20Czech%20Republic%20%28June%2021%2C%202013%29.mp3",
+     "label": "DJ Czech @ Soundfeer Festival, Rekreační Středisko Věšín, Czech Republic (June 21, 2013)",
+     "title": "DJ Czech @ Soundfeer Festival, Rekreační Středisko Věšín, Czech Republic (June 21, 2013)",
+     "type": "song"
+    },
+    "properties": {
+     "playlistid": 0,
+     "position": 0,
+     "repeat": "off",
+     "shuffled": false,
+     "speed": 1,
+     "time": {
+      "hours": 0,
+      "milliseconds": 537,
+      "minutes": 0,
+      "seconds": 34
+     },
+     "totaltime": {
+      "hours": 2,
+      "milliseconds": 373,
+      "minutes": 10,
+      "seconds": 29
+     }
+    }
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 153,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 1,
+     "script_error": 4
+    },
+    "matches": {
+     "route": [
+      "2026-11-05 16:39:16.360 T:28334   debug <general>: [plugin.audio.raveplayer] route play took 27 ms"
+     ],
+     "playback": [
+      "2026-11-05 16:39:17.932 T:28345   debug <general>: PAPlayer::Process - Playback started"
+     ],
+     "script_error": [
+      "2026-11-05 16:38:52.273 T:27743   debug <general>: [script.raveplayer.ui] spinner visible=True rp_splash=1 controls=14",
+      "2026-11-05 16:38:52.375 T:27743    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:39:17.933 T:28291    info <general>: [script.raveplayer.ui] play https://dn801707.us.archive.org/0/items/dj-czech-soundfeer-festival-rekreacni-stredisko-vesin-czech-republic-june-21-2013/DJ%20Czech%20%40%20Soundfeer%20Festival%2C%20Rekrea%C4%8Dn%C3%AD%20St%C5%99edisko%20V%C4%9B%C5%A1%C3%ADn%2C%20Czech%20Republic%20%28June%2021%2C%202013%29.mp3 live=False",
+      "2026-11-05 16:39:17.934 T:28291   debug <general>: [script.raveplayer.ui] spinner visible=False rp_splash=0 controls=14"
+     ]
+    }
+   },
+   "screenshot": "screens/013-screen_surprise_splash.png",
+   "screenshot_bytes": 7221231,
+   "screenshot_ms": 63219,
+   "screenshot_sha256": "9fedbdcb686b82bfeaaff9970eb86006a962786a29ff0a7734c6c08ec0609973",
+   "kodi_restart": false
+  },
+  {
+   "id": "screen_surprise_playing",
+   "category": "screen",
+   "ok": true,
+   "note": "attempt=1",
+   "started_at": "2026-11-05T16:40:39+0000",
+   "duration_ms": 34909,
+   "gui": {
+    "currentwindow": {
+     "id": 13001,
+     "label": "Immediate HDD spindown"
+    },
+    "currentcontrol": {
+     "label": "Spinning Surprise"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": [
+     {
+      "playerid": 0,
+      "playertype": "internal",
+      "type": "audio"
+     }
+    ],
+    "item": {
+     "album": "",
+     "artist": [],
+     "file": "https://dn801707.us.archive.org/0/items/dj-czech-soundfeer-festival-rekreacni-stredisko-vesin-czech-republic-june-21-2013/DJ%20Czech%20%40%20Soundfeer%20Festival%2C%20Rekrea%C4%8Dn%C3%AD%20St%C5%99edisko%20V%C4%9B%C5%A1%C3%ADn%2C%20Czech%20Republic%20%28June%2021%2C%202013%29.mp3",
+     "label": "DJ Czech @ Soundfeer Festival, Rekreační Středisko Věšín, Czech Republic (June 21, 2013)",
+     "title": "DJ Czech @ Soundfeer Festival, Rekreační Středisko Věšín, Czech Republic (June 21, 2013)",
+     "type": "song"
+    },
+    "properties": {
+     "playlistid": 0,
+     "position": 0,
+     "repeat": "off",
+     "shuffled": false,
+     "speed": 1,
+     "time": {
+      "hours": 0,
+      "milliseconds": 188,
+      "minutes": 0,
+      "seconds": 43
+     },
+     "totaltime": {
+      "hours": 2,
+      "milliseconds": 373,
+      "minutes": 10,
+      "seconds": 29
+     }
+    }
+   },
+   "player": {
+    "active": [
+     {
+      "playerid": 0,
+      "playertype": "internal",
+      "type": "audio"
+     }
+    ],
+    "item": {
+     "album": "",
+     "artist": [],
+     "file": "https://dn801707.us.archive.org/0/items/dj-czech-soundfeer-festival-rekreacni-stredisko-vesin-czech-republic-june-21-2013/DJ%20Czech%20%40%20Soundfeer%20Festival%2C%20Rekrea%C4%8Dn%C3%AD%20St%C5%99edisko%20V%C4%9B%C5%A1%C3%ADn%2C%20Czech%20Republic%20%28June%2021%2C%202013%29.mp3",
+     "label": "DJ Czech @ Soundfeer Festival, Rekreační Středisko Věšín, Czech Republic (June 21, 2013)",
+     "title": "DJ Czech @ Soundfeer Festival, Rekreační Středisko Věšín, Czech Republic (June 21, 2013)",
+     "type": "song"
+    },
+    "properties": {
+     "playlistid": 0,
+     "position": 0,
+     "repeat": "off",
+     "shuffled": false,
+     "speed": 1,
+     "time": {
+      "hours": 0,
+      "milliseconds": 247,
+      "minutes": 1,
+      "seconds": 10
+     },
+     "totaltime": {
+      "hours": 2,
+      "milliseconds": 373,
+      "minutes": 10,
+      "seconds": 29
+     }
+    }
+   },
+   "player_samples": [
+    {
+     "t": 481.96,
+     "active": true,
+     "label": "DJ Czech @ Soundfeer Festival, Rekreační Středisko Věšín, Czech Republic (June 21, 2013)",
+     "file": "https://dn801707.us.archive.org/0/items/dj-czech-soundfeer-festival-rekreacni-stredisko-vesin-czech-republic-june-21-2013/DJ%20Czech%20%40%20Soundfeer%20Festival%2C%20Rekrea%C4%8Dn%C3%AD%20St%C5%99edisko%20V%C4%9B%C5%A1%C3%ADn%2C%20Czech%20Republic%20%28June%2021%2C%202013%29.mp3",
+     "position": 0,
+     "time": {
+      "hours": 0,
+      "milliseconds": 460,
+      "minutes": 1,
+      "seconds": 10
+     },
+     "totaltime": {
+      "hours": 2,
+      "milliseconds": 373,
+      "minutes": 10,
+      "seconds": 29
+     }
+    },
+    {
+     "t": 483.054,
+     "active": true,
+     "label": "DJ Czech @ Soundfeer Festival, Rekreační Středisko Věšín, Czech Republic (June 21, 2013)",
+     "file": "https://dn801707.us.archive.org/0/items/dj-czech-soundfeer-festival-rekreacni-stredisko-vesin-czech-republic-june-21-2013/DJ%20Czech%20%40%20Soundfeer%20Festival%2C%20Rekrea%C4%8Dn%C3%AD%20St%C5%99edisko%20V%C4%9B%C5%A1%C3%ADn%2C%20Czech%20Republic%20%28June%2021%2C%202013%29.mp3",
+     "position": 0,
+     "time": {
+      "hours": 0,
+      "milliseconds": 594,
+      "minutes": 1,
+      "seconds": 11
+     },
+     "totaltime": {
+      "hours": 2,
+      "milliseconds": 373,
+      "minutes": 10,
+      "seconds": 29
+     }
+    },
+    {
+     "t": 484.338,
+     "active": true,
+     "label": "DJ Czech @ Soundfeer Festival, Rekreační Středisko Věšín, Czech Republic (June 21, 2013)",
+     "file": "https://dn801707.us.archive.org/0/items/dj-czech-soundfeer-festival-rekreacni-stredisko-vesin-czech-republic-june-21-2013/DJ%20Czech%20%40%20Soundfeer%20Festival%2C%20Rekrea%C4%8Dn%C3%AD%20St%C5%99edisko%20V%C4%9B%C5%A1%C3%ADn%2C%20Czech%20Republic%20%28June%2021%2C%202013%29.mp3",
+     "position": 0,
+     "time": {
+      "hours": 0,
+      "milliseconds": 828,
+      "minutes": 1,
+      "seconds": 12
+     },
+     "totaltime": {
+      "hours": 2,
+      "milliseconds": 373,
+      "minutes": 10,
+      "seconds": 29
+     }
+    }
+   ],
+   "log": {
+    "lines": 155,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 1,
+     "script_error": 4
+    },
+    "matches": {
+     "route": [
+      "2026-11-05 16:39:16.360 T:28334   debug <general>: [plugin.audio.raveplayer] route play took 27 ms"
+     ],
+     "playback": [
+      "2026-11-05 16:39:17.932 T:28345   debug <general>: PAPlayer::Process - Playback started"
+     ],
+     "script_error": [
+      "2026-11-05 16:38:52.273 T:27743   debug <general>: [script.raveplayer.ui] spinner visible=True rp_splash=1 controls=14",
+      "2026-11-05 16:38:52.375 T:27743    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:39:17.933 T:28291    info <general>: [script.raveplayer.ui] play https://dn801707.us.archive.org/0/items/dj-czech-soundfeer-festival-rekreacni-stredisko-vesin-czech-republic-june-21-2013/DJ%20Czech%20%40%20Soundfeer%20Festival%2C%20Rekrea%C4%8Dn%C3%AD%20St%C5%99edisko%20V%C4%9B%C5%A1%C3%ADn%2C%20Czech%20Republic%20%28June%2021%2C%202013%29.mp3 live=False",
+      "2026-11-05 16:39:17.934 T:28291   debug <general>: [script.raveplayer.ui] spinner visible=False rp_splash=0 controls=14"
+     ]
+    }
+   },
+   "screenshot": "screens/014-screen_surprise_playing.png",
+   "screenshot_bytes": 4742801,
+   "screenshot_ms": 26818,
+   "screenshot_sha256": "f89d0c2c67c39d1c887a9e8565c1539c6edc5869cc02f2f75cd4fe1d90a84ace",
+   "kodi_restart": false
+  },
+  {
+   "id": "screen_stack_room",
+   "category": "screen",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:41:51+0000",
+   "duration_ms": 26151,
+   "gui": {
+    "currentwindow": {
+     "id": 13000,
+     "label": "System"
+    },
+    "currentcontrol": {
+     "label": "Rinse out ckln 881 fm 2000 02 26"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 20,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 3
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:41:22.764 T:28600   debug <general>: [script.raveplayer.ui] plate loading title='LOADING'",
+      "2026-11-05 16:41:22.827 T:28600    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:41:23.058 T:28600    info <general>: [script.raveplayer.ui] loaded 'jungletapes' page=1/7 rows=51 total=310"
+     ]
+    }
+   },
+   "screenshot": "screens/016-screen_stack_room.png",
+   "screenshot_bytes": 5033994,
+   "screenshot_ms": 22473,
+   "screenshot_sha256": "85941e0d63618c7abcef61015513db3392bdd1a3e0ba5c46de3c015c0c07d415",
+   "kodi_restart": false,
+   "depth": 1,
+   "loaded": true
+  },
+  {
+   "id": "screen_stack_tracks",
+   "category": "screen",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:42:27+0000",
+   "duration_ms": 31796,
+   "gui": {
+    "currentwindow": {
+     "id": 13000,
+     "label": "System"
+    },
+    "currentcontrol": {
+     "label": "2000.02.26-Rinse-Out-Gabor-in-the-mix-jungletapes.com-Colin"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 13,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 3
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:41:50.501 T:28600   debug <general>: [script.raveplayer.ui] plate loading title='LOADING'",
+      "2026-11-05 16:41:50.558 T:28600    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:41:52.155 T:28600    info <general>: [script.raveplayer.ui] loaded Entry(key='rinse-out_ckln_881-fm_2000-02-26-000000', label='Rinse out ckln 881 fm 2000 02 26', subtitle='JungleTapes.com show', art='/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/addons/plugin.audio.raveplayer/resources/art/jungletapes.png', kind='show', source='jungletapes', target='rinse-out_ckln_881-fm"
+     ]
+    }
+   },
+   "screenshot": "screens/017-screen_stack_tracks.png",
+   "screenshot_bytes": 4649492,
+   "screenshot_ms": 27523,
+   "screenshot_sha256": "9f6f36f656097ca78fd0da082d7683ae843e12f3082f87eb159ad6f3f81f2ef6",
+   "kodi_restart": false,
+   "depth": 2,
+   "loaded": true
+  },
+  {
+   "id": "screen_stack_back_room",
+   "category": "screen",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:43:00+0000",
+   "duration_ms": 31937,
+   "gui": {
+    "currentwindow": {
+     "id": 13000,
+     "label": "System"
+    },
+    "currentcontrol": {
+     "label": "Rinse out ckln 881 fm 2000 02 26"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 23,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 4
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:41:50.501 T:28600   debug <general>: [script.raveplayer.ui] plate loading title='LOADING'",
+      "2026-11-05 16:41:50.558 T:28600    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:41:52.155 T:28600    info <general>: [script.raveplayer.ui] loaded Entry(key='rinse-out_ckln_881-fm_2000-02-26-000000', label='Rinse out ckln 881 fm 2000 02 26', subtitle='JungleTapes.com show', art='/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/addons/plugin.audio.raveplayer/resources/art/jungletapes.png', kind='show', source='jungletapes', target='rinse-out_ckln_881-fm",
+      "2026-11-05 16:42:25.889 T:28600    info <general>: [script.raveplayer.ui] action id=92 button=0 focus=50"
+     ]
+    }
+   },
+   "screenshot": "screens/018-screen_stack_back_room.png",
+   "screenshot_bytes": 5032564,
+   "screenshot_ms": 28213,
+   "screenshot_sha256": "f21cd8b7b14d808735f962db08ecc88e4196b60d60a977e6d683124e59a6e511",
+   "kodi_restart": false,
+   "depth": 1,
+   "back_ok": true
+  },
+  {
+   "id": "screen_stack_back_home",
+   "category": "screen",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:43:40+0000",
+   "duration_ms": 39975,
+   "gui": {
+    "currentwindow": {
+     "id": 13000,
+     "label": "System"
+    },
+    "currentcontrol": {
+     "label": "JungleTapes.com"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 32,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 5
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:41:50.501 T:28600   debug <general>: [script.raveplayer.ui] plate loading title='LOADING'",
+      "2026-11-05 16:41:50.558 T:28600    info <general>: [script.raveplayer.ui] action id=7 button=0 focus=50",
+      "2026-11-05 16:41:52.155 T:28600    info <general>: [script.raveplayer.ui] loaded Entry(key='rinse-out_ckln_881-fm_2000-02-26-000000', label='Rinse out ckln 881 fm 2000 02 26', subtitle='JungleTapes.com show', art='/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/addons/plugin.audio.raveplayer/resources/art/jungletapes.png', kind='show', source='jungletapes', target='rinse-out_ckln_881-fm",
+      "2026-11-05 16:42:25.889 T:28600    info <general>: [script.raveplayer.ui] action id=92 button=0 focus=50",
+      "2026-11-05 16:42:58.488 T:28600    info <general>: [script.raveplayer.ui] action id=92 button=0 focus=50"
+     ]
+    }
+   },
+   "screenshot": "screens/019-screen_stack_back_home.png",
+   "screenshot_bytes": 4844383,
+   "screenshot_ms": 36358,
+   "screenshot_sha256": "a94636c6298f57ba6877626bef36f9878b329cedbbf7fbb795c33c55d8ced6c0",
+   "kodi_restart": false,
+   "depth": 0,
+   "back_ok": true
+  },
+  {
+   "id": "plugin_root",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:44:51+0000",
+   "duration_ms": 16242,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 58,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:44:31.092 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:44:31.364 T:29045   debug <general>: [plugin.audio.raveplayer] route root took 6 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/021-plugin_root.png",
+   "screenshot_bytes": 2763971,
+   "screenshot_ms": 13222,
+   "screenshot_sha256": "e38384e8cb9ff514e54f4db90832aba27be470ed975f067f78a0481b2584498b",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=root",
+   "listing_count": 2
+  },
+  {
+   "id": "packs_menu",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:45:05+0000",
+   "duration_ms": 10920,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 63,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:44:51.084 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:44:51.384 T:29101   debug <general>: [plugin.audio.raveplayer] route packs_menu took 25 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/022-packs_menu.png",
+   "screenshot_bytes": 3452639,
+   "screenshot_ms": 8962,
+   "screenshot_sha256": "b5fd85e6fd6b3f788fd94f221e099321e04eea79d7dd84227eac8bd7345475fa",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=packs_menu",
+   "listing_count": 8
+  },
+  {
+   "id": "shows_menu",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:45:23+0000",
+   "duration_ms": 14335,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 61,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:45:04.999 T:27645   error <general>: Control 52 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:45:05.347 T:29143   debug <general>: [plugin.audio.raveplayer] route shows_menu took 78 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/023-shows_menu.png",
+   "screenshot_bytes": 3370790,
+   "screenshot_ms": 11285,
+   "screenshot_sha256": "ef5d511563ab3cde40762501f12cd77b52b3219b2ec159a822306547963c022e",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=shows_menu",
+   "listing_count": 5
+  },
+  {
+   "id": "radio_menu",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:45:49+0000",
+   "duration_ms": 22848,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 70,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:45:23.083 T:27645   error <general>: Control 52 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:45:23.367 T:29195   debug <general>: [plugin.audio.raveplayer] route radio_menu took 23 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/024-radio_menu.png",
+   "screenshot_bytes": 3668695,
+   "screenshot_ms": 18351,
+   "screenshot_sha256": "31d6ce3b35c40e08d4a9031a2c4e7b3a8a3d5353f4762c0720384922f8ff91d2",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=radio_menu",
+   "listing_count": 10
+  },
+  {
+   "id": "favourites",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:46:05+0000",
+   "duration_ms": 12864,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 56,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:45:49.292 T:27645   error <general>: Control 52 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:45:49.608 T:29254   debug <general>: [plugin.audio.raveplayer] route fav_list took 55 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/025-favourites.png",
+   "screenshot_bytes": 2766263,
+   "screenshot_ms": 9937,
+   "screenshot_sha256": "40f35e0e79c92f45c416822c672ca78fef5abecb28d1350d613b718c7ed86f70",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=fav_list",
+   "listing_count": 2
+  },
+  {
+   "id": "downloads",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:46:24+0000",
+   "duration_ms": 16204,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 119,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:46:05.191 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:46:05.492 T:29301   debug <general>: [plugin.audio.raveplayer] route downloads_menu took 44 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/026-downloads.png",
+   "screenshot_bytes": 3165929,
+   "screenshot_ms": 10729,
+   "screenshot_sha256": "db53085621af44c9ad471d8cd6adf208b27e9e6175fb53f44b513bdd47b271fc",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=downloads_menu",
+   "listing_count": 8
+  },
+  {
+   "id": "about",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:46:41+0000",
+   "duration_ms": 14117,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 90,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:46:24.277 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:46:24.562 T:29353   debug <general>: [plugin.audio.raveplayer] route about took 27 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/027-about.png",
+   "screenshot_bytes": 3069898,
+   "screenshot_ms": 9483,
+   "screenshot_sha256": "292bac3e38c787b92fcba7ad5862e9cf68fff7396f2f6d9891813768f4e4a5ba",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=about",
+   "listing_count": 16
+  },
+  {
+   "id": "archive_jungle_page1",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:46:56+0000",
+   "duration_ms": 9242,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 159,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:46:43.263 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:46:43.743 T:29407   debug <general>: [plugin.audio.raveplayer] route archive_list took 219 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/028-archive_jungle_page1.png",
+   "screenshot_bytes": 3278743,
+   "screenshot_ms": 6755,
+   "screenshot_sha256": "219cd65ef1a8842a08828113b4fbd9727a8ea068ee108a2dfb58e7cf84c6200b",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=archive_list&key=jungle&page=1",
+   "listing_count": 52
+  },
+  {
+   "id": "archive_jungle_last",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:47:08+0000",
+   "duration_ms": 8183,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 101,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:46:56.976 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:46:57.422 T:29453   debug <general>: [plugin.audio.raveplayer] route archive_list took 181 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/029-archive_jungle_last.png",
+   "screenshot_bytes": 3341600,
+   "screenshot_ms": 6390,
+   "screenshot_sha256": "681131e249d1e9a9215eb22a4be6e2e1b6975a39b0ad7d3e7db0c6ee2d3b3548",
+   "kodi_restart": false,
+   "requested_page": 2,
+   "pages": 2,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=archive_list&key=jungle&page=2",
+   "listing_count": 23
+  },
+  {
+   "id": "jt_index_page1",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:47:22+0000",
+   "duration_ms": 10577,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 163,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:47:08.289 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:47:08.748 T:29497   debug <general>: [plugin.audio.raveplayer] route legacy_jt took 201 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/030-jt_index_page1.png",
+   "screenshot_bytes": 3129272,
+   "screenshot_ms": 7192,
+   "screenshot_sha256": "11e89b3c00583520fb25961306c50204e45498edcd89d3562aae412b2046e683",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=legacy_jt&page=1",
+   "listing_count": 53
+  },
+  {
+   "id": "jt_index_last",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:47:36+0000",
+   "duration_ms": 10301,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 81,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:47:22.285 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:47:22.688 T:29547   debug <general>: [plugin.audio.raveplayer] route legacy_jt took 146 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/031-jt_index_last.png",
+   "screenshot_bytes": 3452967,
+   "screenshot_ms": 6794,
+   "screenshot_sha256": "59cc5d8b3000fa802fbfe09f05ac391bff2635e25150ae12d00f4cd528671e58",
+   "kodi_restart": false,
+   "requested_page": 7,
+   "pages": 7,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=legacy_jt&page=7",
+   "listing_count": 13
+  },
+  {
+   "id": "jt_show",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:47:46+0000",
+   "duration_ms": 7589,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 57,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:47:35.432 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:47:35.765 T:29600   debug <general>: [plugin.audio.raveplayer] route legacy_jt_show took 72 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/032-jt_show.png",
+   "screenshot_bytes": 2794996,
+   "screenshot_ms": 5536,
+   "screenshot_sha256": "f107eda0579f1e96da8f9ac3e064b8bffaee0ea88e28aa97b403dc445b4290fe",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rinse-out_ckln_881-fm_2000-02-26-000000",
+   "listing_count": 1
+  },
+  {
+   "id": "rtp_index",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:47:59+0000",
+   "duration_ms": 10539,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 61,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:47:45.742 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:47:46.041 T:29644   debug <general>: [plugin.audio.raveplayer] route legacy_menu took 35 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/033-rtp_index.png",
+   "screenshot_bytes": 2792360,
+   "screenshot_ms": 8432,
+   "screenshot_sha256": "b6a078207e1a204a840d5f1789a6af711b3335f86ac49c834d6cfee8c12e5be9",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=legacy_menu",
+   "listing_count": 6
+  },
+  {
+   "id": "rtp_category",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:48:13+0000",
+   "duration_ms": 10486,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 153,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:47:59.223 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:47:59.625 T:29688   debug <general>: [plugin.audio.raveplayer] route legacy_index took 132 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/034-rtp_category.png",
+   "screenshot_bytes": 2924568,
+   "screenshot_ms": 8977,
+   "screenshot_sha256": "90b5461dd305a1d082b865e28fe075206c51e56c9b3026763aa5a1a856de17b5",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=legacy_index&kind=event",
+   "listing_count": 51
+  },
+  {
+   "id": "rtp_pack",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:48:27+0000",
+   "duration_ms": 11375,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 57,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:48:12.819 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:48:13.252 T:29733   debug <general>: [plugin.audio.raveplayer] route legacy_category took 154 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/035-rtp_pack.png",
+   "screenshot_bytes": 2894599,
+   "screenshot_ms": 9107,
+   "screenshot_sha256": "57225f43f753770a6986ca7ca44c1382bc515e47b16385eb1f4ed9162777d713",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=331&label=Accelerated Culture",
+   "listing_count": 4
+  },
+  {
+   "id": "rtp_tracks",
+   "category": "plugin-list",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:48:43+0000",
+   "duration_ms": 12885,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 87,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:48:27.352 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:48:27.763 T:29782   debug <general>: [plugin.audio.raveplayer] route legacy_post took 145 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/036-rtp_tracks.png",
+   "screenshot_bytes": 2901527,
+   "screenshot_ms": 10365,
+   "screenshot_sha256": "937a2c7f6793869afc68efe6b764b4ecf7d4cafab1ea5f009b322d2a02fba50c",
+   "kodi_restart": false,
+   "listing": "plugin://plugin.audio.raveplayer/?mode=legacy_post&post=2542&kind=event&cat=331&label=Accelerated Culture 18 & One Nation – The 2K4 Power-Play",
+   "listing_count": 16
+  },
+  {
+   "id": "rtp_play_all",
+   "category": "playback",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:49:19+0000",
+   "duration_ms": 31151,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[Playlists]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": [
+     {
+      "playerid": 0,
+      "playertype": "internal",
+      "type": "audio"
+     }
+    ],
+    "item": {
+     "album": "",
+     "artist": [],
+     "file": "http://127.0.0.1:43187/qHzE8AVs7AWxIr1zNLy1PvuMYvtfJbKM/aHR0cHM6Ly93d3cucmF2ZXRhcGVwYWNrcy5jb20vbXVzaWMvQWNjZWxlcmF0ZWRDdWx0dXJlMThhbmRPbmVOYXRpb25UaGUySzRQb3dlclBsYXkvQW5keV9DLm1wM3xSZWZlcmVyPWh0dHBzOi8vd3d3LnJhdmV0YXBlcGFja3MuY29tLyZVc2VyLUFnZW50PU1vemlsbGEvNS4w",
+     "label": "Andy C",
+     "title": "Andy C",
+     "type": "song"
+    },
+    "properties": {
+     "playlistid": 0,
+     "position": 0,
+     "repeat": "off",
+     "shuffled": false,
+     "speed": 1,
+     "time": {
+      "hours": 0,
+      "milliseconds": 633,
+      "minutes": 0,
+      "seconds": 1
+     },
+     "totaltime": {
+      "hours": 0,
+      "milliseconds": 88,
+      "minutes": 46,
+      "seconds": 49
+     }
+    }
+   },
+   "player": {
+    "active": [
+     {
+      "playerid": 0,
+      "playertype": "internal",
+      "type": "audio"
+     }
+    ],
+    "item": {
+     "album": "",
+     "artist": [],
+     "file": "http://127.0.0.1:43187/qHzE8AVs7AWxIr1zNLy1PvuMYvtfJbKM/aHR0cHM6Ly93d3cucmF2ZXRhcGVwYWNrcy5jb20vbXVzaWMvQWNjZWxlcmF0ZWRDdWx0dXJlMThhbmRPbmVOYXRpb25UaGUySzRQb3dlclBsYXkvQW5keV9DLm1wM3xSZWZlcmVyPWh0dHBzOi8vd3d3LnJhdmV0YXBlcGFja3MuY29tLyZVc2VyLUFnZW50PU1vemlsbGEvNS4w",
+     "label": "Andy C",
+     "title": "Andy C",
+     "type": "song"
+    },
+    "properties": {
+     "playlistid": 0,
+     "position": 0,
+     "repeat": "off",
+     "shuffled": false,
+     "speed": 1,
+     "time": {
+      "hours": 0,
+      "milliseconds": 689,
+      "minutes": 0,
+      "seconds": 12
+     },
+     "totaltime": {
+      "hours": 0,
+      "milliseconds": 88,
+      "minutes": 46,
+      "seconds": 49
+     }
+    }
+   },
+   "player_samples": [
+    {
+     "t": 1001.821,
+     "active": true,
+     "label": "Andy C",
+     "file": "http://127.0.0.1:43187/qHzE8AVs7AWxIr1zNLy1PvuMYvtfJbKM/aHR0cHM6Ly93d3cucmF2ZXRhcGVwYWNrcy5jb20vbXVzaWMvQWNjZWxlcmF0ZWRDdWx0dXJlMThhbmRPbmVOYXRpb25UaGUySzRQb3dlclBsYXkvQW5keV9DLm1wM3xSZWZlcmVyPWh0dHBzOi8vd3d3LnJhdmV0YXBlcGFja3MuY29tLyZVc2VyLUFnZW50PU1vemlsbGEvNS4w",
+     "position": 0,
+     "time": {
+      "hours": 0,
+      "milliseconds": 800,
+      "minutes": 0,
+      "seconds": 12
+     },
+     "totaltime": {
+      "hours": 0,
+      "milliseconds": 88,
+      "minutes": 46,
+      "seconds": 49
+     }
+    },
+    {
+     "t": 1002.67,
+     "active": true,
+     "label": "Andy C",
+     "file": "http://127.0.0.1:43187/qHzE8AVs7AWxIr1zNLy1PvuMYvtfJbKM/aHR0cHM6Ly93d3cucmF2ZXRhcGVwYWNrcy5jb20vbXVzaWMvQWNjZWxlcmF0ZWRDdWx0dXJlMThhbmRPbmVOYXRpb25UaGUySzRQb3dlclBsYXkvQW5keV9DLm1wM3xSZWZlcmVyPWh0dHBzOi8vd3d3LnJhdmV0YXBlcGFja3MuY29tLyZVc2VyLUFnZW50PU1vemlsbGEvNS4w",
+     "position": 0,
+     "time": {
+      "hours": 0,
+      "milliseconds": 694,
+      "minutes": 0,
+      "seconds": 13
+     },
+     "totaltime": {
+      "hours": 0,
+      "milliseconds": 88,
+      "minutes": 46,
+      "seconds": 49
+     }
+    },
+    {
+     "t": 1003.764,
+     "active": true,
+     "label": "Andy C",
+     "file": "http://127.0.0.1:43187/qHzE8AVs7AWxIr1zNLy1PvuMYvtfJbKM/aHR0cHM6Ly93d3cucmF2ZXRhcGVwYWNrcy5jb20vbXVzaWMvQWNjZWxlcmF0ZWRDdWx0dXJlMThhbmRPbmVOYXRpb25UaGUySzRQb3dlclBsYXkvQW5keV9DLm1wM3xSZWZlcmVyPWh0dHBzOi8vd3d3LnJhdmV0YXBlcGFja3MuY29tLyZVc2VyLUFnZW50PU1vemlsbGEvNS4w",
+     "position": 0,
+     "time": {
+      "hours": 0,
+      "milliseconds": 782,
+      "minutes": 0,
+      "seconds": 14
+     },
+     "totaltime": {
+      "hours": 0,
+      "milliseconds": 88,
+      "minutes": 46,
+      "seconds": 49
+     }
+    }
+   ],
+   "log": {
+    "lines": 207,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 1,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 1,
+     "script_error": 0
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 16:48:42.784 T:27645   error <general>: Control 55 in window 10502 has been asked to focus, but it can't"
+     ],
+     "route": [
+      "2026-11-05 16:48:45.918 T:29823   debug <general>: [plugin.audio.raveplayer] route play_all_collection took 2877 ms"
+     ],
+     "playback": [
+      "2026-11-05 16:48:45.917 T:29840   debug <general>: PAPlayer::Process - Playback started"
+     ]
+    }
+   },
+   "screenshot": "screens/037-rtp_play_all.png",
+   "screenshot_bytes": 2770104,
+   "screenshot_ms": 10732,
+   "screenshot_sha256": "28e50e855d935823e667cdb21d203d6f8a4d4bde80dcad7cdc8db3463ca0e44e",
+   "kodi_restart": false,
+   "playlist_count": 16,
+   "playing": true
+  },
+  {
+   "id": "search_results",
+   "category": "search",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:50:20+0000",
+   "duration_ms": 20771,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 118,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 1,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "route": [
+      "2026-11-05 16:49:57.616 T:30090   debug <general>: [plugin.audio.raveplayer] route search took 267 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/039-search_results.png",
+   "screenshot_bytes": 3281601,
+   "screenshot_ms": 16699,
+   "screenshot_sha256": "9092e36c5a4bcb1863809a50a03ed767108e602dc5d15a52f5d9e40f981cd77b",
+   "kodi_restart": false,
+   "query": "amen",
+   "listing_count": 39
+  },
+  {
+   "id": "search_empty",
+   "category": "search",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T16:50:45+0000",
+   "duration_ms": 13080,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 62,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 2,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {
+     "route": [
+      "2026-11-05 16:50:27.637 T:30158   debug <general>: [plugin.audio.raveplayer] route search took 4386 ms",
+      "2026-11-05 16:50:30.221 T:30183   debug <general>: [plugin.audio.raveplayer] route search took 66 ms"
+     ]
+    }
+   },
+   "screenshot": "screens/040-search_empty.png",
+   "screenshot_bytes": 2780736,
+   "screenshot_ms": 9163,
+   "screenshot_sha256": "7e95bf19dbe6e91439296660d96db5aa7f86dc934f1367dae6bbf8b7e2fd430e",
+   "kodi_restart": false,
+   "query": "zzqxjv-no-such-rave-9417",
+   "listing_count": 1
+  },
+  {
+   "id": "screen_room_mixes",
+   "category": "screen",
+   "ok": true,
+   "note": "room=Mixes & Shows",
+   "started_at": "2026-11-05T16:55:32+0000",
+   "duration_ms": 26294,
+   "gui": {
+    "currentwindow": {
+     "id": 13000,
+     "label": "System"
+    },
+    "currentcontrol": {
+     "label": "GetDarker"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 3,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 1
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:55:03.932 T:30971    info <general>: [script.raveplayer.ui] loaded 'mixes' page=1/1 rows=6 total=6"
+     ]
+    }
+   },
+   "screenshot": "screens/045-screen_room_mixes.png",
+   "screenshot_bytes": 4622272,
+   "screenshot_ms": 24118,
+   "screenshot_sha256": "fd5e05574cbae51127e2316ec8641739b26ce10fd23040cfa0fc71d82fa787e5",
+   "kodi_restart": false,
+   "room": "Mixes & Shows",
+   "room_index": 5,
+   "loaded": true,
+   "child": "DNBRADIO Shows"
+  },
+  {
+   "id": "screen_room_search",
+   "category": "screen",
+   "ok": true,
+   "note": "room=Search",
+   "started_at": "2026-11-05T16:56:20+0000",
+   "duration_ms": 37776,
+   "gui": {
+    "currentwindow": {
+     "id": 13000,
+     "label": "System"
+    },
+    "currentcontrol": {
+     "label": "«A» B C D E F G H I"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 4,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {}
+   },
+   "screenshot": "screens/046-screen_room_search.png",
+   "screenshot_bytes": 4717993,
+   "screenshot_ms": 35650,
+   "screenshot_sha256": "1d15577c8a7d2994d5fd0ef8a1b35fe2d5ff2269bd0f5ebe4096dc9af2f630b8",
+   "kodi_restart": false,
+   "room": "Search",
+   "room_index": 6,
+   "loaded": true,
+   "child": "«A» B C D E F G H I"
+  },
+  {
+   "id": "screen_after_playback_back",
+   "category": "screen",
+   "ok": false,
+   "note": "",
+   "started_at": "2026-11-05T16:57:30+0000",
+   "duration_ms": 37542,
+   "gui": {
+    "currentwindow": {
+     "id": 13000,
+     "label": "System"
+    },
+    "currentcontrol": {
+     "label": "Spinning Surprise"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": [
+     {
+      "playerid": 0,
+      "playertype": "internal",
+      "type": "audio"
+     }
+    ],
+    "item": {
+     "album": "",
+     "artist": [],
+     "file": "https://dn601707.us.archive.org/0/items/barry-weaver-bassrush-feb.-23-2002/Barry%20Weaver%20%40%20Bassrush%20%28Feb.%2023%2C%202002%29.mp3",
+     "label": "Barry Weaver @ Bassrush (Feb. 23, 2002)",
+     "title": "Barry Weaver @ Bassrush (Feb. 23, 2002)",
+     "type": "song"
+    },
+    "properties": {
+     "playlistid": 0,
+     "position": 0,
+     "repeat": "off",
+     "shuffled": false,
+     "speed": 1,
+     "time": {
+      "hours": 0,
+      "milliseconds": 224,
+      "minutes": 0,
+      "seconds": 1
+     },
+     "totaltime": {
+      "hours": 1,
+      "milliseconds": 293,
+      "minutes": 23,
+      "seconds": 44
+     }
+    }
+   },
+   "player": {
+    "active": [
+     {
+      "playerid": 0,
+      "playertype": "internal",
+      "type": "audio"
+     }
+    ],
+    "item": {
+     "album": "",
+     "artist": [],
+     "file": "https://dn601707.us.archive.org/0/items/barry-weaver-bassrush-feb.-23-2002/Barry%20Weaver%20%40%20Bassrush%20%28Feb.%2023%2C%202002%29.mp3",
+     "label": "Barry Weaver @ Bassrush (Feb. 23, 2002)",
+     "title": "Barry Weaver @ Bassrush (Feb. 23, 2002)",
+     "type": "song"
+    },
+    "properties": {
+     "playlistid": 0,
+     "position": 0,
+     "repeat": "off",
+     "shuffled": false,
+     "speed": 1,
+     "time": {
+      "hours": 0,
+      "milliseconds": 990,
+      "minutes": 0,
+      "seconds": 25
+     },
+     "totaltime": {
+      "hours": 1,
+      "milliseconds": 293,
+      "minutes": 23,
+      "seconds": 44
+     }
+    }
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 16,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 1
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:56:50.290 T:31304    info <general>: [script.raveplayer.ui] play https://dn601707.us.archive.org/0/items/barry-weaver-bassrush-feb.-23-2002/Barry%20Weaver%20%40%20Bassrush%20%28Feb.%2023%2C%202002%29.mp3 live=False"
+     ]
+    }
+   },
+   "screenshot": "screens/047-screen_after_playback_back.png",
+   "screenshot_bytes": 4636865,
+   "screenshot_ms": 23737,
+   "screenshot_sha256": "e0397a9e27b6a3f4c1464274f194709e75a8a02891bd7ced8cda2a871f6797cb",
+   "kodi_restart": false
+  },
+  {
+   "id": "screen_stack_closed",
+   "category": "screen",
+   "ok": false,
+   "note": "",
+   "started_at": "2026-11-05T16:59:29+0000",
+   "duration_ms": 29997,
+   "gui": {
+    "currentwindow": {
+     "id": 13000,
+     "label": "System"
+    },
+    "currentcontrol": {
+     "label": "JungleTapes.com"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 10,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 1
+    },
+    "matches": {
+     "script_error": [
+      "2026-11-05 16:58:42.330 T:31678    info <general>: [script.raveplayer.ui] loaded Entry(key='rinse-out_ckln_881_1998-08-08-000000', label='Rinse out ckln 881 1998 08 08', subtitle='JungleTapes.com show', art='/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/addons/plugin.audio.raveplayer/resources/art/jungletapes.png', kind='show', source='jungletapes', target='rinse-out_ckln_881_1998-08-"
+     ]
+    }
+   },
+   "screenshot": "screens/048-screen_stack_closed.png",
+   "screenshot_bytes": 4924506,
+   "screenshot_ms": 27503,
+   "screenshot_sha256": "74aa4acea1a093a582502df0e04313f9e460bf65861beb7c34961f7366e19f5a",
+   "kodi_restart": false,
+   "closed": false
+  },
+  {
+   "id": "search_query",
+   "category": "search",
+   "ok": false,
+   "note": "Kodi restarted during state",
+   "started_at": "2026-11-05T16:59:57+0000",
+   "duration_ms": 12908,
+   "gui": {
+    "currentwindow": {
+     "id": 10502,
+     "label": "Music"
+    },
+    "currentcontrol": {
+     "label": "[..]"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 385,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {}
+   },
+   "screenshot": "screens/049-search_query.png",
+   "screenshot_bytes": 3142922,
+   "screenshot_ms": 8744,
+   "screenshot_sha256": "7ad63be5442ed8d76fde0a7a3ed114469f4c3df9bc6ff7fb75da1a58190d75c5",
+   "kodi_restart": true,
+   "query": "amen"
+  },
+  {
+   "id": "modal_keyboard",
+   "category": "modal",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T17:00:22+0000",
+   "duration_ms": 4742,
+   "gui": {
+    "currentwindow": {
+     "id": 10103,
+     "label": "Virtual keyboard"
+    },
+    "currentcontrol": {
+     "label": "OK"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 0,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {}
+   },
+   "screenshot": "screens/050-modal_keyboard.png",
+   "screenshot_bytes": 537766,
+   "screenshot_ms": 2808,
+   "screenshot_sha256": "61119f4cd3357bbb222c83fbcf5beb614778c3256625ec3842ed781f2b2914fd",
+   "kodi_restart": false
+  },
+  {
+   "id": "modal_refusal_held",
+   "category": "modal",
+   "ok": true,
+   "note": "screen launched while keyboard modal is open",
+   "started_at": "2026-11-05T17:00:29+0000",
+   "duration_ms": 4918,
+   "gui": {
+    "currentwindow": {
+     "id": 10103,
+     "label": "Virtual keyboard"
+    },
+    "currentcontrol": {
+     "label": "OK"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 0,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {}
+   },
+   "screenshot": "screens/051-modal_refusal_held.png",
+   "screenshot_bytes": 487847,
+   "screenshot_ms": 3319,
+   "screenshot_sha256": "e9e8523f44b55310156d309680b3e69e464287b3444165746dc6c25873a0a8b2",
+   "kodi_restart": false
+  },
+  {
+   "id": "modal_refusal_result",
+   "category": "modal",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T17:00:38+0000",
+   "duration_ms": 4776,
+   "gui": {
+    "currentwindow": {
+     "id": 10103,
+     "label": "Virtual keyboard"
+    },
+    "currentcontrol": {
+     "label": "OK"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 1,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 1,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 1
+    },
+    "matches": {
+     "activation_refused": [
+      "2026-11-05 17:00:31.472 T:32737   error <general>: [script.raveplayer.ui] window activation refused (a modal dialog was probably open); not waiting."
+     ],
+     "script_error": [
+      "2026-11-05 17:00:31.472 T:32737   error <general>: [script.raveplayer.ui] window activation refused (a modal dialog was probably open); not waiting."
+     ]
+    }
+   },
+   "screenshot": "screens/052-modal_refusal_result.png",
+   "screenshot_bytes": 543781,
+   "screenshot_ms": 3341,
+   "screenshot_sha256": "7aa36783126db816a46d308f8ba53150091ab6a78420ee5df01b721b013c2f23",
+   "kodi_restart": false,
+   "refused_logged": true
+  },
+  {
+   "id": "modal_recovery_after_fail",
+   "category": "modal",
+   "ok": false,
+   "note": "fresh launch after fail-fast",
+   "started_at": "2026-11-05T17:01:01+0000",
+   "duration_ms": 14775,
+   "gui": {
+    "currentwindow": {
+     "id": 10000,
+     "label": "Home"
+    },
+    "currentcontrol": {
+     "label": "Movies"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 0,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {}
+   },
+   "screenshot": "screens/053-modal_recovery_after_fail.png",
+   "screenshot_bytes": 4550115,
+   "screenshot_ms": 13178,
+   "screenshot_sha256": "cb0dec726f3115b50dede333f6099c9bcf54a4b4dad30f9ffe471b9ba69e36c4",
+   "kodi_restart": false
+  },
+  {
+   "id": "modal_recovery_midwait",
+   "category": "modal",
+   "ok": true,
+   "note": "",
+   "started_at": "2026-11-05T17:01:35+0000",
+   "duration_ms": 29500,
+   "gui": {
+    "currentwindow": {
+     "id": 13001,
+     "label": "Immediate HDD spindown"
+    },
+    "currentcontrol": {
+     "label": "Latest"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 0,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 0,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 0,
+     "playback": 0,
+     "script_error": 0
+    },
+    "matches": {}
+   },
+   "screenshot": "screens/054-modal_recovery_midwait.png",
+   "screenshot_bytes": 4549350,
+   "screenshot_ms": 22670,
+   "screenshot_sha256": "389815d5a435600100b6986e4c994ec3e145fd40203fe2671c8bccb6da879bf3",
+   "kodi_restart": false,
+   "recovered": true
+  },
+  {
+   "id": "screen_close_probe",
+   "category": "screen",
+   "ok": true,
+   "note": "Back at home; screen reopens",
+   "started_at": "2026-11-05T17:09:14+0000",
+   "duration_ms": 33993,
+   "gui": {
+    "currentwindow": {
+     "id": 13000,
+     "label": "System"
+    },
+    "currentcontrol": {
+     "label": "Latest"
+    },
+    "fullscreen": false
+   },
+   "player_before": {
+    "active": []
+   },
+   "player": {
+    "active": []
+   },
+   "player_samples": [],
+   "log": {
+    "lines": 8,
+    "counts": {
+     "traceback": 0,
+     "fatal": 0,
+     "nonexistent_control": 0,
+     "control_focus": 2,
+     "activation_refused": 0,
+     "playback_error": 0,
+     "route": 0,
+     "window_init": 1,
+     "playback": 0,
+     "script_error": 1
+    },
+    "matches": {
+     "control_focus": [
+      "2026-11-05 17:08:33.812 T:1308    error <general>: Control 55 in window 10502 has been asked to focus, but it can't",
+      "2026-11-05 17:08:34.975 T:1308    error <general>: Control 50 in window 13000 has been asked to focus, but it can't"
+     ],
+     "window_init": [
+      "2026-11-05 17:08:34.955 T:1308     info <general>: Loading skin file: /storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/addons/script.raveplayer.ui/resources/skins/Default/720p/script-raveplayer-ui.xml, load type: LOAD_ON_GUI_INIT"
+     ],
+     "script_error": [
+      "2026-11-05 17:08:35.248 T:1857     info <general>: [script.raveplayer.ui] home rows=11"
+     ]
+    }
+   },
+   "screenshot": "screens/045-screen_close_probe.png",
+   "screenshot_bytes": 4550642,
+   "screenshot_ms": 22163,
+   "screenshot_sha256": "090dd2cc30a98dd9a89c07509dd1f66d3f4569c51f75e0023738aecdef0acaa9",
+   "kodi_restart": false,
+   "reopened": true,
+   "timeline": [
+    {
+     "t": 0.41,
+     "window": 10138,
+     "focus": "[..]"
+    },
+    {
+     "t": 1.06,
+     "window": 10502,
+     "focus": "[..]"
+    },
+    {
+     "t": 1.59,
+     "window": 13000,
+     "focus": "Latest"
+    },
+    {
+     "t": 2.11,
+     "window": 13000,
+     "focus": "Latest"
+    },
+    {
+     "t": 2.75,
+     "window": 13000,
+     "focus": "Latest"
+    },
+    {
+     "t": 3.3,
+     "window": 13000,
+     "focus": "Latest"
+    },
+    {
+     "t": 3.83,
+     "window": 13000,
+     "focus": "Latest"
+    },
+    {
+     "t": 4.38,
+     "window": 13000,
+     "focus": "Latest"
+    },
+    {
+     "t": 5.04,
+     "window": 13000,
+     "focus": "Latest"
+    }
+   ]
+  }
+ ],
+ "listings": {
+  "plugin_root": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=root",
+   "count": 2,
+   "filetypes": {
+    "file": 1,
+    "directory": 1
+   },
+   "labels": [
+    "Rave Player",
+    "Classic lists"
+   ],
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=screen",
+    "plugin://plugin.audio.raveplayer/?mode=classic_root"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  },
+  "packs_menu": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=packs_menu",
+   "count": 8,
+   "filetypes": {
+    "directory": 8
+   },
+   "labels": [
+    "Toronto Rave Mixtape Archive",
+    "JungleTapes.com",
+    "RaveTapePacks.com",
+    "Classic Pack Series",
+    "By Rave, Venue & Promoter",
+    "By Year",
+    "Every Pack",
+    "Back"
+   ],
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=toronto",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_menu",
+    "plugin://plugin.audio.raveplayer/?mode=filters_menu",
+    "plugin://plugin.audio.raveplayer/?mode=rave_nights",
+    "plugin://plugin.audio.raveplayer/?mode=years",
+    "plugin://plugin.audio.raveplayer/?mode=archive_list&key=tapepacks&page=1",
+    "plugin://plugin.audio.raveplayer/?mode=root"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  },
+  "shows_menu": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=shows_menu",
+   "count": 5,
+   "filetypes": {
+    "directory": 5
+   },
+   "labels": [
+    "Podcasts & Mixes",
+    "DNBRADIO",
+    "GetDarker",
+    "Moxser",
+    "Back"
+   ],
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=media_menu",
+    "plugin://plugin.audio.raveplayer/?mode=dnb_list",
+    "plugin://plugin.audio.raveplayer/?mode=getdarker",
+    "plugin://plugin.audio.raveplayer/?mode=moxser",
+    "plugin://plugin.audio.raveplayer/?mode=root"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  },
+  "radio_menu": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=radio_menu",
+   "count": 10,
+   "filetypes": {
+    "directory": 10
+   },
+   "labels": [
+    "Kool FM",
+    "Rinse FM",
+    "Centreforce 883",
+    "Hardcore",
+    "Jungle",
+    "Drum & Bass",
+    "House",
+    "UK Garage",
+    "Dubstep & Grime",
+    "Back"
+   ],
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=filter_list&key=kool",
+    "plugin://plugin.audio.raveplayer/?mode=filter_list&key=rinse",
+    "plugin://plugin.audio.raveplayer/?mode=station_live&token=centreforce",
+    "plugin://plugin.audio.raveplayer/?mode=radio_tag&key=hardcore",
+    "plugin://plugin.audio.raveplayer/?mode=radio_tag&key=jungle",
+    "plugin://plugin.audio.raveplayer/?mode=radio_tag&key=drum-and-bass",
+    "plugin://plugin.audio.raveplayer/?mode=radio_tag&key=house",
+    "plugin://plugin.audio.raveplayer/?mode=radio_tag&key=uk-garage",
+    "plugin://plugin.audio.raveplayer/?mode=radio_tag&key=dubstep-grime",
+    "plugin://plugin.audio.raveplayer/?mode=root"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  },
+  "favourites": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=fav_list",
+   "count": 2,
+   "filetypes": {
+    "directory": 2
+   },
+   "labels": [
+    "Downloads  [COLOR gray](7)[/COLOR]",
+    "Brockie - Kool FM 94.5"
+   ],
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=downloads_menu",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=brockie-kool-fm-94.5-august-14-1993"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  },
+  "downloads": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=downloads_menu",
+   "count": 8,
+   "filetypes": {
+    "file": 7,
+    "directory": 1
+   },
+   "labels": [
+    "Anabolic Frolic - Live at Fusion Oct 3 98 - Side A  [COLOR gray](25.7 MB)[/COLOR]",
+    "Anabolic Frolic - Live at Fusion Oct 3 98 - Side B  [COLOR gray](25.1 MB)[/COLOR]",
+    "Capital J Mc Friendlyman Trigger - Live at Junglist Movement - Side A  [COLOR gray](27.8 MB)[/COLOR]",
+    "DJ Jinx & MC Det – Kool FM 94.5 (Acid House Classics Show) [Summer 1993]  [COLOR gray](49.3 MB)[/COLOR]",
+    "Live At Jungle Fever-1993 12 11-Hype Andy C-01  [COLOR gray](30.5 MB)[/COLOR]",
+    "Dreamscape 3 Dougal  [COLOR gray](31.1 MB)[/COLOR]",
+    "Dreamscape 3 Carl Cox A  [COLOR gray](42.9 MB)[/COLOR]",
+    "Back"
+   ],
+   "files": [
+    "/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/userdata/downloads/raveplayer/anabolic-frolic-live-at-fusion-oct-3-98-side-a-5f179913.mp3",
+    "/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/userdata/downloads/raveplayer/anabolic-frolic-live-at-fusion-oct-3-98-side-b-19e688bf.mp3",
+    "/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/userdata/downloads/raveplayer/capital-j-mc-friendlyman-trigger-live-at-junglist-movement-side-a-6089e0f5.mp3",
+    "/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/userdata/downloads/raveplayer/dj-jinx-mc-det-kool-fm-94-5-acid-house-classics-show-summer-1993-2397eaf7.mp3",
+    "/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/userdata/downloads/raveplayer/live-at-jungle-fever-1993-12-11-hype-andy-c-01-1b515baf.mp3",
+    "/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/userdata/downloads/raveplayer/dreamscape-3-dougal-15cde61e.mp3",
+    "/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/userdata/downloads/raveplayer/dreamscape-3-carl-cox-a-297cac21.mp3",
+    "plugin://plugin.audio.raveplayer/?mode=fav_list"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  },
+  "about": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=about",
+   "count": 16,
+   "filetypes": {
+    "file": 15,
+    "directory": 1
+   },
+   "labels": [
+    "Rave Player 3.9.51 — GPL-3.0",
+    "Source: Internet Archive (archive.org)",
+    "Source: Mixcloud",
+    "Source: SoundCloud",
+    "Source: radio-browser.info",
+    "Source: Moxser.com",
+    "Source: Hardscore.com",
+    "Source: DNB Radio",
+    "Source: GetDarker.com",
+    "Source: Podcast & mix RSS feeds",
+    "Source: Pirate Radio Archives",
+    "Live radio: Kool FM & Rinse FM",
+    "Source: RaveTapePacks.com",
+    "Source: JungleTapes.com",
+    "Source: Toronto Rave Mixtape Archive",
+    "Back"
+   ],
+   "files": [
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "plugin://plugin.audio.raveplayer/?mode=root"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  },
+  "archive_jungle_page1": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=archive_list&key=jungle&page=1",
+   "count": 52,
+   "filetypes": {
+    "file": 1,
+    "directory": 51
+   },
+   "labels": [
+    "Page 1 of 2 · 71 items",
+    "Jungle Fever 11.12.93",
+    "Jungle Fever Showtime 1995",
+    "Carl Cox @ Sunrise & Back To The Future - 1989 Dance Festival, UK (August 12, 1989)  [COLOR gray](1989)[/COLOR]",
+    "Bombshell - Dr. No & Bombshell (1994) Side B  [COLOR gray](1994)[/COLOR]",
+    "Carl Cox - No Mercy Promo Mix (1991 Or 1992)  [COLOR gray](1991)[/COLOR]",
+    "Carl Cox - Kaos 14 Promo Mix (1992)  [COLOR gray](1992)[/COLOR]",
+    "Cut Killer - Mixtape 1 (1993)  [COLOR gray](1993)[/COLOR]",
+    "Andy C - Pure Rollers (1996)  [COLOR gray](1996)[/COLOR]",
+    "Cool Hand Flex - Jungle Soundclash Volume 1: Flex Mega Mixes (1995)  [COLOR gray](1995)[/COLOR]",
+    "DJ Ash - Jungle Rhythms Volume 2 (1994)  [COLOR gray](1994)[/COLOR]",
+    "Carl Cox @ Dance Trance - The Sound Of Summer (August 6, 1993)  [COLOR gray](1993)[/COLOR]",
+    "Boris Brejcha - BBC Radio 1: Essential Mix #1316 (2019)  [COLOR gray](2019)[/COLOR]",
+    "AK1200 - Intelligence (1994)  [COLOR gray](1994)[/COLOR]",
+    "Andy C - The Joint II Mixtape (1994)  [COLOR gray](1994)[/COLOR]",
+    "Bryan Gee & DJ Naughty - Planet Breaks: 'The Xs-Mas Breakbeat Edition' (1993)  [COLOR gray](1993)[/COLOR]",
+    "Bryan Gee - Dread at the Controls Part 4 (1994)  [COLOR gray](1994)[/COLOR]",
+    "Bizzy B - Studio Mix '93  [COLOR gray](1993)[/COLOR]",
+    "Bryan Gee - Pisces: 'Memories', The Edge, Coventry (Sept 4, 1993)  [COLOR gray](1994)[/COLOR]",
+    "Brisk - Tales from the Dark Side (1993)  [COLOR gray](1993)[/COLOR]",
+    "Carl Cox @ Space, Ibiza (Essential Mix, August 9, 1998)  [COLOR gray](1998)[/COLOR]",
+    "Marcello, Space DJz, Bandulu @ Chemistry, E-Theatre, Amsterdam (January 18, 1997)  [COLOR gray](1997)[/COLOR]",
+    "Ash-A-Tack - Blackmarket Jungle Studio Mix (1994) Side A  [COLOR gray](1994)[/COLOR]",
+    "Ash-A-Tack - Blackmarket Jungle Studio Mix (1994) Side B  [COLOR gray](1994)[/COLOR]",
+    "Brockie @ Teen Jungle (March 19, 1994)  [COLOR gray](1994)[/COLOR]",
+    "Brainkillers - Weekend Rush 92.3 (July 31, 1994)  [COLOR gray](1994)[/COLOR]",
+    "Brockie - Kool FM 94.5 (August 14, 1993)  [COLOR gray](1993)[/COLOR]",
+    "Bryan Gee - Hyperactive Studio Mix (April 1995)  [COLOR gray](1995)[/COLOR]",
+    "Carl Cox @ Dance Planet - Return Of The Detonator (July 30, 1993)  [COLOR gray](1993)[/COLOR]",
+    "Brockie @ House of Spice: 'Valentines Day Massacre' (February 11, 1994)  [COLOR gray](1994)[/COLOR]",
+    "Bryan Gee - V Recordings Old Skool Mix Vol 1 (2015)  [COLOR gray](2015)[/COLOR]",
+    "Brockie - Ruffneck Ting, 'Special Kool FM (London) Ting' (March 4, 1994)  [COLOR gray](1994)[/COLOR]",
+    "DJ SS, Carl Cox - Quest: DJ SS & Carl Cox (July 24, 1993)  [COLOR gray](1993)[/COLOR]",
+    "Bryan Gee - Dread at the Controls Part 1 (1993) Side A  [COLOR gray](1993)[/COLOR]",
+    "Carl Cox - ''Four Pack'' Phoenix Productions Studio Mix (1993) Tape 4  [COLOR gray](1993)[/COLOR]",
+    "Cool Hand Flex - Jungle Nation (January 1994)  [COLOR gray](1994)[/COLOR]",
+    "DJ Ace - Hardcore 2 (Promo Mix, 1992)  [COLOR gray](1992)[/COLOR]",
+    "Brockie - Kool FM 94.5 (April 4, 1993) Side B  [COLOR gray](1993)[/COLOR]",
+    "Brockie - Kool FM 94.5 (April 4, 1993) Side A  [COLOR gray](1993)[/COLOR]",
+    "Brockie & Mampi Swift - Kool FM 94.5 (May 14, 1993)  [COLOR gray](1993)[/COLOR]",
+    "B-Boy 3000 & Curious - Tonz of Drumz Vol. III (1996) 1 A  [COLOR gray](1996)[/COLOR]",
+    "Bryan Gee & MC Steela - Ah... London Sumting, Samantha's Nightclub (1995)  [COLOR gray](1995)[/COLOR]",
+    "Carl Cox @ Sutra, Bristol (October 9, 1993)  [COLOR gray](1993)[/COLOR]",
+    "Bryan Gee - Dread at the Controls Part 1 (1993) Side B  [COLOR gray](1993)[/COLOR]",
+    "Brockie - Kool FM 94.5 (October 30, 1993)  [COLOR gray](1993)[/COLOR]",
+    "Billy Nasty - Nasty Rhythm 3 (1992)  [COLOR gray](1992)[/COLOR]",
+    "Cool Hand Flex - Unknown Mix (1993)  [COLOR gray](1993)[/COLOR]",
+    "Brockie & Jinx - Kool FM 94.5 (November 7, 1993)  [COLOR gray](1993)[/COLOR]",
+    "Bryan Gee - Old Skool Jungle Mix Dedicated to Manchester's DJ Heavy P (R.I.P.) 2023  [COLOR gray](2023)[/COLOR]",
+    "DJ Czech - On The Ragga Tip (2002)  [COLOR gray](2002)[/COLOR]",
+    "B-Boy 3000 & Curious - Tonz of Drumz Vol. III (1996) 2B  [COLOR gray](1996)[/COLOR]",
+    "Next page  ›"
+   ],
+   "files": [
+    "",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=Jungle_Fever_11.12.93",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=Jungle_Fever_Showtime_1995",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=carl-cox-sunrise-back-to-the-future-1989-dance-festival-uk-august-12-1989",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bombshell-dr.-no-bombshell-1994-side-b",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=carl-cox-no-mercy-promo-mix-1991-or-1992",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=carl-cox-kaos-14-promo-mix-1992",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=cut-killer-mixtape-1-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=andy-c-pure-rollers-1996",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=cool-hand-flex-jungle-soundclash-volume-1-flex-mega-mixes-mix-1-1995",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=dj-ash-jungle-rhythms-volume-2-1994",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=carl-cox-dance-trance-the-sound-of-summer-august-6-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=boris-brejcha-bbc-radio-1-essential-mix-1316-2019",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=ak-1200-intelligence-1994",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=andy-c-the-joint-ii-mixtape-1994",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bryan-gee-dj-naughty-planet-breaks-the-xs-mas-breakbeat-edition-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bryan-gee-dread-at-the-control-bryan-gee-pt.-4-1994",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bizzy-b-studio-mix-93",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bryan-gee-pisces-memories-sept-4-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=brisk-tales-from-the-dark-side-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=carl-cox-space-ibiza-essential-mix-august-9-1998",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=marcello-space-djz-bandulu-chemistry-e-theatre-amsterdam-january-18-1997",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=ash-a-tack-blackmarket-jungle-studio-mix-1994-a",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=ash-a-tack-blackmarket-jungle-studio-mix-1994-b",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=brockie-teen-jungle-march-19-1994",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=brainkillers-weekend-rush-92.3-july-31-1994",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=brockie-kool-fm-94.5-august-14-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bryan-gee-hyperactive-studio-mix-april-1995",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=carl-cox-dance-planet-return-of-the-detonator-july-30-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=brockie-house-of-spice-valentines-day-massacre-february-11-1994",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bryan-gee-v-recordings-old-skool-mix-vol-1-2015",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=brockie-ruffneck-ting-special-kool-fm-london-ting-march-4-1994",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=dj-ss-carl-cox-quest-dj-ss-carl-cox-june-24-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=dj-bryan-gee-dread-at-the-controls-part-1-1993-a",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=carl-cox-four-pack-phoenix-productions-studio-mix-1993-tape-4",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=cool-hand-flex-jungle-nation-january-1994",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=dj-ace-hardcore-2-promo-mix-1992",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=brockie-kool-fm-94.5-april-4-1993-side-b",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=brockie-kool-fm-94.5-april-4-1993-side-a",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=brockie-mampi-swift-kool-fm-94.5-may-14-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=b-boy-3000-curious-tonz-of-drumz-vol.-iii-1996-1-a_202602",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bryan-gee-mc-steela-ah...-london-sumting-samanthas-nightclub-1995",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=carl-cox-sutra-bristol-october-9-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=dj-bryan-gee-dread-at-the-controls-part-1-1993-b",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=brockie-kool-fm-94.5-october-30-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=billy-nasty-nasty-rhythm-3-1992",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=cool-hand-flex-unknown-mix-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=brockie-jinx-kool-fm-94.5-november-7-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bryan-gee-old-skool-jungle-mix-dedicated-to-manchesters-dj-heavy-p-r.-i.-p.",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=dj-czech-on-the-ragga-tip-2002",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=b-boy-3000-curious-tonz-of-drumz-vol.-iii-1996-2-b",
+    "plugin://plugin.audio.raveplayer/?mode=archive_list&key=jungle&page=2"
+   ],
+   "header": "Page 1 of 2 · 71 items",
+   "pages": 2,
+   "page": 1,
+   "total": 71,
+   "empty_status": null,
+   "error": null,
+   "unit": "items"
+  },
+  "archive_jungle_last": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=archive_list&key=jungle&page=2",
+   "count": 23,
+   "filetypes": {
+    "file": 1,
+    "directory": 22
+   },
+   "labels": [
+    "Page 2 of 2 · 71 items",
+    "Brockie & Fabrok - Kool FM 94.5 (April 23, 1993)  [COLOR gray](1993)[/COLOR]",
+    "Barrington - Inner City Groove Studio Mix (1994)  [COLOR gray](1994)[/COLOR]",
+    "Bizzy B - Format FM 93.2 (August 1993)  [COLOR gray](1993)[/COLOR]",
+    "DJ Czech - Big Sexy Beach Music Vol. 2 (2011)  [COLOR gray](2011)[/COLOR]",
+    "B-Boy 3000 & Curious - Tonz of Drumz Vol. III (1996) 1B  [COLOR gray](1996)[/COLOR]",
+    "Carl Cox @ Dance Trance - Capital Punishment (November 12, 1993)  [COLOR gray](1993)[/COLOR]",
+    "1.8.7 Live PA @ Syrous: 'The Next Level' (Sept. 4, 1993)  [COLOR gray](1993)[/COLOR]",
+    "DJ Ace - Hardcore 3 (Promo Mix, 1992)  [COLOR gray](1992)[/COLOR]",
+    "Bizzy B & Swift - Format FM 93.2 (September 1993)  [COLOR gray](1993)[/COLOR]",
+    "Cool Hand Flex - Demo For Raven (August 1992)  [COLOR gray](1992)[/COLOR]",
+    "Carl Cox @ The Manor (Ringwood), Bournemouth, UK (July 25, 1998)  [COLOR gray](1998)[/COLOR]",
+    "Bizzy B - Jungle Vinyl Set (1994)  [COLOR gray](1994)[/COLOR]",
+    "Bizzy B & D-Lux - Format FM 93.2 (September 1993)  [COLOR gray](1993)[/COLOR]",
+    "Buckey Ranks - Defection FM 89.4 (Early 1993)  [COLOR gray](1993)[/COLOR]",
+    "B-Boy 3000 & Curious - Tonz of Drumz Vol. III (1996) 2A  [COLOR gray](1996)[/COLOR]",
+    "Colin Faver, Paul Russell - Kiss 100 FM (March 3, 1992)  [COLOR gray](1992)[/COLOR]",
+    "DJ Czech - Jelly Baby (1994)  [COLOR gray](1994)[/COLOR]",
+    "Bodyjack - FACT Mix 499 (June 8, 2015)  [COLOR gray](2015)[/COLOR]",
+    "DJ Czech - Premium Quality (2013)  [COLOR gray](2013)[/COLOR]",
+    "Cave - Promo Mix (August 2004)  [COLOR gray](2004)[/COLOR]",
+    "Colin Dale - Stars X2 (1998)  [COLOR gray](1998)[/COLOR]",
+    "Previous page  ‹"
+   ],
+   "files": [
+    "",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=brockie-fabrok-kool-fm-94.5-april-23-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=barrington-inner-city-groove-studio-mix-1994",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bizzy-b-format-fm-93.2-august-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=dj-czech-big-sexy-beach-music-vol.-2-2011",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=b-boy-3000-curious-tonz-of-drumz-vol.-iii-1996-1-b",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=carl-cox-dance-trance-capital-punishment-november-12-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=1.8.7-live-pa-syrous-the-next-level-sept.-4-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=dj-ace-hardcore-3-promo-mix-1992",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bizzy-b-swift-format-fm-93.2-september-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=cool-hand-flex-demo-for-raven-august-1992",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=carl-cox-the-manor-ringwood-bournemouth-uk-july-25-1998",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bizzy-b-jungle-vinyl-set-1994",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bizzy-b-d-lux-format-fm-93.2-september-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=buckey-ranks-defection-fm-89.4-early-1993",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=b-boy-3000-curious-tonz-of-drumz-vol.-iii-1996-2-a",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=colin-faver-paul-russell-kiss-100-fm-march-3-1992",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=dj-czech-jelly-baby-1994",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bodyjack-fact-mix-499-june-8-2015",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=dj-czech-premium-quality-2013",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=cave-promo-mix-august-2004",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=colin-dale-stars-x-2-1998",
+    "plugin://plugin.audio.raveplayer/?mode=archive_list&key=jungle&page=1"
+   ],
+   "header": "Page 2 of 2 · 71 items",
+   "pages": 2,
+   "page": 2,
+   "total": 71,
+   "empty_status": null,
+   "error": null,
+   "unit": "items"
+  },
+  "jt_index_page1": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=legacy_jt&page=1",
+   "count": 53,
+   "filetypes": {
+    "file": 1,
+    "directory": 52
+   },
+   "labels": [
+    "Page 1 of 7 · 310 shows",
+    "Rinse out ckln 881 fm 2000 02 26",
+    "Rinse out ckln 881 fm 1999 09 25",
+    "Rinse out ckln 881 fm 1999 09 18",
+    "Rinse out ckln 881 fm 1998 06 13",
+    "Rinse out ckln 881 fm 1998 06 06",
+    "Rinse out ckln 881 fm 1998 05 23",
+    "Rinse out ckln 881 fm 1998 04 11",
+    "Rinse out ckln 881 1999 04 03",
+    "Rinse out ckln 881 1998 09 06",
+    "Rinse out ckln 881 1998 08 08",
+    "Rinse out ckln 881 1998 07 18",
+    "Rengades ciut 895 fm 2000 04 28",
+    "Renegades ciut 895 fm 2000 07 21",
+    "Renegades ciut 895 fm 2000 06 02",
+    "Renegades ciut 895 fm 2000 04 14",
+    "Renegades ciut 895 fm 2000 01 28",
+    "Renegades ciut 895 fm 2000 01 21",
+    "Renegades ciut 895 fm 1999 12 03",
+    "Renegades ciut 895 fm 1999 11 26",
+    "Renegades ciut 895 fm 1999 11 19",
+    "Renegades ciut 895 fm 1999 11 12",
+    "Renegades ciut 895 fm 1999 11 05",
+    "Renegades ciut 895 fm 1999 10 29",
+    "Renegades ciut 895 fm 1999 10 22",
+    "Renegades chin 1007 fm 1999 06 04",
+    "Renegades chin 1007 fm 1999 05 21",
+    "Renegades chin 1007 fm 1999 05 14",
+    "Renegades chin 1007 fm 1998 10 30",
+    "Renegade airwaves ciut 895 fm 2001 01 05",
+    "Renegade airwaves chin 1007 fm 1999 04 29",
+    "Renegade airwaves chin 1007 1999 04 15",
+    "Renegade airwaves chin 1007 1999 02 25",
+    "Renegade airwaves chin 1007 1999 02 04",
+    "Prophecy ciut 895 fm 2000 05 21",
+    "Prophecy ciut 895 fm 2000 05 14",
+    "Prophecy ciut 895 fm 2000 03 05",
+    "Prophecy ciut 895 fm 2000 02 06",
+    "Prophecy ciut 895 fm 1999 11 06",
+    "Prophecy ciut 895 fm 1999 10 31",
+    "Prophecy ciut 895 fm 1999 09 12",
+    "Prophecy ciut 895 fm 1999 08 22",
+    "Prophecy ciut 895 fm 1999 08 15",
+    "Prophecy ciut 895 fm 1999 08 01",
+    "Prophecy ciut 895 fm 1999 07 18",
+    "Prophecy ciut 895 fm 1999 07 04",
+    "Prophecy ciut 895 fm 1999 06 20",
+    "Prophecy ciut 895 fm 1999 06 13",
+    "Prophecy ciut 895 fm 1999 06 06",
+    "Prophecy ciut 895 fm 1999 05 30",
+    "Prophecy ciut 895 fm 1999 05 16",
+    "Next page  ›",
+    "Back"
+   ],
+   "files": [
+    "",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rinse-out_ckln_881-fm_2000-02-26-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rinse-out_ckln_881-fm_1999-09-25-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rinse-out_ckln_881-fm_1999-09-18-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rinse-out_ckln_881-fm_1998-06-13-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rinse-out_ckln_881-fm_1998-06-06-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rinse-out_ckln_881-fm_1998-05-23-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rinse-out_ckln_881-fm_1998-04-11-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rinse-out_ckln_881_1999-04-03-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rinse-out_ckln_881_1998-09-06-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rinse-out_ckln_881_1998-08-08-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rinse-out_ckln_881_1998-07-18-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rengades_ciut_895-fm_2000-04-28-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_ciut_895-fm_2000-07-21-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_ciut_895-fm_2000-06-02-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_ciut_895-fm_2000-04-14-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_ciut_895-fm_2000-01-28-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_ciut_895-fm_2000-01-21-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_ciut_895-fm_1999-12-03-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_ciut_895-fm_1999-11-26-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_ciut_895-fm_1999-11-19-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_ciut_895-fm_1999-11-12-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_ciut_895-fm_1999-11-05-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_ciut_895-fm_1999-10-29-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_ciut_895-fm_1999-10-22-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_chin_1007-fm_1999-06-04-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_chin_1007-fm_1999-05-21-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_chin_1007-fm_1999-05-14-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegades_chin_1007-fm_1998-10-30-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegade-airwaves_ciut_895-fm_2001-01-05-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegade-airwaves_chin_1007-fm_1999-04-29-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegade-airwaves_chin_1007_1999-04-15-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegade-airwaves_chin_1007_1999-02-25-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=renegade-airwaves_chin_1007_1999-02-04-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_2000-05-21-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_2000-05-14-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_2000-03-05-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_2000-02-06-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_1999-11-06-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_1999-10-31-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_1999-09-12-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_1999-08-22-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_1999-08-15-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_1999-08-01-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_1999-07-18-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_1999-07-04-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_1999-06-20-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_1999-06-13-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_1999-06-06-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_1999-05-30-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=prophecy_ciut_895-fm_1999-05-16-000000",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt&page=2",
+    "plugin://plugin.audio.raveplayer/?mode=packs_menu"
+   ],
+   "header": "Page 1 of 7 · 310 shows",
+   "pages": 7,
+   "page": 1,
+   "total": 310,
+   "empty_status": null,
+   "error": null,
+   "unit": "shows"
+  },
+  "jt_index_last": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=legacy_jt&page=7",
+   "count": 13,
+   "filetypes": {
+    "file": 1,
+    "directory": 12
+   },
+   "labels": [
+    "Page 7 of 7 · 310 shows",
+    "19980322 prophecy prime flyin solo side c colin prime marcus side a",
+    "19980201 prophecy some chill vibes side b marcus side b",
+    "19970831 summer 97 old school jungle mix side b everfresh side b",
+    "19970615 prophecy decks were stolen show dj marcus side marcus side a",
+    "19970615 prophecy decks were stolen show dj marcus side b marcus side b",
+    "19961020 sniper dubplate special 1996 set 3 sniper shadow recka side b",
+    "19961020 sniper dubplate special 1996 set 2 marcus mystical influence sniper recka side a",
+    "19961020 sniper dubplate special 1996 set 1 marcus mystical influence side b",
+    "19960915 prophecy jungalism doze side carlos marcus side a",
+    "19960915 prophecy jungalism doze side b carlos marcus shadow side b",
+    "Previous page  ‹",
+    "Back"
+   ],
+   "files": [
+    "",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=tapes%2F19980322-prophecy-prime-flyin-solo-side-c-colin_prime-marcus__side_a",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=tapes%2F19980201-prophecy-some-chill-vibes-side-b_marcus__side_b",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=tapes%2F19970831-summer-97-old-school-jungle-mix-side-b_everfresh__side_b",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=tapes%2F19970615-prophecy-decks-were-stolen-show-dj-marcus-side_marcus__side_a",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=tapes%2F19970615-prophecy-decks-were-stolen-show-dj-marcus-side-b_marcus__side_b",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=tapes%2F19961020-sniper-dubplate-special-1996-set-3_sniper-shadow_recka_side_b",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=tapes%2F19961020-sniper-dubplate-special-1996-set-2_marcus-mystical-influence-sniper_recka_side_a",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=tapes%2F19961020-sniper-dubplate-special-1996-set-1_marcus-mystical-influence__side_b",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=tapes%2F19960915-prophecy-jungalism-doze-side-carlos_marcus__side_a",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=tapes%2F19960915-prophecy-jungalism-doze-side-b-carlos_marcus-shadow__side_b",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_jt&page=6",
+    "plugin://plugin.audio.raveplayer/?mode=packs_menu"
+   ],
+   "header": "Page 7 of 7 · 310 shows",
+   "pages": 7,
+   "page": 7,
+   "total": 310,
+   "empty_status": null,
+   "error": null,
+   "unit": "shows"
+  },
+  "jt_show": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=legacy_jt_show&key=rinse-out_ckln_881-fm_2000-02-26-000000",
+   "count": 1,
+   "filetypes": {
+    "file": 1
+   },
+   "labels": [
+    "2000.02.26-Rinse-Out-Gabor-in-the-mix-jungletapes.com-Colin"
+   ],
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fjungletapes.com%2Fsites%2Fdefault%2Ffiles%2Fjungle_tapes_uploaded_audio_files%2F2000.02.26-Rinse-Out-Gabor-in-the-mix-jungletapes.com-Colin.mp3&label=2000.02.26-Rinse-Out-Gabor-in-the-mix-jungletapes.com-Colin&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fjungletapes.png"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  },
+  "rtp_index": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=legacy_menu",
+   "count": 6,
+   "filetypes": {
+    "directory": 6
+   },
+   "labels": [
+    "By Event",
+    "By DJ",
+    "By MC",
+    "By Year",
+    "All Packs",
+    "Back"
+   ],
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=legacy_index&kind=event",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_index&kind=dj",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_index&kind=mc",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_index&kind=year",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_packs",
+    "plugin://plugin.audio.raveplayer/?mode=packs_menu"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  },
+  "rtp_category": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=legacy_index&kind=event",
+   "count": 51,
+   "filetypes": {
+    "directory": 51
+   },
+   "labels": [
+    "Accelerated Culture",
+    "Amazon",
+    "Amnesia House",
+    "AWOL",
+    "Club Kinetic",
+    "Dance Paradise",
+    "Dance Planet",
+    "Dance Trance",
+    "Desire",
+    "Devotion",
+    "Dreamscape",
+    "Elevation",
+    "Energy",
+    "Euphoria",
+    "Exposure",
+    "Fibre Optic",
+    "Flashback",
+    "Formation Records",
+    "Garage Nation",
+    "Hardcore Heaven",
+    "Heat",
+    "Helter Skelter",
+    "Hysteria",
+    "Innovation",
+    "Jungle Fever",
+    "Jungle Mania",
+    "Jungle Slammer",
+    "Mindwarp",
+    "One Nation",
+    "Pandemonium",
+    "Planet London",
+    "Pure X",
+    "Quest",
+    "Ravenation",
+    "Reincarnation",
+    "Roast",
+    "Serious",
+    "Slammin Vinyl",
+    "Stush",
+    "Telepathy",
+    "The Best Of British",
+    "Thunder & Joy",
+    "Total Kaos",
+    "United Dance",
+    "Vibealite",
+    "VIP",
+    "Vision",
+    "Warning",
+    "World Dance",
+    "XCON 2 ICON",
+    "Back"
+   ],
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=331&label=Accelerated+Culture",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=10&label=Amazon",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=9&label=Amnesia+House",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=18&label=AWOL",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=35&label=Club+Kinetic",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=4&label=Dance+Paradise",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=34&label=Dance+Planet",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=3&label=Dance+Trance",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=28&label=Desire",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=32&label=Devotion",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=5&label=Dreamscape",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=22&label=Elevation",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=44&label=Energy",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=19&label=Euphoria",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=364&label=Exposure",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=24&label=Fibre+Optic",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=341&label=Flashback",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=25&label=Formation+Records",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=397&label=Garage+Nation",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=27&label=Hardcore+Heaven",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=21&label=Heat",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=17&label=Helter+Skelter",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=29&label=Hysteria",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=300&label=Innovation",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=8&label=Jungle+Fever",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=43&label=Jungle+Mania",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=31&label=Jungle+Slammer",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=39&label=Mindwarp",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=20&label=One+Nation",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=7&label=Pandemonium",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=362&label=Planet+London",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=16&label=Pure+X",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=12&label=Quest",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=38&label=Ravenation",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=23&label=Reincarnation",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=11&label=Roast",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=48&label=Serious",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=30&label=Slammin+Vinyl",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=45&label=Stush",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=14&label=Telepathy",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=46&label=The+Best+Of+British",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=36&label=Thunder+%26+Joy",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=26&label=Total+Kaos",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=40&label=United+Dance",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=37&label=Vibealite",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=15&label=VIP",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=33&label=Vision",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=49&label=Warning",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=363&label=World+Dance",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=47&label=XCON+2+ICON",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_menu"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  },
+  "rtp_pack": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=legacy_category&kind=event&cat=331&label=Accelerated Culture",
+   "count": 4,
+   "filetypes": {
+    "directory": 4
+   },
+   "labels": [
+    "Accelerated Culture 18 & One Nation – The 2K4 Power-Play",
+    "Accelerated Culture 16 – Drum ‘n Bass Awards 2K3",
+    "ACCELERATED CULTURE 17 – ENERGY FLUX",
+    "Back"
+   ],
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=legacy_post&post=2542&kind=event&cat=331&label=Accelerated+Culture+18+%26+One+Nation+%E2%80%93+The+2K4+Power-Play",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_post&post=2483&kind=event&cat=331&label=Accelerated+Culture+16+%E2%80%93+Drum+%E2%80%98n+Bass+Awards+2K3",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_post&post=2459&kind=event&cat=331&label=ACCELERATED+CULTURE+17+%E2%80%93+ENERGY+FLUX",
+    "plugin://plugin.audio.raveplayer/?mode=legacy_index&kind=event"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  },
+  "rtp_tracks": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=legacy_post&post=2542&kind=event&cat=331&label=Accelerated Culture 18 & One Nation – The 2K4 Power-Play",
+   "count": 16,
+   "filetypes": {
+    "file": 16
+   },
+   "labels": [
+    "Andy C",
+    "Bryan Gee",
+    "DJ SS & Twisted Individual",
+    "Dollar & Transit Mafia",
+    "Friction",
+    "Garry K & DJ Triple T",
+    "Hazzard",
+    "J Majik",
+    "Kenny Ken",
+    "Krust",
+    "Mampi Swift",
+    "Mickey Finn",
+    "Nicky Blackmarket (Side 1)",
+    "Nicky Blackmarket (Side 2)",
+    "Pendulum",
+    "Simon Bassline Smith"
+   ],
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FAndy_C.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Andy+C&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FBryan_Gee.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Bryan+Gee&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FDJ_SS_%2526_Twisted_Individual.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=DJ+SS+%26+Twisted+Individual&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FDollar_%2526_Transit_Mafia.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Dollar+%26+Transit+Mafia&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FFriction.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Friction&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FGarry_K_%2526_DJ_Triple_T.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Garry+K+%26+DJ+Triple+T&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FHazzard.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Hazzard&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FJ_Majik.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=J+Majik&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FKenny_Ken.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Kenny+Ken&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FKrust.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Krust&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FMampi_Swift.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Mampi+Swift&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FMickey_Finn.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Mickey+Finn&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FNicky_Blackmarket_%2528Side_1%2529.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Nicky+Blackmarket+%28Side+1%29&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FNicky_Blackmarket_%2528Side_2%2529.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Nicky+Blackmarket+%28Side+2%29&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FPendulum.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Pendulum&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FSimon_Bassline_Smith.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Simon+Bassline+Smith&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  },
+  "search_results": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=search&q=amen",
+   "count": 39,
+   "filetypes": {
+    "directory": 39
+   },
+   "labels": [
+    "Bryan Gee - V Recordings Old Skool Mix Vol 1 (2015)  [COLOR gray](2015)[/COLOR]",
+    "DJ Czech - Herbal Ryddyms (1995)  [COLOR gray](1995)[/COLOR]",
+    "Two Lone Swordsmen - 6 Mix (June 13, 2004) Part 2  [COLOR gray](2004)[/COLOR]",
+    "Amen Breaks Compilation  [COLOR gray](2021)[/COLOR]",
+    "Depression And Amen Breaks  [COLOR gray](2022)[/COLOR]",
+    "Amen-tal Sampler No.1",
+    "amen break  [COLOR gray](2022)[/COLOR]",
+    "Various Artists - Amen-talist Round 1  [COLOR gray](2009)[/COLOR]",
+    "Death Metal/Grindcore: Thrasher (Mogilev) - Amen (Full-length 1993) Cassette  [COLOR gray](2022)[/COLOR]",
+    "[GT081] No Smile - Bad Man Amen Limited",
+    "Ninja Gaijin DJ Set At Can I Get An Amen # 2 ( BREAKCORE 24 Nov 2018)  [COLOR gray](2018)[/COLOR]",
+    "Amen. The Animal - Pray Now Destroyer [2006] (LOSSLESS)  [COLOR gray](2006)[/COLOR]",
+    "Can I Get An Amen? And an Interview with Nate Harrison",
+    "Musicology Vol. 11 The Amen Break",
+    "Amen Andrews Vs. Spac Hand Luke  [COLOR gray](2006)[/COLOR]",
+    "Various Artists - Amen-tal EP  [COLOR gray](2007)[/COLOR]",
+    "Amen. The Animal - My Iron Heart [2008]  [COLOR gray](2008)[/COLOR]",
+    "Pisciosangue - Amen  [COLOR gray](2016)[/COLOR]",
+    "AMEN MESSAGE TO YOU RUDY 180",
+    "Amen, Punketa  [COLOR gray](2024)[/COLOR]",
+    "Geef Ons Amen Ons Dagelijks Brood",
+    "Amen  [COLOR gray](1999)[/COLOR]",
+    "i found the amen break pack,it's joever  [COLOR gray](2023)[/COLOR]",
+    "1999-07-16 - Mikee Merge & Matt Amen feat. Rekka, Fear-Ed, Rym & Martial @ Centrifugal Promotions - Summertime '99 (Old Skool - Hardcore Jungle Techno)  [COLOR gray](1999)[/COLOR]",
+    "Amen Masters From True Junglists",
+    "Jungle Mix - I Like Amen Breaks..",
+    "Amen Breaks Compilation  [COLOR gray](2004)[/COLOR]",
+    "Chicken Amen  [COLOR gray](2015)[/COLOR]",
+    "Arsonist Amen Brothers  [COLOR gray](2023)[/COLOR]",
+    "Pagan Amen One Of Them",
+    "Pagan Amen Rey Arps Drols",
+    "Pagan Amen For A Sylph",
+    "Pagan Amen Solomon's Right (information)",
+    "Pagan Amen Safari Though Space",
+    "Pagan Amen Gravity ( Lion Bull Angel Eagle)",
+    "Pagan Amen Angst Overture",
+    "Pagan Amen Apathetik Feast",
+    "Pagan Amen Pathos",
+    "Pagan Amen The Bend"
+   ],
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=bryan-gee-v-recordings-old-skool-mix-vol-1-2015",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=czech-herbal-ryddyms-1995",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=two-lone-swordsmen-6-mix-june-13-2004-part-2",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=amen-breaks-compilation",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=depression-and-amen-breaks-wg7djl",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=Amen-talSamplerNo.1",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=a0207685141_0",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=amen-talist-round-1",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=thrasher-gothic-malice-in-silence",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=gt081NoSmile-BadManAmenLimited",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=NinjaGaijinDJSetAtCanIGetAnAmen2BREAKCORE24Nov2018",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=ATA-PND-2006",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=CanIGetAnAmenAndAnInterviewWithNateHarrison",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=MusicologyVol.11TheAmenBreak",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=amen-andrews-vs-spac-hand-luke",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=amen-tal",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=ATA-MIH-2008",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=pisciosangue-amen",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=amen-message-to-you-rudy-180",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=kocit-skoria-amen-punketa-08-cyo",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=GeefOnsAmenOnsDagelijksBrood",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=pagan-amen",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=pray_20230810",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=1999-07-16-mikee-merge-matt-amen-feat.-rekka-fear-ed-rym-martial-centr",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=amen_masters",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=jungle-mix-i-like-amen-breaks..",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=amen-breaks-compilation_202508",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=chicken-24-amen",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=arsonist-amen-brothers",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=pagan-amen-one-of-them",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=pagan-amen-rey-arps-drols",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=pagan-amen-for-a-sylph",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=pagan-amen-solomons-right-information",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=pagan-amen-safari-though-space",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=pagan-amen-gravity-lion-bull-angel-eagle",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=pagan-amen-angst-overture",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=pagan-amen-apathetik-feast",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=pagan-amen-pathos",
+    "plugin://plugin.audio.raveplayer/?mode=archive_item&id=pagan-amen-the-bend"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  },
+  "search_empty": {
+   "url": "plugin://plugin.audio.raveplayer/?mode=search&q=zzqxjv-no-such-rave-9417",
+   "count": 1,
+   "filetypes": {
+    "directory": 1
+   },
+   "labels": [
+    "[COLOR 0xFFE8FF00]STANDBY[/COLOR]  No results for “zzqxjv-no-such-rave-9417”"
+   ],
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=search&q=zzqxjv-no-such-rave-9417&page=1"
+   ],
+   "header": null,
+   "pages": null,
+   "page": null,
+   "total": null,
+   "empty_status": null,
+   "error": null
+  }
+ },
+ "playlists": {
+  "rtp_play_all": {
+   "state": "rtp_play_all",
+   "source": "legacy_post",
+   "key": "2542",
+   "count": 16,
+   "playing": true,
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FAndy_C.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Andy+C&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FBryan_Gee.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Bryan+Gee&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FDJ_SS_%2526_Twisted_Individual.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=DJ+SS+%26+Twisted+Individual&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FDollar_%2526_Transit_Mafia.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Dollar+%26+Transit+Mafia&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FFriction.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Friction&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FGarry_K_%2526_DJ_Triple_T.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Garry+K+%26+DJ+Triple+T&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FHazzard.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Hazzard&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FJ_Majik.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=J+Majik&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FKenny_Ken.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Kenny+Ken&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FKrust.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Krust&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FMampi_Swift.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Mampi+Swift&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FMickey_Finn.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Mickey+Finn&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FNicky_Blackmarket_%2528Side_1%2529.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Nicky+Blackmarket+%28Side+1%29&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FNicky_Blackmarket_%2528Side_2%2529.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Nicky+Blackmarket+%28Side+2%29&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FPendulum.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Pendulum&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FSimon_Bassline_Smith.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Simon+Bassline+Smith&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg"
+   ],
+   "labels": [
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+   ],
+   "bridge_files": [
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FAndy_C.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Andy+C&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FBryan_Gee.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Bryan+Gee&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FDJ_SS_%2526_Twisted_Individual.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=DJ+SS+%26+Twisted+Individual&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FDollar_%2526_Transit_Mafia.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Dollar+%26+Transit+Mafia&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FFriction.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Friction&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FGarry_K_%2526_DJ_Triple_T.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Garry+K+%26+DJ+Triple+T&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FHazzard.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Hazzard&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FJ_Majik.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=J+Majik&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FKenny_Ken.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Kenny+Ken&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FKrust.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Krust&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FMampi_Swift.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Mampi+Swift&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FMickey_Finn.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Mickey+Finn&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FNicky_Blackmarket_%2528Side_1%2529.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Nicky+Blackmarket+%28Side+1%29&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FNicky_Blackmarket_%2528Side_2%2529.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Nicky+Blackmarket+%28Side+2%29&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FPendulum.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Pendulum&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg",
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fwww.ravetapepacks.com%2Fmusic%2FAcceleratedCulture18andOneNationThe2K4PowerPlay%2FSimon_Bassline_Smith.mp3%7CReferer%3Dhttps%3A%2F%2Fwww.ravetapepacks.com%2F%26User-Agent%3DMozilla%2F5.0&label=Simon+Bassline+Smith&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fravetapepacks.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg"
+   ],
+   "raw_bridge_files": []
+  },
+  "jt_play_all": {
+   "state": "jt_play_all",
+   "source": "legacy_jt",
+   "key": "rinse-out_ckln_881-fm_2000-02-26-000000",
+   "count": 1,
+   "playing": true,
+   "files": [
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fjungletapes.com%2Fsites%2Fdefault%2Ffiles%2Fjungle_tapes_uploaded_audio_files%2F2000.02.26-Rinse-Out-Gabor-in-the-mix-jungletapes.com-Colin.mp3&label=2000.02.26-Rinse-Out-Gabor-in-the-mix-jungletapes.com-Colin&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fjungletapes.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg"
+   ],
+   "labels": [
+    ""
+   ],
+   "bridge_files": [
+    "plugin://plugin.audio.raveplayer/?mode=play&url=https%3A%2F%2Fjungletapes.com%2Fsites%2Fdefault%2Ffiles%2Fjungle_tapes_uploaded_audio_files%2F2000.02.26-Rinse-Out-Gabor-in-the-mix-jungletapes.com-Colin.mp3&label=2000.02.26-Rinse-Out-Gabor-in-the-mix-jungletapes.com-Colin&thumb=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Fresources%2Fart%2Fjungletapes.png&fanart=%2Fstorage%2Femulated%2F0%2FAndroid%2Fdata%2Forg.xbmc.kodi%2Ffiles%2F.kodi%2Faddons%2Fplugin.audio.raveplayer%2Ffanart.jpg"
+   ],
+   "raw_bridge_files": []
+  }
+ },
+ "surprises": [
+  {
+   "attempt": 1,
+   "played": true,
+   "at": "2026-11-05T16:40:05+0000"
+  },
+  {
+   "attempt": 1,
+   "played": true,
+   "at": "2026-11-05T16:56:52+0000"
+  }
+ ],
+ "warnings": [
+  "2026-11-05T16:35:07+0000: Kodi restarted during the run (27006 -> 27616)",
+  "2026-11-05T16:57:41+0000: Kodi restarted during the run (30780 -> 31539)",
+  "2026-11-05T16:59:45+0000: Kodi restarted during the run (31539 -> 32397)"
+ ],
+ "errors": [],
+ "kodi_restarts": 3,
+ "rpc": {
+  "url": "http://192.168.1.189:8081/jsonrpc",
+  "user": "rvfy",
+  "source": "device guisettings"
+ },
+ "addons_enabled_plugins": [
+  {
+   "addonid": "plugin.audio.raveplayer",
+   "version": "3.9.51"
+  },
+  {
+   "addonid": "plugin.video.youtube",
+   "version": "7.4.4"
+  },
+  {
+   "addonid": "script.module.slyguy",
+   "version": "0.87.3"
+  },
+  {
+   "addonid": "slyguy.pbs.live",
+   "version": "0.2.5"
+  },
+  {
+   "addonid": "slyguy.pluto.tv.provider",
+   "version": "0.7.10"
+  }
+ ],
+ "kodi_pid": "1277",
+ "resumed_at": "2026-11-05T17:07:55+0000",
+ "kodi_restart_log": [
+  {
+   "at": "2026-11-05T16:35:07+0000",
+   "old_pid": "27006",
+   "new_pid": "27616"
+  },
+  {
+   "at": "2026-11-05T16:57:41+0000",
+   "old_pid": "30780",
+   "new_pid": "31539"
+  },
+  {
+   "at": "2026-11-05T16:59:45+0000",
+   "old_pid": "31539",
+   "new_pid": "32397"
+  }
+ ],
+ "screen": {
+  "rooms": [
+   "Latest",
+   "Toronto Rave Mixtape Archive",
+   "JungleTapes.com",
+   "RaveTapePacks.com",
+   "Live Radio",
+   "Mixes & Shows",
+   "Search",
+   "Favourites",
+   "Downloads",
+   "About",
+   "Spinning Surprise"
+  ],
+  "row_count": 11,
+  "surprise_index": 10,
+  "room_states": {
+   "Latest": "screen_room_latest",
+   "Toronto Rave Mixtape Archive": "screen_room_toronto",
+   "JungleTapes.com": "screen_room_jungletapes",
+   "RaveTapePacks.com": "screen_room_ravetapepacks",
+   "Live Radio": "screen_room_live",
+   "Mixes & Shows": "screen_room_mixes",
+   "Search": "screen_room_search",
+   "Favourites": "screen_room_favourites",
+   "Downloads": "screen_room_downloads",
+   "About": "screen_room_about"
+  },
+  "room_loaded": {},
+  "observations": []
+ },
+ "state_count": 45,
+ "cleared_errors": [
+  {
+   "at": "2026-11-05T16:26:36+0000",
+   "message": "capture screen_room_ravetapepacks failed: Kodi RPC authentication failed (401): ",
+   "traceback": "Traceback (most recent call last):\n  File \"/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer-worktrees/qa-harness/scripts/qa_fullscreen.py\", line 308, in call\n    with urllib.request.urlopen(\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py\", line 214, in urlopen\n    return opener.open(url, data, timeout)\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py\", line 523, in open\n    response = meth(req, response)\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py\", line 632, in http_response\n    response = self.parent.error(\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py\", line 561, in error\n    return self._call_chain(*args)\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py\", line 494, in _call_chain\n    result = func(*args)\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py\", line 641, in http_error_default\n    raise HTTPError(req.full_url, code, msg, hdrs, fp)\nurllib.error.HTTPError: HTTP Error 401: Unauthorized\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer-worktrees/qa-harness/scripts/qa_fullscreen.py\", line 1037, in capture\n    gui_after = self.gui()\n  File \"/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer-worktrees/qa-harness/scripts/qa_fullscreen.py\", line 670, in gui\n    return self.rpc.gui()\n  File \"/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer-worktrees/qa-harness/scripts/qa_fullscreen.py\", line 346, in gui\n    return self.call(\"GUI.GetProperties\",\n  File \"/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer-worktrees/qa-harness/scripts/qa_fullscreen.py\", line 314, in call\n    raise QaError(\nQaError: Kodi RPC authentication failed (401): \n"
+  },
+  {
+   "at": "2026-11-05T16:35:06+0000",
+   "message": "capture screen_room_mixes failed: RPC GUI.GetProperties failed: <urlopen error [Errno 61] Connection refused>",
+   "traceback": "Traceback (most recent call last):\n  File \"/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer-worktrees/qa-harness/scripts/qa_fullscreen.py\", line 1079, in capture\n    gui_after = self.gui()\n  File \"/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer-worktrees/qa-harness/scripts/qa_fullscreen.py\", line 676, in gui\n    return self.rpc.gui()\n  File \"/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer-worktrees/qa-harness/scripts/qa_fullscreen.py\", line 350, in gui\n    return self.call(\"GUI.GetProperties\",\n  File \"/Users/theyid/Documents/deepseek-harness/default-workspace/raveplayer-worktrees/qa-harness/scripts/qa_fullscreen.py\", line 335, in call\n    raise last_error or QaError(\"RPC %s failed\" % method)\nQaError: RPC GUI.GetProperties failed: <urlopen error [Errno 61] Connection refused>\n"
+  }
+ ]
+}

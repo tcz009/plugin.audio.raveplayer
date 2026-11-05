@@ -131,20 +131,35 @@ class ThemeArtTests(unittest.TestCase):
             with self.subTest(fanart=filename):
                 self.assertEqual(jpeg_size(art_path(filename)), (1280, 720))
 
-    def test_root_has_ten_distinct_icons_and_fanarts(self):
+    def test_root_is_the_app_launcher_plus_classic_lists(self):
         items = capture(routes.root)
-        self.assertEqual(len(items), 10)
+        self.assertEqual([item["label"] for item in items],
+                         ["Rave Player", "Classic lists"])
         icons = [item["art"]["icon"] for item in items]
         fanarts = [item["art"]["fanart"] for item in items]
-        self.assertEqual(len(set(icons)), 10, "root rows must not share an icon")
-        self.assertEqual(len(set(fanarts)), 10, "root rows need their own fanart")
+        self.assertEqual(len(set(icons)), 2, "launcher rows must not share an icon")
+        self.assertEqual(len(set(fanarts)), 2, "launcher rows need their own fanart")
         for path in icons + fanarts:
             self.assertTrue(os.path.exists(path), path)
 
-    def test_root_uses_the_2026_sticker_icons(self):
+        classic = rows_before_back(capture(routes.classic_root))
+        self.assertEqual(len(classic), 9)
+        icons = [item["art"]["icon"] for item in classic]
+        fanarts = [item["art"]["fanart"] for item in classic]
+        self.assertEqual(len(set(icons)), 9, "classic rows must not share an icon")
+        self.assertEqual(len(set(fanarts)), 9, "classic rows need their own fanart")
+
+    def test_launcher_and_classic_rows_use_the_2026_sticker_icons(self):
         items = capture(routes.root)
         expected = {
-            "Rave Screen": "screen.png",
+            "Rave Player": "screen.png",
+            "Classic lists": "legacy.png",
+        }
+        for item in items:
+            with self.subTest(row=item["label"]):
+                self.assertTrue(item["art"]["icon"].endswith(expected[item["label"]]))
+        classic = capture(routes.classic_root)
+        expected = {
             "Latest": "rave.png",
             "Tape Packs": "tapepacks.png",
             "Pirate Radio": "pirate-radio.png",
@@ -155,7 +170,9 @@ class ThemeArtTests(unittest.TestCase):
             "Surprise Me": "surprise.png",
             "About & Sources": "about.png",
         }
-        for item in items:
+        for item in classic:
+            if item["label"] == "Back":
+                continue
             with self.subTest(row=item["label"]):
                 self.assertTrue(item["art"]["icon"].endswith(expected[item["label"]]))
 

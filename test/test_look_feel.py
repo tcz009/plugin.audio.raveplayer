@@ -113,13 +113,16 @@ class RouteLabel2Tests(unittest.TestCase):
 
     def test_root_rows_carry_a_short_fact(self):
         routes.root(1, {})
-        self.assertEqual(len(xbmcplugin.ITEMS), 10)
+        self.assertEqual(len(xbmcplugin.ITEMS), 2)
         for item in xbmcplugin.ITEMS:
             with self.subTest(label=item["label"]):
                 self.assertTrue(item["label2"], item["label"])
                 self._assert_budget(item)
         facts = dict((item["label"], item["label2"]) for item in xbmcplugin.ITEMS)
-        self.assertEqual(facts["Rave Screen"], "full screen")
+        self.assertEqual(facts["Rave Player"], "full app")
+        self.assertEqual(facts["Classic lists"], "fallback")
+        routes.classic_root(1, {})
+        facts = dict((item["label"], item["label2"]) for item in xbmcplugin.ITEMS)
         self.assertEqual(facts["Tape Packs"], "1990–2004")
         self.assertEqual(facts["Search the Archive"], "archive.org")
 

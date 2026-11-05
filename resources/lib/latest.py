@@ -155,25 +155,49 @@ def resolve_dnb_streams(items, timeout=DNB_RESOLVE_TIMEOUT, workers=DNB_RESOLVE_
         return {}
 
 
-def random_pack():
-    """Pick a random tape pack. Uses a random page so we do not bias to page 1."""
-    _, total = archive.search(RAVE_COLLECTION, rows=1)
-    if not total:
-        return None
+RANDOM_PICK_ATTEMPTS = 3
+
+
+def random_pack(attempts=RANDOM_PICK_ATTEMPTS):
+    """Pick a random tape pack, with a small bounded retry.
+
+    3.9.51: a single Archive search can return an empty page (transient
+    ``numFound`` drift, rate limiting, a page past the end) and the Surprise
+    then reported "No random pack found" intermittently. Three attempts with a
+    fresh page are bounded; the caller (the screen) still has its own bounded
+    fallback, so nothing here loops indefinitely.
+    """
+    try:
+        attempts = max(1, min(int(attempts), 5))
+    except (TypeError, ValueError):
+        attempts = RANDOM_PICK_ATTEMPTS
     per_page = 50
-    pages = max(1, (total + per_page - 1) // per_page)
-    page = random.randint(1, max(1, min(RANDOM_PAGE_CAP, pages)))
-    docs, _ = archive.search(RAVE_COLLECTION, page=page, rows=per_page)
-    if not docs:
-        return None
-    doc = random.choice(docs)
-    identifier = doc.get("identifier")
-    if not identifier:
-        return None
-    return {
-        "identifier": identifier,
-        "title": _title(doc, identifier),
-    }
+    last_page = 1
+    for _attempt in range(attempts):
+        try:
+            _, total = archive.search(RAVE_COLLECTION, rows=1)
+        except Exception:
+            continue
+        if not total:
+            continue
+        pages = max(1, (total + per_page - 1) // per_page)
+        last_page = max(1, min(RANDOM_PAGE_CAP, pages))
+        page = random.randint(1, last_page)
+        try:
+            docs, _ = archive.search(RAVE_COLLECTION, page=page, rows=per_page)
+        except Exception:
+            continue
+        candidates = [doc for doc in docs or []
+                      if isinstance(doc, dict) and doc.get("identifier")]
+        if not candidates:
+            continue
+        doc = random.choice(candidates)
+        identifier = doc.get("identifier")
+        return {
+            "identifier": identifier,
+            "title": _title(doc, identifier),
+        }
+    return None
 
 
 def year_query(year):

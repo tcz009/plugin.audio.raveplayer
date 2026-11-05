@@ -1,3 +1,30 @@
+# Rave Player 3.9.50
+
+- **The Rave Screen is the app.** Every room from the owner's 02 language is a
+  state of the same window: Latest, Toronto, JungleTapes, RaveTapePacks, Live
+  Radio, Mixes & Shows, Search, Favourites, Downloads, About and Spinning
+  Surprise. The plugin is the data/playback backend; Classic lists are the
+  documented fallback.
+- **Paged lists** — 25/50/100 rows per page, explicit previous/next rows,
+  counts, page indicator, Label2 facts and duration/year/genre meta on track
+  rows. RaveTapePacks keeps its Event/DJ/MC/Year indexes, cursor pages, pack
+  posts and tracks. JungleTapes shows (310) page through to a show's tapes.
+- **In-window search** — an on-window keyboard (48 px sticker rows, no Kodi
+  dialog), scope cycling, paged results and relevance; Back restores the query
+  and the key focus.
+- **In-window context menu** — Play all, Shuffle, Download, Favourite,
+  rows-per-page, Stop and Refresh. No modal dialogs.
+- **States** — painted LOADING / STANDBY / ERROR plates with retry, quiet
+  source failures, Back during load, splash cancel, no zombie invokers.
+- **Downloads** — progress rows from the plugin's own download helpers, cancel,
+  delete and local playback. Favourites add/remove through the plugin profile.
+- **Live radio** — curated stations plus genre doors, ON AIR footer, no
+  duration/progress while live.
+- **Audio** — one policy: remote streams via the plugin's mode=play route,
+  downloaded files local; leaving the window keeps audio playing, Stop stops it.
+- **Spinning Surprise** — bounded pick with retry/fallback, splash paint,
+  >=1.2 s reveal and exactly one playback.
+
 # Rave Player 3.9.48
 
 - **Rave Screen visual parity** — `script-raveplayer-ui.xml` rebuilt to the

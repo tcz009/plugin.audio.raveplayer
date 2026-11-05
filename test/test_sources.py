@@ -28,13 +28,19 @@ class NewSourceRouteTests(unittest.TestCase):
 
     def test_root_is_the_ten_row_journey(self):
         routes.root(1, {})
+        self.assertEqual(self._labels(), ["Rave Player", "Classic lists"])
+        urls = dict(zip(self._labels(), self._urls()))
+        self.assertIn("mode=screen", urls["Rave Player"])
+        self.assertIn("mode=classic_root", urls["Classic lists"])
+        del xbmcplugin.ITEMS[:]
+        del xbmcplugin.CONTENT[:]
+        routes.classic_root(1, {})
         self.assertEqual(self._labels(), [
-            "Rave Screen", "Latest", "Tape Packs", "Pirate Radio",
+            "Latest", "Tape Packs", "Pirate Radio",
             "Mixes & Shows", "Live Radio", "Favourites", "Search the Archive",
-            "Surprise Me", "About & Sources",
+            "Surprise Me", "About & Sources", "Back",
         ])
         urls = dict(zip(self._labels(), self._urls()))
-        self.assertIn("mode=screen", urls["Rave Screen"])
         self.assertIn("mode=packs_menu", urls["Tape Packs"])
         self.assertIn("mode=pirate_radio", urls["Pirate Radio"])
         self.assertIn("mode=shows_menu", urls["Mixes & Shows"])

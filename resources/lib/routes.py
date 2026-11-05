@@ -755,12 +755,33 @@ def dispatch(argv):
 
 
 def root(handle, params):
-    """Top-level 2026 taxonomy: product, pirate radio, shows, live, saved, find."""
+    """The app launcher is the default; classic lists are one fallback row.
+
+    3.9.51: ``script.raveplayer.ui`` is the primary app shell, so the plugin
+    root is deliberately two rows, not ten. The first is a *program* item (no
+    directory window, no DialogBusy) that launches the full-screen app; the
+    second opens the unchanged 3.9.50-style lists for anyone who needs them.
+    """
+    menu_item = ui.menu_item
+    menu_item(
+        handle, url_for(mode="screen"), "Rave Player",
+        icon=art(MENU_ART["screen"]), fanart=art("fanart-screen.jpg"),
+        plot="Open the full-screen Rave Player app — every room, search, "
+             "favourites, downloads and Spinning Surprise.",
+        label2="full app", is_folder=False)
+    menu_item(
+        handle, url_for(mode="classic_root"), "Classic lists",
+        icon=art(MENU_ART["curated_legacy"]), fanart=art("fanart-tapepacks.jpg"),
+        plot="The original Kodi directory lists — the fallback if the screen "
+             "add-on is unavailable.",
+        label2="fallback")
+    kodi.end_directory(handle, "files")
+
+
+def classic_root(handle, params):
+    """The pre-3.9.51 root lists, kept as the documented fallback."""
     menu_item = ui.menu_item
     root_rows = [
-        ("screen", "Rave Screen", MENU_ART["screen"], "fanart-screen.jpg",
-         "Full-screen 2026 Rave UI — big art, D-pad rows and Spinning Surprise.",
-         "full screen"),
         ("latest", "Latest", MENU_ART["latest"], "fanart-latest.jpg",
          "Newest packs, shows and radio rips — start here.", "newest"),
         ("packs_menu", "Tape Packs", MENU_ART["packs"], "fanart-tapepacks.jpg",
@@ -781,15 +802,9 @@ def root(handle, params):
          "Version, credits and every source used.", kodi.ADDON_VERSION),
     ]
     for mode, label, icon, fan, plot, label2 in root_rows:
-        # The screen row is a *program* item, not a folder: Kodi's
-        # CGUIMediaWindow::OnClick routes a non-folder plugin item with no
-        # IsPlayable property through CPluginDirectory::RunScriptWithParams(),
-        # which runs this plugin without opening a directory window. That is
-        # what keeps Back on the root list and removes the DialogBusy that used
-        # to race the script's window activation (see docs/RAVE-SCREEN-DIAGNOSIS.md).
         menu_item(handle, url_for(mode=mode), label,
-                  icon=art(icon), fanart=art(fan), plot=plot, label2=label2,
-                  is_folder=(mode != "screen"))
+                  icon=art(icon), fanart=art(fan), plot=plot, label2=label2)
+    menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
 
@@ -2822,6 +2837,7 @@ def play(handle, params):
 
 HANDLERS = {
     "root": root,
+    "classic_root": classic_root,
     "screen": rave_screen,
     "packs_menu": packs_menu,
     "shows_menu": shows_menu,

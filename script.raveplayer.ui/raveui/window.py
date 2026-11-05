@@ -8,8 +8,9 @@ owns it like any other skin window.
 One Kodi 19-22 behaviour is load-bearing: ``show()`` is asynchronous and Kodi
 silently *refuses* the activation while a modal dialog is up (``Activate of
 window '13000' refused because there are active modal dialogs``). No exception
-is raised, so :func:`open_screen` waits for modals, verifies the active window
-id and fails fast instead of waiting forever for a close that can never come.
+is raised, so :func:`open_screen` waits for modals, verifies that ``onInit``
+really ran and fails fast instead of waiting forever for a close that can never
+come.
 """
 
 import os
@@ -20,6 +21,7 @@ import xbmcgui
 
 from .controller import HOME_TITLE, RaveScreenController
 from .data import RaveData
+from .downloadqueue import DownloadQueue
 from .playback import PlaybackService
 
 ADDON_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,7 +29,7 @@ XML_FILE = "script-raveplayer-ui.xml"
 ART_ROOT = os.path.join(ADDON_PATH, "resources", "art", "rave-screen")
 HERO_FALLBACK = os.path.join(ART_ROOT, "hero-fallback-640x360.jpg")
 
-# Control IDs are the WINDOWXML-CONTROL-MAP.md contract. The home list is 50:
+# Control IDs are the WINDOWXML-CONTROL-MAP.md contract. The list is 50:
 # Kodi's WindowXML window list lives on 50-59 and addItems()/getCurrentListPosition()
 # are bound to it. Never move it to 500.
 CONTROL_STATUS = 30
@@ -56,6 +58,11 @@ CONTROL_ON_AIR = 601
 CONTROL_NOW_KICKER = 602
 CONTROL_NOW_TITLE = 603
 CONTROL_NOW_META = 604
+CONTROL_OK_KEYCAP = 612
+CONTROL_OK_HINT = 613
+CONTROL_BACK_KEYCAP = 614
+CONTROL_BACK_HINT = 615
+CONTROL_PAGE_INFO = 617
 CONTROL_SPINNER_BG = 700
 CONTROL_SPINNER_RING = 701
 CONTROL_SPINNER_HEAD = 702
@@ -70,29 +77,24 @@ CONTROL_SPINNER_MARK = 710
 CONTROL_SPINNER_TOP = 711
 CONTROL_SPINNER_CODE = 712
 CONTROL_SPINNER_NOISE = 713
+# Loading / empty / error plates. They are one state of the same window, bound
+# to a property exactly like the Surprise splash (never a literal <visible>false</visible>).
+CONTROL_PLATE_SCRIM = 720
+CONTROL_PLATE = 721
+CONTROL_PLATE_HEAD = 722
+CONTROL_PLATE_KICKER = 723
+CONTROL_PLATE_TITLE = 724
+CONTROL_PLATE_DETAIL = 725
+CONTROL_PLATE_HINT = 726
+CONTROL_PLATE_CODE = 727
 
-# The splash controls are conditionally visible on this window property, not on
-# a literal <visible>false</visible>. Kodi re-evaluates that condition every
-# frame, so a constant false silently undoes Control.setVisible(True) (the
-# Shield/Kodi 22 symptom: Python logged visible=True for nine seconds and the
-# splash never painted). Setting the property *and* the controls keeps the
-# XML condition and the Python state in agreement.
 SPLASH_PROPERTY = "rp_splash"
+PLATE_PROPERTY = "rp_plate"
+PLATE_HEAD_PROPERTY = "rp_plate_head"
+LIVE_PROPERTY = "rp_live"
 
-# The view title/subtitle are right-aligned inside 440 px at 720p.  Kodi draws
-# an over-long right-aligned label leftwards past its control, into the
-# wordmark (P2-1: the Damon Wild pack title overlapped RAVE PLAYER).  Clip at a
-# character budget that comfortably fits 440 px in font12; the visible ellipsis
-# keeps the title readable and the hero still shows the full name.
 MAX_VIEW_TITLE = 30
 MAX_VIEW_SUBTITLE = 40
-
-
-def _clip(text, limit):
-    text = " ".join(str(text or "").split())
-    if len(text) <= limit:
-        return text
-    return text[:max(1, limit - 1)].rstrip() + "…"
 
 SPINNER_CONTROLS = (
     CONTROL_SPINNER_BG, CONTROL_SPINNER_RING, CONTROL_SPINNER_HEAD,
@@ -101,11 +103,15 @@ SPINNER_CONTROLS = (
     CONTROL_SPINNER_HINT, CONTROL_SPINNER_MARK, CONTROL_SPINNER_TOP,
     CONTROL_SPINNER_CODE, CONTROL_SPINNER_NOISE,
 )
+PLATE_CONTROLS = (
+    CONTROL_PLATE_SCRIM, CONTROL_PLATE, CONTROL_PLATE_KICKER,
+    CONTROL_PLATE_TITLE, CONTROL_PLATE_DETAIL, CONTROL_PLATE_HINT,
+    CONTROL_PLATE_CODE,
+)
 
 BACK_ACTIONS = frozenset((
     getattr(xbmcgui, "ACTION_NAV_BACK", 92),
     getattr(xbmcgui, "ACTION_PREVIOUS_MENU", 10),
-    # Some remotes/keymaps send "parent directory" for Back.
     getattr(xbmcgui, "ACTION_PARENT_DIR", 9),
 ))
 MOVE_ACTIONS = frozenset((
@@ -116,12 +122,40 @@ MOVE_ACTIONS = frozenset((
     getattr(xbmcgui, "ACTION_PAGE_UP", 5),
     getattr(xbmcgui, "ACTION_PAGE_DOWN", 6),
 ))
+LEFT_RIGHT_ACTIONS = {
+    getattr(xbmcgui, "ACTION_MOVE_LEFT", 1): -1,
+    getattr(xbmcgui, "ACTION_MOVE_RIGHT", 2): 1,
+}
+CONTEXT_ACTIONS = frozenset((
+    getattr(xbmcgui, "ACTION_CONTEXT_MENU", 117),
+    getattr(xbmcgui, "ACTION_INFO", 11),
+))
+STOP_ACTIONS = frozenset((getattr(xbmcgui, "ACTION_STOP", 13),))
 
 # Bounded activation: wait for an open modal, then verify that Kodi really made
 # this window the active one (show() reports nothing).
 ACTIVATION_WAIT_SECONDS = 10.0
 ACTIVATION_POLL_MS = 100
 ACTIVE_CHECKS_PER_SHOW = 10
+
+
+class _Log(object):
+    """Callable logger with a debug-level trace channel for device evidence."""
+
+    @staticmethod
+    def __call__(message):
+        xbmc.log("[script.raveplayer.ui] %s" % message, level=xbmc.LOGWARNING)
+
+    @staticmethod
+    def trace(message):
+        xbmc.log("[script.raveplayer.ui] %s" % message, level=xbmc.LOGINFO)
+
+
+def _clip(text, limit):
+    text = " ".join(str(text or "").split())
+    if len(text) <= limit:
+        return text
+    return text[:max(1, limit - 1)].rstrip() + "…"
 
 
 class KodiView(object):
@@ -135,8 +169,6 @@ class KodiView(object):
         try:
             return self.window.getControl(control_id)
         except Exception:  # noqa: BLE001 - skin control missing
-            # A wrong id or a control that Kodi failed to create used to fail
-            # completely silently: no rows, no status, just a blank screen.
             if control_id not in self._missing_logged:
                 self._missing_logged.add(control_id)
                 try:
@@ -180,26 +212,39 @@ class KodiView(object):
     def set_status(self, text):
         self._label(CONTROL_STATUS, text)
 
-    def set_room_count(self, count):
-        """Write the plural-aware "N ROOM(S) · STANDBY/ON AIR" footer labels.
-
-        The XML used a literal "ROOMS", which produced "1 ROOMS · STANDBY"
-        (P2-1).  Kodi's label forms have no plural rule, so both the idle and
-        the on-air label are written from Python; the XML still owns their
-        visibility conditions.
-        """
+    def set_room_count(self, count, unit="ROOMS"):
+        """Write the plural-aware header count label (ROOMS/ROWS/KEYS/ACTIONS)."""
         try:
             count = max(0, int(count))
         except (TypeError, ValueError):
             count = 0
-        unit = "ROOM" if count == 1 else "ROOMS"
-        self._label(CONTROL_ROOMS_IDLE, "[B]%d[/B] %s · STANDBY" % (count, unit))
-        self._label(CONTROL_ROOMS_ON_AIR, "[B]%d[/B] %s · ON AIR" % (count, unit))
+        unit = str(unit or "ROOMS").upper()
+        singular = {"ROOMS": "ROOM", "ROWS": "ROW"}.get(unit, unit.rstrip("S"))
+        shown = singular if count == 1 else unit
+        self._label(CONTROL_ROOMS_IDLE, "[B]%d[/B] %s · STANDBY" % (count, shown))
+        self._label(CONTROL_ROOMS_ON_AIR, "[B]%d[/B] %s · ON AIR" % (count, shown))
+
+    def set_page_info(self, text):
+        self._label(CONTROL_PAGE_INFO, text)
+
+    def set_key_hints(self, ok_text, back_text):
+        self._label(CONTROL_OK_HINT, ok_text)
+        self._label(CONTROL_BACK_HINT, back_text)
+
+    def set_live(self, live):
+        try:
+            self.window.setProperty(LIVE_PROPERTY, "1" if live else "0")
+        except Exception:
+            pass
+
+    def set_keyboard_mode(self, active):
+        """Hide the hero while the in-window keyboard owns the right column."""
+        try:
+            self.window.setProperty("rp_keyboard", "1" if active else "0")
+        except Exception:
+            pass
 
     def set_now_playing(self, text):
-        # The footer is bound to Player.* so Kodi keeps it current without a
-        # timer. Window property rp_now is the fallback label for a stream with
-        # no usable InfoTag title.
         try:
             self.window.setProperty("rp_now", str(text or ""))
         except Exception:
@@ -210,7 +255,8 @@ class KodiView(object):
         path = str(path or "")
         if not path:
             return False
-        if path.startswith(("http://", "https://", "special://")):
+        if path.startswith(("http://", "https://", "special://",
+                            "plugin://", "file://")):
             return True
         return os.path.isfile(path)
 
@@ -220,7 +266,9 @@ class KodiView(object):
         if not self._is_art(hero):
             hero = HERO_FALLBACK
         if not self._is_art(icon):
-            icon = hero
+            # Keyboard/action/page rows have no cover of their own.  The small
+            # NO SIGNAL fallback read as an error at 36 px; use the brand mark.
+            icon = os.path.join(ART_ROOT, "mark.png")
         return icon, hero
 
     def set_rows(self, rows, selected=0):
@@ -239,7 +287,9 @@ class KodiView(object):
             fact = str(getattr(row, "fact", "") or subtitle)
             code = str(getattr(row, "code", "") or "")
             plot = str(getattr(row, "plot", "") or subtitle)
-            meta = "%s  ·  %s" % (fact, code) if fact and code else (fact or code)
+            meta = str(getattr(row, "meta", "") or "")
+            if not meta:
+                meta = "%s  ·  %s" % (fact, code) if fact and code else (fact or code)
             item = xbmcgui.ListItem(label=row.label)
             try:
                 item.setLabel2(fact)
@@ -261,8 +311,6 @@ class KodiView(object):
             except Exception:
                 pass
             items.append(item)
-        # One GUI_MSG_LABEL_BIND for the whole list; addItem() per row is
-        # O(n^2) and churns the GUI thread on 400-row lists.
         try:
             control.addItems(items)
         except Exception:
@@ -283,9 +331,6 @@ class KodiView(object):
             pass
 
     def set_hero(self, entry):
-        # The hero is art only. Control 201 also carries the XML binding
-        # $INFO[Container(50).ListItem.Art(fanart)]; setImage keeps it current
-        # on builds where a list-selection change does not re-evaluate it.
         control = self._control(CONTROL_HERO)
         if control is None:
             return
@@ -344,6 +389,42 @@ class KodiView(object):
     def set_spinner_label(self, text):
         self._label(CONTROL_SPINNER_LABEL, text)
 
+    # ---------------------------------------------------------- plate state
+    def set_plate(self, kind, title, detail="", hint=""):
+        kind = str(kind or "loading")
+        try:
+            self.window.setProperty(PLATE_PROPERTY, "1")
+            self.window.setProperty(PLATE_HEAD_PROPERTY,
+                                    "1" if kind == "loading" else "0")
+        except Exception:
+            pass
+        self._label(CONTROL_PLATE_KICKER,
+                    {"loading": "LOADING", "empty": "STANDBY",
+                     "error": "ERROR"}.get(kind, kind.upper()))
+        self._label(CONTROL_PLATE_TITLE, title)
+        self._label(CONTROL_PLATE_DETAIL, detail)
+        self._label(CONTROL_PLATE_HINT, hint or "BACK returns")
+        self._label(CONTROL_PLATE_CODE,
+                    {"loading": "PLEASE WAIT", "empty": "NO ROWS",
+                     "error": "SOURCE ERROR"}.get(kind, "SYSTEM"))
+        xbmc.log("[script.raveplayer.ui] plate %s title=%r" % (kind, title),
+                 level=xbmc.LOGDEBUG)
+
+    def set_plate_head(self, path):
+        control = self._control(CONTROL_PLATE_HEAD)
+        if control is not None and path:
+            try:
+                control.setImage(path)
+            except Exception:
+                pass
+
+    def clear_plate(self):
+        try:
+            self.window.setProperty(PLATE_PROPERTY, "0")
+            self.window.setProperty(PLATE_HEAD_PROPERTY, "0")
+        except Exception:
+            pass
+
     def notify(self, text):
         try:
             xbmcgui.Dialog().notification("Rave Screen", str(text), "", 4000)
@@ -381,15 +462,29 @@ class RaveScreenWindow(xbmcgui.WindowXML):
             return
         self._view = KodiView(self)
         self._view.set_spinner_visible(False)
+        self._view.clear_plate()
+        self._view.set_live(False)
         self._view.set_spinner_background(
             os.path.join(ART_ROOT, "surprise-burst-1280x720.jpg"))
         try:
-            data = RaveData()
+            queue = DownloadQueue(logger=_Log())
+            data = RaveData(download_queue=queue)
             self._controller = RaveScreenController(
                 self._view, data, PlaybackService(),
                 sleep=xbmc.sleep, clock=time.monotonic,
-                frames=data.spinner_frames())
+                frames=data.spinner_frames(), logger=_Log(),
+                download_queue=queue)
             self._controller.start()
+            # Kodi focuses defaultcontrol=50 while the list is still empty (the
+            # controller imports the plugin and binds 11 rows during onInit).
+            # That focus attempt fails and is never retried, so the painted
+            # window would receive no key events while the previous window
+            # keeps them. Focus explicitly *after* the rows exist.
+            try:
+                self.setFocusId(CONTROL_LIST)
+            except Exception as exc:  # noqa: BLE001 - cosmetically harmless
+                xbmc.log("[script.raveplayer.ui] focus after bind failed: %s" % exc,
+                         level=xbmc.LOGWARNING)
         except Exception as exc:  # noqa: BLE001 - fail closed, never a blank window
             xbmc.log("[script.raveplayer.ui] init failed: %s" % exc,
                      level=xbmc.LOGERROR)
@@ -400,13 +495,13 @@ class RaveScreenWindow(xbmcgui.WindowXML):
         # defaultcontrol=50 already owns focus; no explicit focus call is needed.
 
     def onClick(self, control_id):
-        if control_id == CONTROL_LIST and self._controller is not None:
+        if self._controller is None:
+            return
+        if control_id == CONTROL_LIST:
             self._controller.on_click()
         elif control_id == CONTROL_SPINNER_CANCEL:
-            # The CANCEL button is the printed affordance for Back. By the time
-            # a click can be dispatched the blocking reveal is already over, so
-            # the safe action is the same as Back: close the screen once.
-            self.close()
+            if self._controller.on_back():
+                self.close()
 
     def onAction(self, action):
         try:
@@ -420,6 +515,15 @@ class RaveScreenWindow(xbmcgui.WindowXML):
                 should_close = True
             if should_close:
                 self.close()
+            return
+        if action_id in LEFT_RIGHT_ACTIONS and self._controller is not None:
+            if self._controller.on_horizontal(LEFT_RIGHT_ACTIONS[action_id]):
+                return
+        if action_id in CONTEXT_ACTIONS and self._controller is not None:
+            self._controller.on_context()
+            return
+        if action_id in STOP_ACTIONS and self._controller is not None:
+            self._controller.on_stop()
             return
         # Let the list handle D-pad movement/scroll, then refresh the hero.
         try:
@@ -464,13 +568,9 @@ def _activate(window):
     """Show the window and verify that Kodi actually initialised it.
 
     ``WindowXML.show()`` is asynchronous and Kodi silently refuses the
-    activation while a modal dialog is open (``Activate of window '13000'
-    refused because there are active modal dialogs``). Nothing is raised, and
-    a refused activation never sends ``GUI_MSG_WINDOW_INIT``, so ``onInit``
-    never runs (the device log had no "Window Init" line and no onInit).
-    ``onInit`` running is therefore the activation signal; it executes on the
-    script thread inside the ``xbmc.sleep`` below, which pumps the queued
-    callback.
+    activation while a modal dialog is open. Nothing is raised, and a refused
+    activation never sends ``GUI_MSG_WINDOW_INIT``, so ``onInit`` never runs.
+    ``onInit`` running is therefore the activation signal.
     """
     if not hasattr(window, "initialized"):
         # Test double without the lifecycle probe: fire and forget.
@@ -531,7 +631,6 @@ def open_screen(window_factory=None, monitor_factory=None):
                 pass
             xbmc.sleep(100)
     finally:
-        # Idempotent with Back, which already closed the window.
         _cleanup(window)
 
     return window

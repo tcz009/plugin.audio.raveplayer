@@ -97,7 +97,9 @@ class FavouriteTests(unittest.TestCase):
     def test_legacy_folder_kinds_round_trip(self):
         favourites.add({"kind": "legacy_pack", "target": "Dreamscape19", "title": "Dreamscape 19"})
         favourites.add({"kind": "legacy_jt", "target": "show-1", "title": "Show 1"})
-        self.assertEqual([entry["kind"] for entry in favourites.load()], ["legacy_jt", "legacy_pack"])
+        favourites.add({"kind": "legacy_post", "target": "899", "title": "Dreamscape 7"})
+        self.assertEqual([entry["kind"] for entry in favourites.load()],
+                         ["legacy_post", "legacy_jt", "legacy_pack"])
 
     def test_save_replaces_the_file_without_leaving_temporary_files(self):
         favourites.add({"kind": "pack", "target": "old", "title": "Old"})

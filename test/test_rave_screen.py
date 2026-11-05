@@ -11,6 +11,7 @@ import itertools
 import os
 import sys
 import tempfile
+import time
 import types
 import unittest
 import xml.etree.ElementTree as ET
@@ -32,7 +33,9 @@ import xbmcplugin  # noqa: E402
 from raveui import pluginbridge  # noqa: E402
 from raveui.animation import SpinnerAnimator, frame_index  # noqa: E402
 from raveui.controller import RaveScreenController  # noqa: E402
-from raveui.data import Entry, RaveData, Track  # noqa: E402
+from raveui.data import (Entry, Page, RaveData, SearchTarget, Track,  # noqa: E402
+                         ROOM_ORDER)
+from raveui.downloadqueue import DownloadQueue  # noqa: E402
 from raveui.playback import PlaybackService  # noqa: E402
 from raveui.tasks import (DirectTaskRunner, TaskCancelled, TaskFailed, TaskTimeout,
                           ThreadTaskRunner)  # noqa: E402
@@ -56,6 +59,11 @@ class FakeView(object):
         self.closed = False
         self.statuses = []
         self.visible_log = []
+        self.page_info = ""
+        self.key_hints = ("", "")
+        self.live = False
+        self.plate = None
+        self.plate_heads = []
 
     def set_title(self, text):
         self.title = text
@@ -79,6 +87,25 @@ class FakeView(object):
 
     def set_now_playing(self, text):
         self.now_playing = text
+
+    def set_page_info(self, text):
+        self.page_info = text
+
+    def set_key_hints(self, ok_text, back_text):
+        self.key_hints = (ok_text, back_text)
+
+    def set_live(self, live):
+        self.live = bool(live)
+
+    def set_plate(self, kind, title, detail="", hint=""):
+        self.plate = (kind, title, detail, hint)
+
+    def clear_plate(self):
+        self.plate = None
+
+    def set_plate_head(self, path):
+        self.plate_heads = getattr(self, "plate_heads", [])
+        self.plate_heads.append(path)
 
     def selected_index(self):
         return self.index
@@ -136,15 +163,55 @@ class FakeData(object):
         self.picks += 1
         return self.pick
 
+    def collection(self, entry):
+        self.collection_calls = getattr(self, "collection_calls", [])
+        self.collection_calls.append(entry.key)
+        return [Track("One", entry.label, "https://example.test/a.mp3"),
+                Track("Two", entry.label, "https://example.test/b.mp3")]
+
+    def start_download(self, entry):
+        self.downloads = getattr(self, "downloads", [])
+        self.downloads.append(entry.key)
+        return True, "Download started — progress is in Downloads."
+
+    def add_favourite(self, entry):
+        self.favourites = getattr(self, "favourites", [])
+        self.favourites.append(entry.key)
+        return True, "Added to favourites"
+
+    def remove_favourite(self, key):
+        return True
+
+    def favourite_payload(self, entry):
+        return {"kind": "stream", "target": entry.target or entry.key,
+                "title": entry.label}
+
 
 class FakePlayback(object):
     def __init__(self):
         self.calls = []
+        self.collections = []
+        self.stop_calls = 0
+        self.playing = False
         self.result = types.SimpleNamespace(text="Now playing: Track — Pack")
 
     def play(self, track):
         self.calls.append(track)
+        self.playing = True
         return self.result
+
+    def play_collection(self, tracks, shuffle=False):
+        self.collections.append((list(tracks), bool(shuffle)))
+        self.playing = True
+        return types.SimpleNamespace(text="Queued %d tracks" % len(tracks))
+
+    def stop(self):
+        self.stop_calls += 1
+        self.playing = False
+        return True
+
+    def is_playing(self):
+        return self.playing
 
 
 class RecordingAnimator(object):
@@ -213,6 +280,57 @@ class AnimationTests(unittest.TestCase):
 
 
 # ------------------------------------------------------------------ controller
+class AppData(FakeData):
+    """Fake data with all the app entry points used by the controller tests."""
+
+    def __init__(self):
+        super().__init__()
+        self.home = [
+            Entry("latest", "Latest", "newest", "", "section"),
+            Entry("search", "Search", "find", "", "search"),
+            Entry("surprise", "Spinning Surprise", "random", "", "surprise"),
+        ]
+        self.search_rows = [
+            Entry("found-1", "Found Pack", "search result", "", "pack",
+                  "latest", "found-1"),
+            Entry("found-2", "Other Pack", "search result", "", "pack",
+                  "latest", "found-2"),
+        ]
+        self.search_calls = []
+        self.child_rows = [Entry(
+            "child-1", "Tape 1 - Brockie", "Dreamscape 19", "", "track",
+            "latest", "https://example.test/1.mp3",
+            Track("Tape 1 - Brockie", "Dreamscape 19",
+                  "https://example.test/1.mp3"),
+            downloadable=True)]
+
+    def load(self, target, page=1, rows=25):
+        if isinstance(target, SearchTarget):
+            self.search_calls.append(target)
+            return Page(list(self.search_rows), len(self.search_rows), 1, 1, rows)
+        if target is None:
+            return Page(list(self.home), len(self.home), 1, 1, rows)
+        if isinstance(target, str):
+            self.loaded.append(("section", target))
+            return Page(list(self.section_rows), len(self.section_rows), 1, 1, rows)
+        self.loaded.append(("children", target.key))
+        return Page(list(self.child_rows), len(self.child_rows), 1, 1, rows)
+
+
+class PagedFakeData(AppData):
+    def load(self, target, page=1, rows=25):
+        self.pages_called = getattr(self, "pages_called", [])
+        self.pages_called.append((target, page, rows))
+        count = 60
+        start = (page - 1) * rows
+        entries = [Entry("p-%d" % index, "Pack %02d" % index, "paged", "",
+                         "pack", "latest", "p-%d" % index)
+                   for index in range(start, min(start + rows, count))]
+        pages = max(1, (count + rows - 1) // rows)
+        return Page(entries, count, min(page, pages), pages, rows,
+                    has_next=page < pages)
+
+
 class ControllerTests(unittest.TestCase):
     def test_start_populates_home_and_selects_first_hero(self):
         ctl, view, data, _ = controller()
@@ -222,6 +340,7 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(view.hero, view.rows[0])
         self.assertEqual(view.title, "RAVE SCREEN")
         self.assertIn("OK opens", view.subtitle)
+        self.assertEqual(view.key_hints, ("OPEN", "BACK"))
 
     def test_focus_updates_hero(self):
         ctl, view, _, _ = controller()
@@ -247,22 +366,15 @@ class ControllerTests(unittest.TestCase):
         self.assertTrue(view.closed)
         self.assertTrue(ctl.closed)
 
-    def test_successful_section_paint_replaces_the_loading_status(self):
-        # P1-2: "Loading Latest…" used to survive the rows painting and Back.
+    def test_successful_section_paint_clears_the_loading_status(self):
         ctl, view, _, _ = controller()
         ctl.start()
-        self.assertEqual(view.status, "")
         ctl.on_click()
-        self.assertNotIn("Loading", view.status)
-        self.assertIn("row", view.status)
-        self.assertEqual(view.room_count, 1)
-
-        ctl.on_back()
         self.assertEqual(view.status, "")
-        self.assertNotIn("Loading", view.status)
+        self.assertEqual(view.room_count, 1)
+        self.assertEqual(ctl.page, 1)
 
     def test_back_restores_the_opened_row_not_row_one(self):
-        # P2-6: open row 3 of a 3-pack section, then Back into the section.
         ctl, view, data, _ = controller()
         data.section_rows = [
             Entry("pack-%d" % index, "Pack %d" % index, "Rave Tape Packs",
@@ -274,7 +386,7 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(ctl.stack_depth, 1)
         view.index = 2
         ctl.on_focus()
-        self.assertTrue(ctl.on_click())  # open pack row 3
+        self.assertTrue(ctl.on_click())
         self.assertEqual(ctl.stack_depth, 2)
 
         self.assertFalse(ctl.on_back())
@@ -294,36 +406,186 @@ class ControllerTests(unittest.TestCase):
         self.assertTrue(view.closed)
         self.assertTrue(ctl.on_back())
 
-    def test_load_failure_keeps_the_current_view_and_reports(self):
-        ctl, view, data, _ = controller()
+    def test_load_failure_paints_an_error_plate_and_retry_recovers(self):
+        ctl, view, data, _ = controller(data=AppData())
         ctl.start()
-        view.index = 0
-        data.section_entries = lambda key: (_ for _ in ()).throw(RuntimeError("offline"))
+        original = data.load
+        data.load = lambda *args, **kwargs: (_ for _ in ()).throw(
+            RuntimeError("offline"))
         self.assertFalse(ctl.on_click())
+        self.assertEqual(ctl.plate, "error")
+        self.assertEqual(view.plate[0], "error")
+        self.assertIn("SOURCE ERROR", view.plate[1])
         self.assertEqual(view.rows[0].label, "Latest")
-        self.assertIn("Could not load", view.status)
         self.assertFalse(ctl._busy)
 
-    def test_load_timeout_is_a_status_not_a_traceback(self):
+        data.load = original
+        data.section_rows = [Entry("ok", "Recovered", "ok", "", "pack",
+                                   "latest", "ok")]
+        self.assertTrue(ctl.on_click())      # OK on the plate retries
+        self.assertEqual(ctl.plate, "")
+        self.assertEqual(view.rows[0].label, "Recovered")
+
+    def test_empty_load_paints_the_standby_plate(self):
+        ctl, view, data, _ = controller()
+        data.section_rows = []
+        ctl.start()
+        self.assertFalse(ctl.on_click())
+        self.assertEqual(ctl.plate, "empty")
+        self.assertEqual(view.plate[0], "empty")
+        self.assertEqual(view.plate[1], "STANDBY")
+        self.assertIn("Nothing in", view.plate[2])
+        self.assertFalse(ctl.on_back())
+        self.assertEqual(ctl.plate, "")
+
+    def test_load_timeout_paints_an_error_plate(self):
         class TimeoutRunner(object):
             def run(self, function):
                 raise TaskTimeout("too slow")
 
         ctl, view, _, _ = controller(task_runner=TimeoutRunner())
         ctl.start()
-        view.index = 0
         self.assertFalse(ctl.on_click())
-        self.assertIn("Timed out", view.status)
+        self.assertEqual(ctl.plate, "error")
+        self.assertEqual(view.plate[1], "SOURCE TIMEOUT")
+
+    def test_page_navigation_queues_the_next_page_and_back_restores_focus(self):
+        ctl, view, data, _ = controller(data=PagedFakeData())
+        ctl.start()
+        view.index = 0
+        ctl.on_click()
+        self.assertEqual(ctl.page, 1)
+        self.assertEqual(view.rows[0].label, "Pack 00")
+        self.assertEqual(view.rows[-1].kind, "page_next")
+        self.assertEqual(view.page_info, "P1/2")
+        view.index = len(view.rows) - 1
+        ctl.on_click()
+        self.assertEqual(ctl.page, 2)
+        self.assertEqual(view.rows[1].label, "Pack 50")
+        self.assertEqual(view.rows[0].kind, "page_prev")
+        ctl.on_back()          # back to page 1
+        self.assertEqual(ctl.page, 1)
+        self.assertEqual(view.rows[0].label, "Pack 00")
+
+    def test_in_window_keyboard_types_searches_and_back_restores_query(self):
+        ctl, view, data, _ = controller(data=AppData())
+        ctl.start()
+        view.index = 1            # Search row
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(ctl.view_kind, "keyboard")
+        self.assertEqual(view.title, "SEARCH")
+        self.assertIn("\u00abA\u00bb", view.rows[0].label)
+        ctl.on_click()            # A
+        self.assertEqual(ctl.search_query, "A")
+        ctl.on_horizontal(1)
+        ctl.on_click()            # B
+        self.assertEqual(ctl.search_query, "AB")
+        self.assertIn("\u00abB\u00bb", view.rows[0].label)
+        view.index = 8            # SEARCH NOW
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(ctl.view_kind, "list")
+        self.assertEqual(data.search_calls[0].query, "AB")
+        self.assertEqual(data.search_calls[0].scope, "archive")
+        self.assertEqual(view.rows[0].label, "Found Pack")
+
+        self.assertFalse(ctl.on_back())   # results -> keyboard
+        self.assertEqual(ctl.view_kind, "keyboard")
+        self.assertEqual(ctl.search_query, "AB")
+        self.assertIn("\u00abB\u00bb", view.rows[0].label)
+        self.assertFalse(ctl.on_back())   # keyboard -> home
+        self.assertEqual(view.rows[0].label, "Latest")
+
+    def test_keyboard_scope_cycling(self):
+        ctl, view, _, _ = controller(data=AppData())
+        ctl.start()
+        view.index = 1
+        ctl.on_click()
+        self.assertEqual(ctl._keyboard["scope"], "archive")
+        view.index = 7            # SCOPE row
+        ctl.on_click()
+        self.assertEqual(ctl._keyboard["scope"], "jungletapes")
+        self.assertIn("JungleTapes", view.rows[7].label)
+
+    def test_context_play_all_and_shuffle_queue_the_collection(self):
+        ctl, view, data, playback = controller(data=AppData())
+        ctl.start()
+        view.index = 0
+        ctl.on_click()                    # section
+        view.index = 0
+        ctl.on_click()                    # pack -> track list
+        view.index = 0
+        self.assertTrue(ctl.on_context())
+        labels = [row.label for row in view.rows]
+        self.assertIn("Play all", labels)
+        self.assertIn("Shuffle all", labels)
+        view.index = labels.index("Play all")
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(len(playback.collections), 1)
+        self.assertEqual(len(playback.collections[0][0]), 2)
+        self.assertFalse(playback.collections[0][1])
+
+        view.index = 0
+        self.assertTrue(ctl.on_context())
+        labels = [row.label for row in view.rows]
+        view.index = labels.index("Shuffle all")
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(len(playback.collections), 2)
+        self.assertTrue(playback.collections[1][1])
+
+    def test_context_download_and_favourite_call_the_backend(self):
+        ctl, view, data, _ = controller(data=AppData())
+        ctl.start()
+        view.index = 0
+        ctl.on_click()
+        view.index = 0
+        ctl.on_click()                    # track list
+        view.index = 0
+        self.assertTrue(ctl.on_context())
+        labels = [row.label for row in view.rows]
+        self.assertIn("Download", labels)
+        self.assertIn("Add to favourites", labels)
+        view.index = labels.index("Download")
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(data.downloads, ["child-1"])
+        view.index = 0
+        self.assertTrue(ctl.on_context())
+        labels = [row.label for row in view.rows]
+        view.index = labels.index("Add to favourites")
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(data.favourites, ["child-1"])
+
+    def test_rows_per_page_cycles_and_reloads(self):
+        ctl, view, data, _ = controller(data=PagedFakeData())
+        ctl.start()
+        view.index = 0
+        ctl.on_click()
+        self.assertEqual(ctl.rows_per_page, 50)
+        view.index = 0
+        ctl.on_context()
+        labels = [row.label for row in view.rows]
+        idx = next(i for i, label in enumerate(labels) if label.startswith("Rows per page"))
+        view.index = idx
+        ctl.on_click()
+        self.assertEqual(ctl.rows_per_page, 100)
+        self.assertTrue(data.pages_called)
+        self.assertEqual(data.pages_called[-1][2], 100)
+        ctl.on_context()
+        labels = [row.label for row in view.rows]
+        idx = next(i for i, label in enumerate(labels) if label.startswith("Rows per page"))
+        view.index = idx
+        ctl.on_click()
+        self.assertEqual(ctl.rows_per_page, 25)
 
     def test_surprise_picks_once_animates_once_and_plays_once(self):
         animator = RecordingAnimator()
         ctl, view, data, playback = controller(
             animator_factory=lambda **kwargs: animator)
         ctl.start()
-        view.index = 2
+        view.set_spinner_visible(True)
+        view.set_spinner_image(ctl._frames[0])
         playback.result = types.SimpleNamespace(
             text="Now playing: Tape 1 - Brockie — Dreamscape 19")
-        self.assertTrue(ctl.on_click())
+        self.assertTrue(ctl.surprise(True))
         self.assertEqual(data.picks, 1)
         self.assertEqual(animator.ran, 1)
         self.assertEqual(len(playback.calls), 1)
@@ -334,19 +596,18 @@ class ControllerTests(unittest.TestCase):
         self.assertIn(False, view.visible_log)
         self.assertEqual(view.spinner_images[0], "frame-0.png")
 
-    def test_surprise_never_repeats_on_a_second_ok(self):
-        animator = RecordingAnimator()
-        ctl, view, data, playback = controller(
-            animator_factory=lambda **kwargs: animator)
+    def test_surprise_start_paints_splash_and_is_cancellable(self):
+        ctl, view, _, _ = controller()
         ctl.start()
-        view.index = 2
-        ctl.on_click()
-        ctl.on_click()
-        ctl.on_click()
-        self.assertEqual(data.picks, 1)
-        self.assertEqual(animator.ran, 1)
-        self.assertEqual(len(playback.calls), 1)
-        self.assertIn("Already playing", view.status)
+        with mock.patch("raveui.controller.threading.Thread") as thread:
+            self.assertTrue(ctl._start_surprise())
+            self.assertTrue(view.spinner_visible)
+            self.assertTrue(thread.called)
+        self.assertTrue(ctl._surprising)
+        self.assertFalse(ctl.on_back())
+        self.assertFalse(view.spinner_visible)
+        self.assertFalse(ctl._surprising)
+        self.assertFalse(view.closed)
 
     def test_surprise_no_pick_never_animates_or_plays(self):
         animator = RecordingAnimator()
@@ -354,23 +615,24 @@ class ControllerTests(unittest.TestCase):
             animator_factory=lambda **kwargs: animator)
         data.pick = None
         ctl.start()
-        view.index = 2
-        self.assertFalse(ctl.surprise())
+        self.assertFalse(ctl.surprise(True))
         self.assertEqual(data.picks, 1)
         self.assertEqual(animator.ran, 0)
         self.assertEqual(playback.calls, [])
         self.assertFalse(view.spinner_visible)
         self.assertFalse(ctl._busy)
+        self.assertEqual(ctl.plate, "error")
+        self.assertEqual(view.plate[1], "NO PACK FOUND")
 
     def test_surprise_pick_exception_never_plays_and_resets_busy(self):
         ctl, view, data, playback = controller()
         data.random_pick = lambda: (_ for _ in ()).throw(RuntimeError("offline"))
         ctl.start()
-        view.index = 2
-        self.assertFalse(ctl.surprise())
+        self.assertFalse(ctl.surprise(True))
         self.assertEqual(playback.calls, [])
         self.assertFalse(view.spinner_visible)
         self.assertFalse(ctl._busy)
+        self.assertEqual(ctl.plate, "error")
 
     def test_surprise_animation_failure_never_plays(self):
         class BrokenAnimator(object):
@@ -383,10 +645,21 @@ class ControllerTests(unittest.TestCase):
         ctl, view, data, playback = controller(
             animator_factory=lambda **kwargs: BrokenAnimator(**kwargs))
         ctl.start()
-        view.index = 2
-        self.assertFalse(ctl.surprise())
+        self.assertFalse(ctl.surprise(True))
         self.assertEqual(playback.calls, [])
         self.assertFalse(view.spinner_visible)
+        self.assertEqual(view.plate[1], "REVEAL FAILED")
+
+    def test_surprise_playback_failure_does_not_mark_handoff(self):
+        class BrokenPlayback(FakePlayback):
+            def play(self, track):
+                raise RuntimeError("Kodi refused")
+
+        ctl, view, data, _ = controller(playback=BrokenPlayback())
+        ctl.start()
+        self.assertFalse(ctl.surprise(True))
+        self.assertFalse(ctl.handed_off)
+        self.assertIn("Could not start", view.status)
 
     def test_playback_failure_does_not_mark_handoff(self):
         class BrokenPlayback(object):
@@ -404,7 +677,7 @@ class ControllerTests(unittest.TestCase):
         self.assertFalse(ctl.handed_off)
         self.assertIn("Could not start", view.status)
 
-    def test_track_handoff_is_single_and_back_closes(self):
+    def test_track_handoff_is_single_and_back_keeps_audio_and_window(self):
         ctl, view, data, playback = controller()
         ctl.start()
         view.index = 0
@@ -414,10 +687,36 @@ class ControllerTests(unittest.TestCase):
         view.index = 0
         self.assertTrue(ctl.on_click())
         self.assertEqual(len(playback.calls), 1)
-        ctl.on_click()
-        self.assertEqual(len(playback.calls), 1)
-        self.assertTrue(ctl.on_back())    # playing -> Back exits directly
+        self.assertFalse(ctl.on_back())    # back to the pack list
+        self.assertFalse(view.closed)
+        self.assertFalse(ctl.closed)
+        self.assertIn("audio playing", view.status)
+        # Audio is Kodi's: the app can be left while the set continues.
+        ctl.on_back()
+        ctl.on_back()
         self.assertTrue(view.closed)
+
+    def test_live_handoff_sets_the_live_footer_policy(self):
+        ctl, view, data, _ = controller(data=AppData())
+        data.section_rows = [Entry(
+            "kool", "Kool FM", "live", "", "station", "live",
+            track=Track("Kool FM", "Live radio", "https://live.test/kool",
+                        live=True))]
+        ctl.start()
+        view.index = 0
+        ctl.on_click()
+        view.index = 0
+        self.assertTrue(ctl.on_click())
+        self.assertTrue(view.live)
+        self.assertTrue(ctl._playing_live)
+
+    def test_stop_action_stops_audio_without_closing(self):
+        ctl, view, _, playback = controller()
+        ctl.start()
+        self.assertTrue(ctl.on_stop())
+        self.assertEqual(playback.stop_calls, 1)
+        self.assertFalse(view.closed)
+        self.assertEqual(view.status, "Stopped.")
 
 
 # --------------------------------------------------------------------- window
@@ -652,12 +951,18 @@ class FakeRandom(object):
 def fake_modules():
     archive = types.SimpleNamespace(
         audio_files=mock.Mock(return_value=[
-            {"title": "Tape 1 - Brockie", "url": "https://archive.test/1.mp3"},
+            {"title": "Tape 1 - Brockie", "url": "https://archive.test/1.mp3",
+             "duration": 2637, "genre": "Jungle", "year": "1994"},
             {"title": "Tape 2 - Randall", "url": "https://archive.test/2.mp3"},
         ]),
         thumb=mock.Mock(return_value="https://archive.test/cover.jpg"),
+        search=mock.Mock(return_value=([
+            {"identifier": "found-1", "title": "Found Pack",
+             "date": "1995-01-01"},
+        ], 120)),
     )
     latest = types.SimpleNamespace(
+        RAVE_COLLECTION="collection:ravetapes AND mediatype:audio",
         recent_packs=mock.Mock(return_value=[
             {"identifier": "pack-1", "title": "Dreamscape 19"}]),
         random_pack=mock.Mock(return_value={
@@ -666,10 +971,13 @@ def fake_modules():
     toronto = types.SimpleNamespace(
         genres=mock.Mock(return_value=[{"genre": "jungle", "label": "Jungle"}]),
         tracks=mock.Mock(return_value=[
-            {"name": "Toronto Tape", "url": "https://toronto.test/a.mp3"}]),
+            {"name": "Toronto Tape", "url": "https://toronto.test/a.mp3",
+             "metadata": "40:39 • 96 kbps • 27.91 MB"}]),
     )
     legacy = types.SimpleNamespace(
-        jungle_shows=mock.Mock(return_value=[{"key": "show-1", "name": "Show One"}]),
+        jungle_shows=mock.Mock(return_value=[
+            {"key": "show-%d" % i, "name": "Show %02d" % i}
+            for i in range(60)]),
         jungle_tracks=mock.Mock(return_value=[
             {"name": "Rinse 1997", "url": "https://jungle.test/a.mp3"}]),
         packs=mock.Mock(return_value=[
@@ -699,133 +1007,279 @@ def fake_modules():
             {"name": token.upper(), "url_resolved": "https://live.test/%s" % token}]),
         stations=mock.Mock(return_value=[]),
         stream_url=mock.Mock(side_effect=lambda station: station.get("url_resolved", "")),
+        display=mock.Mock(side_effect=lambda station: (
+            str(station.get("name") or "Live radio"),
+            "GB · AAC · 128 kbps")),
     )
     http = types.SimpleNamespace(safe_stream_url=mock.Mock(side_effect=lambda url: url))
+    favourites = types.SimpleNamespace(
+        load=mock.Mock(return_value=[
+            {"kind": "pack", "target": "pack-1", "title": "Dreamscape 19",
+             "source": "Archive.org"},
+            {"kind": "legacy_jt", "target": "show-1", "title": "Show One",
+             "source": "JungleTapes.com"},
+            {"kind": "stream", "target": "https://live.test/kool",
+             "title": "Kool FM", "source": "Live radio"},
+        ]),
+        key=mock.Mock(side_effect=lambda row: "%s:%s" % (row["kind"], row["target"])),
+        has=mock.Mock(return_value=False),
+        add=mock.Mock(return_value=True),
+        remove=mock.Mock(return_value=True),
+    )
+    downloads = types.SimpleNamespace(
+        eligible=mock.Mock(side_effect=lambda url, source: bool(
+            url and source and "archive.test" in url)),
+        list_downloads=mock.Mock(return_value=[
+            {"key": "dl-1", "title": "Saved Set", "source": "Archive.org",
+             "path": "/tmp/saved.mp3", "exists": True, "size": 1024,
+             "added": "2026-11-05T10:00:00Z", "url": "https://archive.test/1.mp3"},
+        ]),
+        format_size=mock.Mock(side_effect=lambda size: "%d B" % int(size or 0)),
+        total_saved_bytes=mock.Mock(return_value=1024),
+        delete=mock.Mock(return_value=True),
+    )
+    feeds = types.SimpleNamespace(
+        registry=mock.Mock(return_value=[
+            {"id": "feed-1", "name": "Jungle Lab", "plot": "Jungle podcast"}]),
+        episodes=mock.Mock(return_value=[
+            {"title": "Episode 1", "url": "https://feeds.test/1.mp3",
+             "published": "2026-01-02", "duration": 1800}]),
+    )
+    dnbradio = types.SimpleNamespace(
+        mixes=mock.Mock(return_value=[
+            {"id": "42", "title": "DNB Show", "date": "2026-01-01"}]),
+        stream_url=mock.Mock(return_value="https://dnb.test/42.mp3"),
+    )
+    moxser = types.SimpleNamespace(
+        mixes=mock.Mock(return_value=[
+            {"page_url": "https://moxser.test/mix", "title": "Moxser Mix",
+             "date": "2026-01-01", "flyer": ""}]),
+        mix=mock.Mock(return_value={
+            "page_url": "https://moxser.test/mix", "title": "Moxser Mix",
+            "mp3_url": "https://moxser.test/mix.mp3", "date": "2026-01-01"}),
+    )
+    hardscore = types.SimpleNamespace(
+        items=mock.Mock(return_value=[
+            {"page_url": "https://hardscore.test/post", "title": "Hardscore Set",
+             "date": "2026-01-01"}]),
+        page=mock.Mock(return_value={
+            "url": "https://hardscore.test/post", "title": "Hardscore Set",
+            "media_urls": ["https://hardscore.test/set.mp3"], "links": []}),
+    )
+    getdarker = types.SimpleNamespace(
+        items=mock.Mock(return_value=[
+            {"page_url": "https://getdarker.test/post", "title": "GetDarker Set",
+             "media_urls": []}]))
+    pirate = types.SimpleNamespace(
+        entries=mock.Mock(return_value=[
+            {"station": "Risk FM", "title": "Risk FM 1993", "year": "1993",
+             "stream_url": "https://pirate.test/a.mp3"}]))
+    handoff = types.SimpleNamespace(
+        platform_kind=mock.Mock(return_value="mixcloud"),
+        target=mock.Mock(return_value="plugin://plugin.audio.mixcloud/?mode=40&key=x"),
+    )
+    live = types.SimpleNamespace(is_live_stream=mock.Mock(return_value=False))
+    addon = types.SimpleNamespace(getAddonInfo=mock.Mock(return_value="3.9.51"))
     return types.SimpleNamespace(
         root=ROOT, archive=archive, latest=latest, toronto=toronto, legacy=legacy,
-        radio=radio, http=http, kodi=types.SimpleNamespace(), ui=types.SimpleNamespace())
+        radio=radio, http=http, favourites=favourites, downloads=downloads,
+        feeds=feeds, dnbradio=dnbradio, moxser=moxser, hardscore=hardscore,
+        getdarker=getdarker, pirate=pirate, handoff=handoff, live=live,
+        addon=addon, kodi=types.SimpleNamespace(), ui=types.SimpleNamespace())
 
 
 class DataTests(unittest.TestCase):
-    def test_home_rows_are_the_five_sources_plus_surprise(self):
-        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+    def data(self, **kwargs):
+        return RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN,
+                        **kwargs)
+
+    def test_home_rows_are_the_eleven_rooms(self):
+        data = self.data()
         labels = [row.label for row in data.home_rows()]
         self.assertEqual(labels, [
             "Latest", "Toronto Rave Mixtape Archive", "JungleTapes.com",
-            "RaveTapePacks.com", "Live Radio", "Spinning Surprise",
+            "RaveTapePacks.com", "Live Radio", "Mixes & Shows", "Search",
+            "Favourites", "Downloads", "About", "Spinning Surprise",
         ])
-        rows = data.home_rows()
-        self.assertTrue(all(row.art for row in rows))
-        self.assertTrue(rows[0].hero.endswith("fanart-latest.jpg"))
-        self.assertTrue(rows[-1].hero.endswith("fanart-surprise.jpg"))
+        self.assertEqual(len(labels), 11)
+        self.assertTrue(all(row.art for row in data.home_rows()))
+        self.assertTrue(data.home_rows()[0].hero.endswith("fanart-latest.jpg"))
+        self.assertTrue(data.home_rows()[-1].hero.endswith("fanart-surprise.jpg"))
+        self.assertEqual([row.key for row in data.home_rows()],
+                         list(ROOM_ORDER))
 
     def test_home_rows_carry_short_facts_codes_and_plots(self):
-        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+        data = self.data()
         rows = data.home_rows()
-        self.assertEqual([row.fact for row in rows],
-                         ["newest", "1990–2014", "cassette", "1992–2004",
-                          "live", "random"])
-        self.assertEqual([row.code for row in rows],
-                         ["RP-01", "RP-19", "RP-27", "RP-03", "RP-31", "RP-02"])
+        self.assertEqual([row.code for row in rows], [
+            "RP-01", "RP-19", "RP-27", "RP-03", "RP-31", "RP-32",
+            "RP-33", "RP-34", "RP-35", "RP-36", "RP-02",
+        ])
         for row in rows:
             with self.subTest(row=row.label):
                 self.assertLessEqual(len(row.fact), 16)
                 self.assertTrue(row.plot)
                 self.assertTrue(row.hero)
 
-    def test_section_rows_carry_duration_count_or_source_facts(self):
-        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+    def test_section_rows_carry_facts_art_and_meta(self):
+        data = self.data()
         self.assertEqual(data.section_entries("latest")[0].fact, "pack")
         self.assertEqual(data.section_entries("toronto")[0].fact, "genre")
         self.assertEqual(data.section_entries("jungletapes")[0].fact, "show")
-        rtp_rows = data.section_entries("ravetapepacks")
-        featured = next(row for row in rtp_rows if row.kind == "pack")
-        self.assertEqual(featured.fact, "1 tape")
-        self.assertEqual(data.section_entries("live")[0].fact, "live")
-        for key in ("latest", "toronto", "jungletapes", "ravetapepacks", "live"):
-            for row in data.section_entries(key):
+        self.assertEqual(data.section_entries("live")[0].fact, "GB · AAC · 128…")
+        self.assertTrue(all(row.kind == "rtp_index"
+                            for row in data.section_entries("ravetapepacks")))
+        for key in ("latest", "toronto", "jungletapes", "ravetapepacks",
+                    "live", "mixes", "favourites", "downloads", "about"):
+            page = data.room(key, 1, 50)
+            self.assertTrue(page.rows, key)
+            for row in page.rows:
                 self.assertLessEqual(len(row.fact), 16, (key, row.fact))
                 self.assertTrue(row.plot, (key, row.label))
+                self.assertTrue(row.meta, (key, row.label))
 
-    def test_track_fact_prefers_the_duration_then_falls_back_to_the_source(self):
-        modules = fake_modules()
-        modules.archive.audio_files.return_value = [
-            {"title": "Tape 1", "url": "https://archive.test/1.mp3",
-             "duration": 2637}]
-        data = RaveData(modules=modules, root=ROOT, script_root=SCREEN)
+    def test_track_rows_carry_duration_year_genre_and_playability(self):
+        data = self.data()
         parent = data.section_entries("latest")[0]
         rows = data.entries_for(parent)
         self.assertEqual(rows[0].fact, "43:57")
+        self.assertEqual(rows[0].year, "1994")
+        self.assertEqual(rows[0].genre, "Jungle")
+        self.assertIn("1994", rows[0].meta)
+        self.assertIn("Jungle", rows[0].meta)
         self.assertEqual(rows[0].code, "RP-01")
         self.assertEqual(rows[0].plot, parent.plot)
+        self.assertTrue(rows[0].track.url.startswith("https://archive.test/"))
 
-    def test_latest_section_builds_pack_rows(self):
-        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+    def test_latest_section_builds_pack_rows_without_track_fetch(self):
+        data = self.data()
         rows = data.section_entries("latest")
         self.assertEqual(rows[0].kind, "pack")
         self.assertEqual(rows[0].target, "pack-1")
         data.modules.archive.audio_files.assert_not_called()
 
-    def test_toronto_genre_children_are_track_rows(self):
-        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+    def test_toronto_genre_children_are_track_rows_with_duration(self):
+        data = self.data()
         parent = data.section_entries("toronto")[0]
         rows = data.entries_for(parent)
         self.assertEqual(rows[0].kind, "track")
         self.assertEqual(rows[0].track.title, "Toronto Tape")
+        self.assertEqual(rows[0].fact, "40:39")
 
     def test_ravetapepacks_track_keeps_the_referer_suffix(self):
-        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+        data = self.data()
         parent = next(row for row in data.section_entries("ravetapepacks")
-                      if row.kind == "pack")
-        rows = data.entries_for(parent)
+                      if row.target == "events")
+        category = data.entries_for(parent)[0]
+        post = data.entries_for(category)[0]
+        rows = data.entries_for(post)
         self.assertIn("Referer=", rows[0].track.url)
 
     def test_ravetapepacks_room_exposes_the_real_indexes(self):
-        # P2-5: the room used to be only the homepage's rotating picks.
-        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+        data = self.data()
         rows = data.section_entries("ravetapepacks")
-        doors = [row for row in rows if row.kind == "rtp_index"]
-        self.assertEqual([row.target for row in doors],
+        self.assertEqual([row.target for row in rows],
                          ["events", "djs", "mcs", "years", "all"])
-        self.assertEqual(doors[0].label, "By Event (1)")
-        self.assertEqual(doors[4].label, "All Packs")
-
-        events = data.entries_for(doors[0])
+        self.assertEqual(rows[0].label, "By Event (1)")
+        self.assertEqual(rows[4].label, "All Packs")
+        events = data.entries_for(rows[0])
         self.assertEqual(events[0].kind, "rtp_category")
         self.assertEqual(events[0].label, "Vision")
-        self.assertEqual(events[0].target, "events:33:1")
+        self.assertEqual(events[0].target, "events:33")
 
     def test_rtp_category_and_post_navigation_reaches_tracks(self):
-        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+        data = self.data()
         door = next(row for row in data.section_entries("ravetapepacks")
                     if row.target == "events")
         category = data.entries_for(door)[0]
-        posts = data.entries_for(category)
-        self.assertEqual(posts[0].kind, "rtp_post")
-        self.assertEqual(posts[0].label, "Dreamscape 7")
-        self.assertEqual(posts[-1].kind, "rtp_more")
-
-        tracks = data.entries_for(posts[0])
+        page = data.children(category, 1, 25)
+        self.assertEqual(page.rows[0].kind, "rtp_post")
+        self.assertEqual(page.rows[0].label, "Dreamscape 7")
+        self.assertTrue(page.has_next)
+        tracks = data.entries_for(page.rows[0])
         self.assertEqual(tracks[0].kind, "track")
         self.assertIn("Referer=", tracks[0].track.url)
 
-    def test_rtp_all_packs_door_lists_the_archive(self):
-        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+    def test_rtp_all_packs_is_cursor_paged(self):
+        data = self.data()
         door = next(row for row in data.section_entries("ravetapepacks")
                     if row.target == "all")
-        rows = data.entries_for(door)
-        self.assertEqual(rows[0].kind, "rtp_post")
-        self.assertEqual(rows[-1].kind, "rtp_more")
-        self.assertEqual(rows[-1].target, "all:2")
+        page = data.children(door, 1, 25)
+        self.assertEqual(page.rows[0].kind, "rtp_post")
+        self.assertTrue(page.has_next)
+        self.assertTrue(page.cursor)
 
-    def test_live_rows_are_direct_playable_stations(self):
-        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+    def test_jungletapes_room_pages_60_shows(self):
+        data = self.data()
+        page = data.room("jungletapes", 2, 25)
+        self.assertEqual(page.total, 60)
+        self.assertEqual(page.pages, 3)
+        self.assertEqual(page.page, 2)
+        self.assertEqual(len(page.rows), 25)
+        self.assertTrue(page.has_next)
+
+    def test_live_rows_are_stations_plus_genre_doors(self):
+        data = self.data()
         rows = data.section_entries("live")
-        self.assertTrue(rows)
-        self.assertEqual(rows[0].kind, "station")
+        self.assertEqual(sum(1 for row in rows if row.kind == "station"), 3)
+        self.assertEqual(sum(1 for row in rows if row.kind == "live_genre"), 6)
         self.assertTrue(rows[0].track.live)
+        self.assertIn("no duration", rows[0].subtitle)
 
-    def test_random_pick_calls_each_source_once(self):
+    def test_mixes_room_covers_every_source(self):
+        data = self.data()
+        labels = [row.label for row in data.section_entries("mixes")]
+        self.assertEqual(labels, [
+            "DNBRADIO Shows", "Podcasts & Mixes", "Moxser", "Hardscore",
+            "GetDarker", "Pirate Radio Archives"])
+        dnb = data.entries_for(data.section_entries("mixes")[0])
+        self.assertEqual(dnb[0].kind, "dnb_show")
+
+    def test_favourites_room_maps_every_saved_kind(self):
+        data = self.data()
+        rows = data.section_entries("favourites")
+        self.assertEqual([row.kind for row in rows],
+                         ["pack", "show", "station"])
+        self.assertEqual(rows[0].fav_key, "pack:pack-1")
+        self.assertTrue(rows[2].track.live)
+
+    def test_downloads_room_lists_completed_files(self):
+        data = self.data()
+        rows = data.section_entries("downloads")
+        self.assertEqual(rows[0].kind, "file")
+        self.assertTrue(rows[0].track.local)
+        self.assertEqual(rows[0].fact, "1024 B")
+
+    def test_about_has_real_versions_counts_and_policy(self):
+        data = self.data()
+        rows = data.section_entries("about")
+        text = "\n".join(row.label + " " + row.subtitle for row in rows)
+        self.assertIn("Rave Player 3.9.51", text)
+        self.assertIn("Rave Screen 3.9.50", text)
+        self.assertIn("Audio policy", text)
+        self.assertIn("Rows per page", text)
+        self.assertIn("Favourites", text)
+        self.assertEqual(rows[6].fact, "3 saved")
+        self.assertEqual(rows[7].fact, "1 files")
+
+    def test_search_is_scoped_paged_and_relevance_ordered(self):
+        data = self.data()
+        page = data.search(SearchTarget("dreamscape", "archive"), 1, 25)
+        self.assertEqual(page.total, 120)
+        self.assertEqual(page.pages, 5)
+        self.assertEqual(page.rows[0].kind, "pack")
+        query = data.modules.archive.search.call_args_list[0][0][0]
+        self.assertIn("collection:ravetapes", query)
+        self.assertEqual(data.modules.archive.search.call_args_list[0][1]["sort"], "")
+
+        jt = data.search(SearchTarget("show 01", "jungletapes"), 1, 25)
+        self.assertEqual(jt.rows[0].label, "Show 01")
+        live = data.search(SearchTarget("kool", "live"), 1, 25)
+        self.assertEqual(live.rows[0].kind, "station")
+        fav = data.search(SearchTarget("kool", "favourites"), 1, 25)
+        self.assertTrue(fav.rows)
+
+    def test_random_pick_calls_each_source_once_on_success(self):
         modules = fake_modules()
         random_module = FakeRandom()
         data = RaveData(modules=modules, root=ROOT, script_root=SCREEN,
@@ -838,12 +1292,33 @@ class DataTests(unittest.TestCase):
         self.assertEqual(modules.archive.audio_files.call_args[0], ("pack-1",))
         self.assertEqual(random_module.calls, 1)
 
-    def test_random_pick_without_pack_does_not_fetch_tracks(self):
+    def test_random_pick_retries_a_pack_with_no_playable_tracks(self):
+        modules = fake_modules()
+        modules.archive.audio_files.side_effect = [[], [
+            {"title": "Good", "url": "https://archive.test/good.mp3"}]]
+        data = RaveData(modules=modules, root=ROOT, script_root=SCREEN,
+                        random_module=FakeRandom())
+        pick = data.random_pick()
+        self.assertEqual(pick.title, "Good")
+        self.assertEqual(modules.latest.random_pack.call_count, 2)
+
+    def test_random_pick_falls_back_to_recent_packs(self):
         modules = fake_modules()
         modules.latest.random_pack.return_value = None
+        data = RaveData(modules=modules, root=ROOT, script_root=SCREEN,
+                        random_module=FakeRandom())
+        pick = data.random_pick()
+        self.assertIsNotNone(pick)
+        self.assertEqual(modules.latest.random_pack.call_count, 4)
+        self.assertEqual(modules.latest.recent_packs.call_count, 1)
+
+    def test_random_pick_all_empty_returns_none_without_looping(self):
+        modules = fake_modules()
+        modules.latest.random_pack.return_value = None
+        modules.latest.recent_packs.return_value = []
         data = RaveData(modules=modules, root=ROOT, script_root=SCREEN)
         self.assertIsNone(data.random_pick())
-        modules.archive.audio_files.assert_not_called()
+        self.assertIn("empty", data.last_surprise_reason)
 
     def test_spinner_frames_are_bundled_with_the_script(self):
         data = RaveData(modules=fake_modules(), root="/nonexistent",
@@ -960,11 +1435,11 @@ class ManifestAndSkinTests(unittest.TestCase):
     def test_script_manifest_is_kodi_19_22_and_depends_on_the_plugin(self):
         root = ET.parse(os.path.join(SCREEN, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.raveplayer.ui")
-        self.assertEqual(root.get("version"), "3.9.49")
+        self.assertEqual(root.get("version"), "3.9.50")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
-        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.50")
+        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.51")
         extension = root.find("./extension[@point='xbmc.python.script']")
         self.assertIsNotNone(extension)
         self.assertEqual(extension.get("library"), "default.py")
@@ -1070,11 +1545,14 @@ class RaveScreenXMLTests(unittest.TestCase):
         self.assertNotIn("setFocusId", self.markup)
         self.assertNotIn("setfocusid", self.markup.lower())
 
-    def test_the_adapter_does_not_override_focus(self):
+    def test_the_adapter_focuses_the_list_only_after_rows_exist(self):
         with open(os.path.join(SCREEN, "raveui", "window.py"),
                   encoding="utf-8") as handle:
             source = handle.read()
-        self.assertNotIn("setFocusId", source)
+        self.assertIn("self._controller.start()", source)
+        self.assertIn("self.setFocusId(CONTROL_LIST)", source)
+        self.assertGreater(source.index("self.setFocusId(CONTROL_LIST)"),
+                           source.index("self._controller.start()"))
 
     def test_bed_and_noise_are_full_bleed(self):
         for control_id in (100, 101):
@@ -1253,8 +1731,9 @@ class RaveScreenXMLTests(unittest.TestCase):
                       by_id(self.root, 707).findtext("texturefocus"))
         self.assertIn("button-nofocus-220x38.png",
                       by_id(self.root, 707).findtext("texturenofocus"))
-        self.assertEqual(by_id(self.root, 707).findtext("onclick"),
-                         "Action(Back)")
+        self.assertIsNone(by_id(self.root, 707).findtext("onclick"))
+        # The CANCEL button is Python-handled in onClick(707); a builtin
+        # Action(Back) would be a second, hidden input path.
         self.assertEqual(by_id(self.root, 709).findtext("label"), "CANCEL")
         self.assertIn("surprise-burst-1280x720.jpg",
                       by_id(self.root, 700).findtext("texture"))
@@ -1422,7 +1901,7 @@ class PluginIntegrationTests(unittest.TestCase):
         from resources.lib import routes
 
         routes.root(1, {})
-        self.assertEqual(xbmcplugin.ITEMS[0]["label"], "Rave Screen")
+        self.assertEqual(xbmcplugin.ITEMS[0]["label"], "Rave Player")
         self.assertIn("mode=screen", xbmcplugin.ITEMS[0]["url"])
         self.assertTrue(xbmcplugin.ITEMS[0]["art"]["icon"].endswith("screen.png"))
         self.assertTrue(xbmcplugin.ITEMS[0]["art"]["fanart"].endswith("fanart-screen.jpg"))
@@ -1546,6 +2025,156 @@ class PlaybackServiceTests(unittest.TestCase):
         track = Track("Kool FM", "Live radio", "https://live.test/kool", live=True)
         service.play(track)
         self.assertEqual(len(xbmc.PLAYED), 1)
+
+
+class DownloadQueueTests(unittest.TestCase):
+    def modules(self, plan=None, result=None):
+        plan = plan or {"allowed": True, "size": 100, "filename": "x.mp3",
+                        "path": "/tmp/x.mp3", "key": "k", "url": "https://x/1.mp3"}
+        result = result or {"ok": True, "reason": ""}
+        downloads = types.SimpleNamespace(
+            eligible=mock.Mock(return_value=True),
+            plan=mock.Mock(return_value=plan),
+            download=mock.Mock(side_effect=lambda planned, progress=None,
+                               cancelled=None: self._finish(progress, result)),
+        )
+        return types.SimpleNamespace(downloads=downloads)
+
+    @staticmethod
+    def _finish(progress, result):
+        if progress is not None:
+            progress(50, 100)
+            progress(100, 100)
+        return result
+
+    def wait(self, queue, predicate, timeout=2.0):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if predicate(queue.rows()):
+                return True
+            time.sleep(0.01)
+        return False
+
+    def test_download_progress_row_then_completion(self):
+        modules = self.modules()
+        queue = DownloadQueue(modules=modules)
+        ok, message = queue.start("https://x/1.mp3", "Set", "Archive.org", key="k")
+        self.assertTrue(ok)
+        self.assertIn("started", message)
+        self.assertTrue(self.wait(queue, lambda rows: not rows))
+        self.assertEqual(modules.downloads.download.call_count, 1)
+        self.assertEqual(queue.rows(), [])
+
+    def test_download_plan_refusal_is_a_failed_row(self):
+        modules = self.modules(plan={"allowed": False, "reason": "Not allowed"})
+        queue = DownloadQueue(modules=modules)
+        queue.start("https://x/1.mp3", "Set", "Archive.org", key="k")
+        self.assertTrue(self.wait(queue, lambda rows: rows and
+                                  rows[0]["status"] == "failed"))
+        row = queue.rows()[0]
+        self.assertIn("Not allowed", row["detail"])
+        modules.downloads.download.assert_not_called()
+
+    def test_download_failure_is_a_row_not_an_exception(self):
+        modules = self.modules(result={"ok": False, "reason": "network down"})
+        queue = DownloadQueue(modules=modules)
+        queue.start("https://x/1.mp3", "Set", "Archive.org", key="k")
+        self.assertTrue(self.wait(queue, lambda rows: rows and
+                                  rows[0]["status"] == "failed"))
+        self.assertIn("network down", queue.rows()[0]["detail"])
+
+    def test_ineligible_source_is_refused_before_the_worker(self):
+        modules = self.modules()
+        modules.downloads.eligible.return_value = False
+        queue = DownloadQueue(modules=modules)
+        ok, message = queue.start("https://x/1.mp3", "Set", "Unknown")
+        self.assertFalse(ok)
+        self.assertIn("not downloadable", message)
+        modules.downloads.plan.assert_not_called()
+
+
+class PlaybackPolicyTests(unittest.TestCase):
+    def setUp(self):
+        del xbmc.PLAYED[:]
+
+    def test_play_collection_queues_every_track_in_one_playlist(self):
+        service = PlaybackService()
+        tracks = [Track("One", "Pack", "https://x/1.mp3"),
+                  Track("Two", "Pack", "https://x/2.mp3")]
+        result = service.play_collection(tracks)
+        self.assertEqual(result.count, 2)
+        self.assertEqual(len(xbmc.PLAYED), 1)
+        self.assertEqual(len(xbmc.PLAYED[0]), 2)
+        self.assertTrue(all(path.startswith("plugin://plugin.audio.raveplayer/")
+                            for path, _item in xbmc.PLAYED[0].items))
+
+    def test_play_collection_shuffles_and_keeps_every_track(self):
+        service = PlaybackService()
+        tracks = [Track(str(index), "Pack", "https://x/%d.mp3" % index)
+                  for index in range(6)]
+        service.play_collection(tracks, shuffle=True)
+        self.assertEqual(len(xbmc.PLAYED[0]), 6)
+
+    def test_downloaded_file_plays_from_disk_not_a_plugin_route(self):
+        service = PlaybackService()
+        service.play(Track("Saved", "Downloads", "/tmp/saved.mp3", local=True))
+        path, _item = xbmc.PLAYED[0].items[0]
+        self.assertEqual(path, "/tmp/saved.mp3")
+
+    def test_external_handoff_uses_its_plugin_path(self):
+        service = PlaybackService()
+        service.play(Track("Mix", "GetDarker", "https://mixcloud.test/x",
+                           path="plugin://plugin.audio.mixcloud/?mode=40&key=x"))
+        path, _item = xbmc.PLAYED[0].items[0]
+        self.assertTrue(path.startswith("plugin://plugin.audio.mixcloud/"))
+
+    def test_stop_calls_the_player(self):
+        service = PlaybackService()
+        self.assertTrue(service.stop())
+        self.assertEqual(service.stops, 1)
+
+    def test_live_item_is_marked_live_and_uses_the_plugin_route(self):
+        service = PlaybackService()
+        service.play(Track("Kool FM", "Kool FM", "https://live.test/kool",
+                           live=True))
+        path, item = xbmc.PLAYED[0].items[0]
+        self.assertIn("live=1", path)
+        self.assertIn("station=Kool", path)
+
+
+class ScreenStateXMLTests(unittest.TestCase):
+    def setUp(self):
+        self.root = xml_root()
+        with open(XML_PATH, encoding="utf-8") as handle:
+            self.markup = handle.read()
+
+    def test_plate_controls_are_present_property_bound_and_textured(self):
+        for control_id in (720, 721, 722, 723, 724, 725, 726, 727):
+            control = by_id(self.root, control_id)
+            self.assertIsNotNone(control, control_id)
+        self.assertIn("String.IsEqual(Window.Property(rp_plate),1)", self.markup)
+        self.assertIn("rp_plate_head", self.markup)
+        self.assertIn("plate-scrim-1280x720.png", self.markup)
+        for node in self.root.iter("visible"):
+            self.assertNotEqual((node.text or "").strip(), "false")
+
+    def test_page_indicator_control_exists(self):
+        control = by_id(self.root, 617)
+        self.assertIsNotNone(control)
+        self.assertEqual(control.get("type"), "label")
+
+    def test_live_hides_duration_and_progress(self):
+        for control_id in (605, 606, 608):
+            control = by_id(self.root, control_id)
+            visible = control.findtext("visible") or ""
+            self.assertIn("rp_live", visible, control_id)
+            self.assertIn("Player.Duration", visible, control_id)
+
+    def test_plate_scrim_is_bundled_and_full_bleed(self):
+        control = by_id(self.root, 720)
+        self.assertEqual(box(control), (0, 0, 1280, 720))
+        self.assertTrue(os.path.isfile(os.path.join(
+            ART_ROOT, "plate-scrim-1280x720.png")))
 
 
 class TaskRunnerTests(unittest.TestCase):

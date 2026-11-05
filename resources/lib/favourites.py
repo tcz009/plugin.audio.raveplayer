@@ -15,7 +15,8 @@ from . import kodi
 FILENAME = "favourites.json"
 MAX_ENTRIES = 300
 FAV_DIR_ENV = "RAVEPLAYER_FAV_DIR"
-VALID_KINDS = ("pack", "dnb", "stream", "legacy_pack", "legacy_jt")
+VALID_KINDS = ("pack", "dnb", "stream", "legacy_pack", "legacy_post",
+                "legacy_jt")
 
 
 def _path():

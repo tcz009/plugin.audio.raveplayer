@@ -102,6 +102,22 @@ class RandomPackTests(unittest.TestCase):
         self.assertEqual(randint.call_args[0], (1, 15))
         self.assertEqual(pack["identifier"], "picked")
 
+    def test_empty_page_is_retried_once_on_a_fresh_page(self):
+        with mock.patch.object(latest.archive, "search", side_effect=[
+                ([], 100), ([], 100), ([], 100),
+                ([{"identifier": "picked", "title": "Picked"}], 100)]):
+            with mock.patch.object(latest.random, "randint", return_value=1), \
+                    mock.patch.object(latest.random, "choice",
+                                      side_effect=lambda docs: docs[0]):
+                pack = latest.random_pack()
+        self.assertEqual(pack["identifier"], "picked")
+
+    def test_exception_is_retried_and_then_returns_none_bounded(self):
+        search = mock.Mock(side_effect=RuntimeError("offline"))
+        with mock.patch.object(latest.archive, "search", search):
+            self.assertIsNone(latest.random_pack())
+        self.assertEqual(search.call_count, latest.RANDOM_PICK_ATTEMPTS)
+
     def test_document_without_identifier_is_ignored(self):
         with mock.patch.object(latest.archive, "search", side_effect=[
                 ([], 100), ([{"title": "No identifier"}], 100)]):

@@ -25,10 +25,11 @@ def labels(handler, params=None):
 
 class TaxonomyContractTests(unittest.TestCase):
     def test_root_exact_order(self):
-        self.assertEqual(labels(routes.root), [
-            "Rave Screen", "Latest", "Tape Packs", "Pirate Radio",
+        self.assertEqual(labels(routes.root), ["Rave Player", "Classic lists"])
+        self.assertEqual(labels(routes.classic_root), [
+            "Latest", "Tape Packs", "Pirate Radio",
             "Mixes & Shows", "Live Radio", "Favourites",
-            "Search the Archive", "Surprise Me", "About & Sources",
+            "Search the Archive", "Surprise Me", "About & Sources", "Back",
         ])
 
     def test_tape_packs_exact_order(self):

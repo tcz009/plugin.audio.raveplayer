@@ -1,20 +1,31 @@
 # -*- coding: utf-8 -*-
-"""Read-only bridge to ``plugin.audio.raveplayer``'s data modules.
+"""Bridge to ``plugin.audio.raveplayer``'s public data and playback helpers.
 
 The Rave Screen never re-implements a scraper. It imports the plugin's existing
 ``resources/lib`` package under a private alias (``raveplayer_plugin``) so a
 module name can never collide with this script add-on's own ``resources`` tree,
-and calls only public read helpers:
+and calls only public helpers:
 
     latest.recent_packs / latest.random_pack
     toronto.genres / toronto.tracks
     legacy.jungle_shows / legacy.jungle_tracks / legacy.packs / legacy.pack
-    legacy.playable
-    radio.curated / radio.stations / radio.stream_url
-    archive.audio_files / archive.thumb
+    legacy.categories / category_page / all_packs / post / playable
+    radio.curated / radio.stations / radio.stream_url / radio.display
+    archive.search / audio_files / thumb
+    dnbradio.mixes / stream_url
+    moxser.mixes / mix
+    hardscore.items / page
+    getdarker.items
+    feeds.registry / episodes
+    pirate.entries
+    favourites.load / add / remove / has / key
+    downloads.eligible / plan / download / list_downloads / delete / format_size
+    handoff.platform_kind / target
     http.safe_stream_url
 
-No settings, caches, favourites, downloads or plugin directories are written.
+The bridge imports the same package as the plugin, so writing favourites or
+downloads goes through the plugin's own profile paths and locks.  The screen
+never writes settings or cache keys of its own.
 """
 
 import importlib
@@ -24,7 +35,11 @@ import types
 
 PLUGIN_ID = "plugin.audio.raveplayer"
 PLUGIN_ALIAS = "raveplayer_plugin"
-MODULE_NAMES = ("archive", "http", "kodi", "latest", "legacy", "radio", "toronto", "ui")
+MODULE_NAMES = (
+    "archive", "http", "kodi", "latest", "legacy", "radio", "toronto", "ui",
+    "favourites", "downloads", "feeds", "moxser", "hardscore", "getdarker",
+    "dnbradio", "pirate", "handoff", "live", "nowplaying", "spinner",
+)
 
 _CACHE = {}
 
