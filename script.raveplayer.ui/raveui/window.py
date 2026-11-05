@@ -559,13 +559,18 @@ class RaveScreenWindow(xbmcgui.WindowXML):
         shutdown = getattr(self._controller, "shutdown", None)
         if shutdown is not None:
             shutdown()
+        # Closing a script window returns to whatever spawned it (the plugin
+        # root launcher), which on Kodi 22 can immediately relaunch the app.
+        # ReplaceWindow bypasses the modal-dialog refusal that blocks
+        # ActivateWindow here, so one Back really leaves the add-on.
+        try:
+            xbmc.executebuiltin("ReplaceWindow(Home)")
+        except Exception:
+            pass
         try:
             super().close()
         except Exception:
             pass
-        # Closing a script window returns to whatever spawned it (the plugin
-        # root launcher), which on Kodi 22 can immediately relaunch the app.
-        # One Back must leave the add-on: send Home explicitly after the close.
         try:
             xbmc.executebuiltin("ActivateWindow(Home)")
         except Exception:
