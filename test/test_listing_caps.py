@@ -99,29 +99,53 @@ class ListingCapTests(unittest.TestCase):
         rows = feeds.parse(feed_xml(120))
         self.assertEqual(len(rows), 120)
 
-    def test_routes_render_the_full_source_lists(self):
-        del xbmcplugin.ITEMS[:]
-        rows = [{"title": "Mix %d" % i, "page_url": "https://moxser.com/mixes/%d" % i,
-                 "date": "", "flyer": ""} for i in range(150)]
-        with mock.patch.object(routes.moxser_source, "mixes", return_value=rows):
-            routes.moxser(1, {})
-        self.assertEqual(len([i for i in xbmcplugin.ITEMS if i["label"] != "Back"]), 150)
+    def _render_all_pages(self, route, params):
+        """Walk Next page links and return every content row exactly once."""
+        seen = []
+        page = 1
+        while True:
+            del xbmcplugin.ITEMS[:]
+            route(1, dict(params, page=str(page)))
+            rows = [item for item in xbmcplugin.ITEMS
+                    if item["label"] not in ("Back",)
+                    and not item["label"].startswith("Page ")
+                    and not item["label"].startswith(("Next page", "Previous page"))]
+            seen.extend(rows)
+            next_links = [item["url"] for item in xbmcplugin.ITEMS
+                          if item["label"].startswith("Next page")]
+            self.assertLessEqual(len(rows), 50, "page %d exceeded the page size" % page)
+            if not next_links:
+                break
+            page += 1
+        return seen
 
-        del xbmcplugin.ITEMS[:]
-        hsrows = [{"title": "Post %d" % i, "page_url": "https://www.hardscore.com/?p=%d" % i,
-                   "date": "", "media_urls": [], "description": ""} for i in range(150)]
-        with mock.patch.object(routes.hardscore_source, "items", return_value=hsrows):
-            routes.hardscore(1, {})
-        self.assertEqual(len([i for i in xbmcplugin.ITEMS if i["label"] != "Back"]), 150)
+    def test_routes_page_through_the_full_source_lists(self):
+        with mock.patch.object(routes, "_rows_per_page", return_value=50):
+            rows = [{"title": "Mix %d" % i, "page_url": "https://moxser.com/mixes/%d" % i,
+                     "date": "", "flyer": ""} for i in range(150)]
+            with mock.patch.object(routes.moxser_source, "mixes", return_value=rows):
+                seen = self._render_all_pages(routes.moxser, {})
+            self.assertEqual([item["label"] for item in seen],
+                             ["Mix %d" % i for i in range(150)])
 
-        del xbmcplugin.ITEMS[:]
-        trows = [{"name": "Toronto Mix %d" % i,
-                  "url": "https://www.torontoravemixtapearchive.com/files/mixtape/%d.mp3" % i}
-                 for i in range(678)]
-        with mock.patch.object(routes.toronto_source, "tracks", return_value=trows), \
-                mock.patch.object(routes.kodi, "end_directory"):
-            routes.toronto_genre(1, {"genre": "jungle"})
-        self.assertEqual(len(xbmcplugin.ITEMS), 679)  # 678 rows + Back
+            hsrows = [{"title": "Post %d" % i, "page_url": "https://www.hardscore.com/?p=%d" % i,
+                       "date": "", "media_urls": [], "description": ""} for i in range(150)]
+            with mock.patch.object(routes.hardscore_source, "items", return_value=hsrows):
+                seen = self._render_all_pages(routes.hardscore, {})
+            self.assertEqual([item["label"] for item in seen],
+                             ["Post %d  [COLOR gray](post)[/COLOR]" % i
+                              for i in range(150)])
+
+            trows = [{"name": "Toronto Mix %d" % i,
+                      "url": "https://www.torontoravemixtapearchive.com/files/mixtape/%d.mp3" % i}
+                     for i in range(678)]
+            with mock.patch.object(routes.toronto_source, "tracks", return_value=trows), \
+                    mock.patch.object(routes, "_playable_url", side_effect=lambda url: url), \
+                    mock.patch.object(routes.kodi, "end_directory"):
+                seen = self._render_all_pages(routes.toronto_genre, {"genre": "jungle"})
+            self.assertEqual(len(seen), 678)
+            self.assertEqual(seen[0]["label"], "Toronto Mix 0")
+            self.assertEqual(seen[-1]["label"], "Toronto Mix 677")
 
     def test_old_cap_constants_are_raised(self):
         self.assertGreaterEqual(moxser.MAX_MIXES, 1000)

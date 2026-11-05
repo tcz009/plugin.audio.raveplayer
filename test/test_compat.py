@@ -96,21 +96,30 @@ class ImportSmokeTests(unittest.TestCase):
 class EntryPointGuardTests(unittest.TestCase):
     """K1: default.py has a last-resort guard and routes dispatch to the handler."""
 
-    def test_main_swallows_a_dispatch_error(self):
-        import default
+    def setUp(self):
+        # Load the add-on entry point by path.  ``import default`` resolved to
+        # script.raveplayer.ui/default.py whenever that directory happened to
+        # be on sys.path (test_rave_screen inserts it), so this test depended
+        # on module discovery order and failed under a shuffled run.
+        import importlib.util
 
-        with mock.patch.object(default.routes, "dispatch",
+        path = os.path.join(ROOT, "default.py")
+        spec = importlib.util.spec_from_file_location("raveplayer_entry", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.entry = module
+
+    def test_main_swallows_a_dispatch_error(self):
+        with mock.patch.object(self.entry.routes, "dispatch",
                                side_effect=RuntimeError("boom")), \
-                mock.patch.object(default.kodi, "log") as log:
-            default.main(["plugin://x/", "1", "?mode=root"])
+                mock.patch.object(self.entry.kodi, "log") as log:
+            self.entry.main(["plugin://x/", "1", "?mode=root"])
         self.assertTrue(log.called)
 
     def test_main_passes_argv_through(self):
-        import default
-
         argv = ["plugin://x/", "2", "?mode=root"]
-        with mock.patch.object(default.routes, "dispatch") as dispatch:
-            default.main(argv)
+        with mock.patch.object(self.entry.routes, "dispatch") as dispatch:
+            self.entry.main(argv)
         self.assertEqual(dispatch.call_args[0][0], argv)
 
 

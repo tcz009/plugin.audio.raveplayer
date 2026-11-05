@@ -274,8 +274,9 @@ class RouteRenderTests(unittest.TestCase):
                 mock.patch.object(routes.kodi, "end_directory"):
             routes.year_list(1, {"year": "1994"})
         labels = [label for label, _url in self._menu_calls()]
-        self.assertIn("More from 1994", labels)
-        next_url = [url for label, url in self._menu_calls() if label == "More from 1994"][0]
+        self.assertIn("Next page  ›", labels)
+        next_url = [url for label, url in self._menu_calls()
+                    if label == "Next page  ›"][0]
         self.assertIn("mode=year_list", next_url)
         self.assertIn("page=2", next_url)
         self.assertIn("year=1994", next_url)

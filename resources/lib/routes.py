@@ -85,9 +85,8 @@ MAX_ROWS_PER_PAGE = 200
 # (the Helter Skelter pack has 1,645 tracks).  Never build more than 200 rows
 # in one directory; page the rest.
 PACK_ROWS_PER_PAGE = 200
-# JungleTapes has 300+ sitemap shows; page the directory instead of sending one
-# 310-row list (and keep the page size aligned with the web build).
-JT_SHOWS_PER_PAGE = 50
+# JungleTapes has 300+ sitemap shows; the normal results_per_page setting pages
+# the directory instead of sending one 310-row list.
 # Default to all entries a feed carries; the setting can cap deliberately.
 EPISODES_PER_FEED = 5000
 MAX_EPISODES_PER_FEED = 5000
@@ -99,8 +98,8 @@ ROUTE_BUDGET_SECONDS = http.ROUTE_BUDGET_SECONDS
 # Routes that resolve a single stream instead of building a directory, and
 # context-menu routes whose caller never expects a directory at all.
 PLAYBACK_MODES = frozenset(("play", "dnb_play"))
-RUNPLUGIN_MODES = frozenset(("play_all", "fav_add", "fav_remove",
-                             "download_start", "download_delete"))
+RUNPLUGIN_MODES = frozenset(("play_all", "play_all_collection", "fav_add",
+                             "fav_remove", "download_start", "download_delete"))
 
 # Archive.org phrase queries. These are broad on purpose: the Archive's
 # full-text index is what keeps this add-on alive when fan sites disappear.
@@ -466,6 +465,26 @@ def _archive_items(handle, docs):
         )
 
 
+def _playable_stations(stations):
+    """Filter a station list to rows that can actually be offered.
+
+    Cheap syntactic checks only (no DNS): the play route still applies the
+    strict public-host guard.  Paging must count the same rows the directory
+    shows, so the filter runs before the window is sliced.
+    """
+    rows = []
+    for station in stations or []:
+        if not isinstance(station, dict):
+            continue
+        candidate = str(radio.stream_url(station) or "").strip()
+        if not candidate or handoff.platform_kind(candidate):
+            continue
+        if not http.looks_like_public_http_url(candidate.split("|", 1)[0]):
+            continue
+        rows.append(station)
+    return rows
+
+
 def _station_items(handle, stations, plot):
     """Render live radio stations, with a favourite and play URL each.
 
@@ -509,6 +528,74 @@ def _page_plot(total, page, rows):
     return "Page %d of %d · %d items" % (page, pages, total)
 
 
+# ------------------------------------------------------------------ paging
+#
+# Every list that can exceed one page goes through the same three pieces:
+# ``_paged`` slices a fully known collection, ``_page_label`` is the single
+# wording the owner asked for ("Page N of M · X items"), and ``_page_header`` /
+# ``_page_nav`` draw the first-row header and the Previous/Next rows.  Keeping
+# this in one place is what stops one source growing a 400-row directory while
+# another pages at 200.
+
+def _format_count(value):
+    try:
+        return "{:,}".format(max(0, int(value)))
+    except (TypeError, ValueError, OverflowError):
+        return "0"
+
+
+def _page_label(page, pages, total, noun="items"):
+    count = "%s %s" % (_format_count(total), noun)
+    if pages is None:
+        # Server-side lists (RaveTapePacks WordPress pages) know the current
+        # page but not the catalogue total without walking every page.
+        return "Page %d · %s" % (page, count)
+    return "Page %d of %d · %s" % (page, pages, count)
+
+
+def _paged(items, page, rows):
+    """Return ``(window, page, pages, total, start)`` for a known list."""
+    rows = max(1, int(rows))
+    total = len(items)
+    pages = max(1, (total + rows - 1) // rows)
+    page = min(max(1, int(page)), pages)
+    start = (page - 1) * rows
+    return items[start:start + rows], page, pages, total, start
+
+
+def _page_header(handle, page, pages, total, noun="items", icon=None):
+    """First row: "Page N of M · X items"; hidden for a single-page list."""
+    if pages is not None and pages <= 1:
+        return False
+    plot = ("Use Previous page and Next page at the bottom of the list to "
+            "move through the rest.")
+    ui.info_item(handle, _page_label(page, pages, total, noun),
+                 plot=plot, icon=icon,
+                 label2="%s %s" % (_format_count(total), noun))
+    return True
+
+
+def _page_nav(handle, mode, params, page, pages, total, rows,
+              noun="items", has_next=None, has_prev=None):
+    """Previous/Next rows at the bottom; hidden at their bounds."""
+    if has_prev is None:
+        has_prev = page > 1
+    if has_next is None:
+        has_next = pages is None or page < pages
+    if has_prev:
+        options = dict(params or {})
+        options["page"] = page - 1
+        ui.menu_item(handle, url_for(mode=mode, **options),
+                     "Previous page  ‹",
+                     plot=_page_label(page - 1, pages, total, noun))
+    if has_next:
+        options = dict(params or {})
+        options["page"] = page + 1
+        ui.menu_item(handle, url_for(mode=mode, **options),
+                     "Next page  ›",
+                     plot=_page_label(page + 1, pages, total, noun))
+
+
 # A4: bound the number of characters scanned after each "<" so hostile
 # input like "<a" * 131072 cannot make the regex engine rescan to end-of-string
 # (old pattern was O(n^2): 16.7 s for a 256 KiB description).
@@ -531,8 +618,13 @@ def _clean_description(value):
     return " ".join(text.split())[:600]
 
 
-def _play_tracks(tracks, identifier, start=0, shuffle=False):
-    """Build and start a Kodi music playlist from Archive tracks.
+def _play_tracks(tracks, identifier=None, start=0, shuffle=False,
+                 album=None, thumb=None, plot=None):
+    """Build and start a Kodi music playlist from a whole collection.
+
+    ``tracks`` is always the complete list, never the visible page: Play all /
+    Shuffle from page 5 of a 2,640-track genre still queues all 2,640 tracks
+    (``start`` is an absolute index into that list).
 
     Every URL is re-validated here (A3): ``play_all`` builds the playlist
     directly, so it must not become a bypass of the ``play`` host guard.
@@ -559,14 +651,19 @@ def _play_tracks(tracks, identifier, start=0, shuffle=False):
                     % (dropped, "" if dropped == 1 else "s"))
     if not playable:
         return False
-    album = identifier.replace("-", " ")
-    thumb = archive.thumb(identifier) or kodi.ROUND_FACE
-    pack_title = archive.item_title(identifier) or album
+    # Archive callers pass only ``identifier``; the newer source lists pass the
+    # display album/thumb so playing them never costs an Archive lookup.
+    album = album or (identifier or "Rave Player").replace("-", " ")
+    if thumb is None and identifier:
+        thumb = archive.thumb(identifier) or kodi.ROUND_FACE
+    thumb = thumb or kodi.ROUND_FACE
+    pack_title = (archive.item_title(identifier) or album) if identifier else album
     playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
     playlist.clear()
     for index, track, url in playable:
         details = nowplaying.parse(pack_title, track["title"])
-        plotted = nowplaying.plot("From archive.org item %s" % identifier, details)
+        plotted = nowplaying.plot(
+            plot or ("From archive.org item %s" % identifier), details)
         item = xbmcgui.ListItem(path=url)
         # 1:1 cover in the art slots, 16:9 brand fanart behind it.  The old
         # pass put the square cover in the fanart slot, which every skin
@@ -831,7 +928,8 @@ def radio_tag(handle, params):
         kodi.notify("That radio section no longer exists.")
         kodi.end_directory(handle, "files")
         return
-    stations = radio.stations(section["tag"], limit=kodi.setting_int("radio_limit", 500))
+    stations = _playable_stations(radio.stations(
+        section["tag"], limit=kodi.setting_int("radio_limit", 500)))
     if not stations:
         kodi.notify("No working stations for %s right now." % section["label"])
         ui.status_item(
@@ -840,7 +938,13 @@ def radio_tag(handle, params):
                  "public-host check. Press OK to scan again.",
             fact="empty", kind="empty",
             retry_url=url_for(mode="radio_tag", key=section["key"]))
-    _station_items(handle, stations, "Live radio · %s" % section["label"])
+    rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(stations, page, rows)
+    _page_header(handle, page, pages, total, "stations", icon=art(MENU_ART["radio"]))
+    _station_items(handle, window, "Live radio · %s" % section["label"])
+    _page_nav(handle, "radio_tag", {"key": section["key"]},
+              page, pages, total, rows, "stations")
     kodi.end_directory(handle, "songs")
 
 
@@ -853,6 +957,7 @@ def archive_list(handle, params):
     page = _page_number(params)
     rows = _rows_per_page()
     docs, total = archive.search(section["query"], page=page, rows=rows)
+    pages = max(1, (total + rows - 1) // rows)
 
     if not docs and page == 1:
         kodi.notify("Nothing came back from the Archive. Try another section.")
@@ -863,15 +968,10 @@ def archive_list(handle, params):
             fact="empty", kind="empty",
             retry_url=url_for(mode="archive_list", key=section["key"], page=1))
 
+    _page_header(handle, page, pages, total, "items")
     _archive_items(handle, docs)
-
-    if docs and total > page * rows:
-        ui.menu_item(
-            handle,
-            url_for(mode="archive_list", key=section["key"], page=page + 1),
-            "Next page  ›",
-            plot=_page_plot(total, page + 1, rows),
-        )
+    _page_nav(handle, "archive_list", {"key": section["key"]},
+              page, pages, total, rows, "items", has_next=bool(docs))
     kodi.end_directory(handle, "files")
 
 
@@ -886,13 +986,11 @@ def archive_item(handle, params):
     page = _page_number(params)
     total = len(all_tracks)
     # Audit P0-4: one Archive pack (helter-skelter-tape-packs) returned 1,645
-    # rows and took 18.7 s.  A pack detail is a normal paginated list now:
-    # at most 200 rows per page, with the total and a Next row.
+    # rows and took 18.7 s.  The pack detail is paged with the same
+    # results_per_page setting as every other list; Play all still receives
+    # ``all_tracks``, never just the visible window.
     rows = min(_rows_per_page(), PACK_ROWS_PER_PAGE)
-    pages = max(1, (total + rows - 1) // rows)
-    page = min(page, pages)
-    start = (page - 1) * rows
-    tracks = all_tracks[start:start + rows]
+    tracks, page, pages, total, start = _paged(all_tracks, page, rows)
     if not all_tracks:
         kodi.notify("No audio files in that set — try another.")
     thumb = archive.thumb(identifier) or art(MENU_ART["packs"])
@@ -905,14 +1003,8 @@ def archive_item(handle, params):
                  "OK to reload the pack, or go Back and pick another set.",
             fact="error", kind="error",
             retry_url=url_for(mode="archive_item", id=identifier))
-    elif pages > 1:
-        ui.info_item(
-            handle,
-            "Page %d of %d · %s tracks" % (page, pages, "{:,}".format(total)),
-            plot="This pack is split across pages. Press OK on a track to play "
-                 "it, or use Next page at the bottom for the rest.",
-            icon=sticker,
-            label2="%s tracks" % "{:,}".format(total))
+    else:
+        _page_header(handle, page, pages, total, "tracks", icon=sticker)
     for index, track in enumerate(tracks):
         track_title = ui.plain(track["title"])
         details = nowplaying.parse(pack_title, track["title"])
@@ -944,13 +1036,10 @@ def archive_item(handle, params):
                 _favourite("stream", track["url"], track_title, "Archive.org"),
             ] + _download_context(track["url"], track_title, "Archive.org"),
         )
-    if tracks and page < pages:
-        ui.menu_item(
-            handle,
-            url_for(mode="archive_item", id=identifier, page=page + 1),
-            "Next page  ›",
-            plot=_page_plot(total, page + 1, rows),
-        )
+    if all_tracks:
+        _page_nav(handle, "archive_item", {"id": identifier},
+                  page, pages, total, rows, "tracks",
+                  has_next=page < pages, has_prev=page > 1)
     kodi.end_directory(handle, "songs")
 
 
@@ -969,6 +1058,58 @@ def play_all(handle, params):
         kodi.notify("Could not start that pack.")
 
 
+def _collection_tracks(source, key):
+    """Resolve a whole source collection for Play all / Shuffle.
+
+    The paginated directory only ever shows one window, so Play all must ask
+    the source again rather than reuse the page rows.  Returns
+    ``(tracks, album, thumb, plot)``; every provider failure yields no tracks
+    instead of raising into the playlist builder.
+    """
+    source = str(source or "")
+    key = str(key or "")
+    if not key:
+        return [], "", None, None
+    if source == "toronto":
+        tracks = toronto_source.tracks(key)
+        label = next((name for slug, name in toronto_source.GENRES if slug == key), key)
+        return (list(tracks), ui.plain(label), art("toronto.png"),
+                "Toronto Rave Mixtape Archive · %s" % ui.plain(label))
+    if source in ("legacy_post", "legacy_pack"):
+        entry = legacy.post(key) if source == "legacy_post" else legacy.pack(key)
+        if not entry:
+            return [], "", None, None
+        tracks = []
+        for track in entry.get("tracks") or []:
+            url = legacy.playable(track.get("url") or "")
+            if url:
+                tracks.append({"title": track.get("name") or "Track", "url": url})
+        return (tracks, ui.plain(entry.get("name") or key),
+                art(MENU_ART["pack_ravetapepacks"]),
+                "RaveTapePacks.com · %s" % ui.plain(entry.get("name") or key))
+    if source == "legacy_jt":
+        tracks = [{"title": track.get("name") or "Track",
+                   "url": track.get("url") or ""}
+                  for track in legacy.jungle_tracks(key)]
+        label = ui.plain(key.replace("-", " "))
+        return (tracks, label, art(MENU_ART["pack_jungletapes"]),
+                "JungleTapes.com · %s" % label)
+    return [], "", None, None
+
+
+def play_all_collection(handle, params):
+    """Play all / Shuffle a whole source list, never just the visible page."""
+    tracks, album, thumb, plot = _collection_tracks(
+        params.get("source", ""), params.get("key", ""))
+    if not tracks:
+        kodi.notify("That collection is no longer available.")
+        return
+    start = _start_index(params, len(tracks))
+    if not _play_tracks(tracks, start=start, shuffle=_flag(params, "shuffle"),
+                        album=album, thumb=thumb, plot=plot):
+        kodi.notify("Could not start that collection.")
+
+
 def fav_list(handle, params):
     entries = favourites.load()
     if not entries:
@@ -985,7 +1126,11 @@ def fav_list(handle, params):
             plot="Open a pack or show, then use Add to favourites in its context "
                  "menu. Press OK to refresh this list.",
             fact="empty", kind="empty", retry_url=url_for(mode="fav_list"))
-    for entry in entries:
+    rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(entries, page, rows)
+    _page_header(handle, page, pages, total, "favourites")
+    for entry in window:
         entry_key = favourites.key(entry)
         title = ui.plain(entry["title"])
         context = [("Remove from favourites", "RunPlugin(%s)" % url_for(mode="fav_remove", key=entry_key))]
@@ -1038,6 +1183,8 @@ def fav_list(handle, params):
                           title, thumb=art("radio.png"),
                           plot="Saved stream · %s" % source if source else "Saved stream",
                           label2="live" if saved_live else source, context=context)
+    if entries:
+        _page_nav(handle, "fav_list", {}, page, pages, total, rows, "favourites")
     kodi.end_directory(handle, "songs")
 
 
@@ -1071,7 +1218,11 @@ def rave_nights(handle, params):
     entries = _rave_catalog()
     if not entries:
         kodi.notify("The rave catalogue is missing from the add-on.")
-    for entry in entries:
+    rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(entries, page, rows)
+    _page_header(handle, page, pages, total, "raves")
+    for entry in window:
         name = ui.plain(entry["name"])
         bits = []
         if entry.get("count"):
@@ -1084,6 +1235,7 @@ def rave_nights(handle, params):
                          name, " · ".join(bits) or "content"),
                      icon=art(MENU_ART["pack_raves"]),
                      plot="Archive packs and Mixcloud sets for %s" % name)
+    _page_nav(handle, "rave_nights", {}, page, pages, total, rows, "raves")
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -1103,12 +1255,12 @@ def rave_list(handle, params):
     rows = _rows_per_page()
     if entry.get("query") and entry.get("count"):
         docs, total = archive.search(entry["query"], page=page, rows=rows)
+        pages = max(1, (total + rows - 1) // rows)
+        _page_header(handle, page, pages, total, "items")
         _archive_items(handle, docs)
-        if total > page * rows:
-            ui.menu_item(handle, url_for(mode="rave_list",
-                                         key=entry.get("slug") or entry["name"],
-                                         page=page + 1),
-                         "Next page  ›", plot="More %s" % ui.plain(entry["name"]))
+        _page_nav(handle, "rave_list",
+                  {"key": entry.get("slug") or entry["name"]},
+                  page, pages, total, rows, "items", has_next=bool(docs))
     elif entry.get("mixcloud_query") and entry.get("mixcloud_count"):
         kodi.notify("No Archive packs for that rave — open its Mixcloud sets.")
     if entry.get("mixcloud_query") and entry.get("mixcloud_count"):
@@ -1145,9 +1297,16 @@ def filter_live(handle, params):
         token = str(entry["live_name"] or "").lower()
         stations = [station for station in radio.stations_by_name(entry["live_name"], limit=200)
                     if token and token in str(station.get("name", "")).lower()]
+    stations = _playable_stations(stations)
     if not stations:
         kodi.notify("%s is not listed as live right now." % entry["name"])
-    _station_items(handle, stations, "Live now · %s" % entry["name"])
+    rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(stations, page, rows)
+    _page_header(handle, page, pages, total, "stations", icon=art(MENU_ART["radio"]))
+    _station_items(handle, window, "Live now · %s" % entry["name"])
+    _page_nav(handle, "filter_live", {"key": entry["id"]},
+              page, pages, total, rows, "stations")
     kodi.end_directory(handle, "songs")
 
 
@@ -1166,12 +1325,13 @@ def filter_list(handle, params):
                      plot="Live streams matching %s" % entry["live_name"])
 
     docs, total = archive.search(entry["query"], page=page, rows=rows)
+    pages = max(1, (total + rows - 1) // rows)
     if not docs and page == 1:
         kodi.notify("Nothing in the archive for %s." % entry["name"])
+    _page_header(handle, page, pages, total, "items")
     _archive_items(handle, docs)
-    if docs and total > page * rows:
-        ui.menu_item(handle, url_for(mode="filter_list", key=entry["id"], page=page + 1),
-                     "Next page  ›", plot=_page_plot(total, page + 1, rows))
+    _page_nav(handle, "filter_list", {"key": entry["id"]},
+              page, pages, total, rows, "items", has_next=bool(docs))
     kodi.end_directory(handle, "files")
 
 
@@ -1225,7 +1385,12 @@ def _latest_live_rows(handle):
 
 def latest_view(handle, params):
     items = latest.merge()
-    live_count = _latest_live_rows(handle)
+    rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(items, page, rows)
+    # The curated live rows are a page-one lead-in, not part of the paged
+    # source list; page two onward starts straight at the next pack/show.
+    live_count = _latest_live_rows(handle) if page == 1 else 0
     if not items and not live_count:
         kodi.notify("Nothing came back from the sources — try again later.")
         ui.status_item(
@@ -1236,12 +1401,14 @@ def latest_view(handle, params):
         kodi.end_directory(handle, "files")
         return
 
-    # Resolve DNB URLs up front (concurrently, short timeout).  Kodi must never
-    # receive a playable DNB row whose stream cannot resolve, or a failure makes
-    # it auto-advance down the folder; unresolved rows are dropped here.
-    streams = latest.resolve_dnb_streams(items)
+    _page_header(handle, page, pages, total, "items")
+    # Resolve DNB URLs for the visible page only (concurrently, short timeout).
+    # Kodi must never receive a playable DNB row whose stream cannot resolve,
+    # or a failure makes it auto-advance down the folder; unresolved rows are
+    # dropped here.
+    streams = latest.resolve_dnb_streams(window)
 
-    for item in items:
+    for item in window:
         when = item.get("when")
         stamp = when.strftime("%d %b %Y") if when else ""
         title = ui.plain(item["title"])
@@ -1277,6 +1444,7 @@ def latest_view(handle, params):
 
     # Visible terminator: folder+playable mix means Kodi should not wrap or
     # treat the whole screen as an endless playlist.
+    _page_nav(handle, "latest", {}, page, pages, total, rows, "items")
     ui.end_marker(handle, "End of list", plot="You have reached the end of Latest.")
     kodi.end_directory(handle, "files")
 
@@ -1331,12 +1499,13 @@ def year_list(handle, params):
     page = _page_number(params)
     rows = _rows_per_page()
     docs, total = archive.search(latest.year_query(year), page=page, rows=rows)
+    pages = max(1, (total + rows - 1) // rows)
     if not docs and page == 1:
         kodi.notify("Nothing in the archive for %s." % year)
+    _page_header(handle, page, pages, total, "items")
     _archive_items(handle, docs)
-    if docs and total > page * rows:
-        ui.menu_item(handle, url_for(mode="year_list", year=year, page=page + 1),
-                     "More from %s" % year, plot=_page_plot(total, page + 1, rows))
+    _page_nav(handle, "year_list", {"year": year}, page, pages, total, rows,
+              "items", has_next=bool(docs))
     kodi.end_directory(handle, "files")
 
 
@@ -1375,7 +1544,12 @@ def feed(handle, params):
     episodes = feeds.episodes(entry["id"], limit=_episode_limit())
     if not episodes:
         kodi.notify("%s did not return any episodes." % entry["name"])
-    for episode in episodes:
+    rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(episodes, page, rows)
+    _page_header(handle, page, pages, total, "episodes",
+                 icon=art(MENU_ART["shows_podcasts"]))
+    for episode in window:
         title = ui.plain(episode["title"])
         label = title
         if episode.get("published"):
@@ -1397,6 +1571,8 @@ def feed(handle, params):
             duration=episode.get("duration"),
             context=[_favourite("stream", episode["url"], title, entry["name"])],
         )
+    _page_nav(handle, "feed", {"key": entry["id"]}, page, pages, total, rows,
+              "episodes")
     kodi.end_directory(handle, "songs")
 
 
@@ -1404,7 +1580,11 @@ def dnb_list(handle, params):
     shows = dnbradio.mixes()
     if not shows:
         kodi.notify("DNBRADIO.com did not answer — try again later.")
-    for show in shows:
+    rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(shows, page, rows)
+    _page_header(handle, page, pages, total, "shows", icon=art(MENU_ART["shows_dnb"]))
+    for show in window:
         title = ui.plain(show["title"])
         date = ui.plain(show["date"])
         label = "%s  [COLOR gray](%s)[/COLOR]" % (title, date) if date else title
@@ -1418,6 +1598,7 @@ def dnb_list(handle, params):
             title=title,
             context=[_favourite("dnb", show["id"], title, "DNB Radio")],
         )
+    _page_nav(handle, "dnb_list", {}, page, pages, total, rows, "shows")
     kodi.end_directory(handle, "songs")
 
 
@@ -1487,7 +1668,12 @@ def legacy_index(handle, params):
     entries = legacy.categories().get(group, [])
     if not entries:
         kodi.notify("RaveTapePacks did not return that index — try again later.")
-    for entry in entries:
+    rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(entries, page, rows)
+    _page_header(handle, page, pages, total, "categories",
+                 icon=art(RTP_INDEX_ART[kind]))
+    for entry in window:
         name = ui.plain(entry["name"])
         ui.menu_item(
             handle,
@@ -1498,6 +1684,8 @@ def legacy_index(handle, params):
             title=name,
             label2=RTP_INDEX_LABELS[kind],
         )
+    _page_nav(handle, "legacy_index", {"kind": kind}, page, pages, total, rows,
+              "categories")
     ui.menu_item(handle, url_for(mode="legacy_menu"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -1519,6 +1707,8 @@ def legacy_category(handle, params):
         return
     if not posts and page == 1:
         kodi.notify("No packs in that RaveTapePacks category.")
+    if page > 1 or next_url:
+        _page_header(handle, page, None, len(posts), "packs")
     for entry in posts:
         name = ui.plain(entry["name"])
         ui.menu_item(
@@ -1532,10 +1722,10 @@ def legacy_category(handle, params):
             label2=RTP_INDEX_LABELS[kind],
             context=[_favourite("legacy_post", entry["id"], name, "RaveTapePacks.com")],
         )
-    if next_url:
-        ui.menu_item(handle, url_for(mode="legacy_category", kind=kind, cat=cat_id,
-                                     label=label, page=page + 1),
-                     "Next page  ›", plot="More packs in this category")
+    _page_nav(handle, "legacy_category",
+              {"kind": kind, "cat": cat_id, "label": label},
+              page, None, len(posts), max(1, len(posts)), "packs",
+              has_next=bool(next_url), has_prev=page > 1)
     ui.menu_item(handle, url_for(mode="legacy_index", kind=kind), "Back")
     kodi.end_directory(handle, "files")
 
@@ -1561,7 +1751,12 @@ def legacy_post(handle, params):
     album = ui.plain(entry["name"])
     if not entry["tracks"]:
         kodi.notify("No tracks on that RaveTapePacks pack.")
-    for track in entry["tracks"]:
+    rows = _rows_per_page()
+    page = _page_number(params)
+    tracks, page, pages, total, start = _paged(entry["tracks"], page, rows)
+    _page_header(handle, page, pages, total, "tracks",
+                 icon=art(MENU_ART["pack_ravetapepacks"]))
+    for index, track in enumerate(tracks):
         url = _playable_url(legacy.playable(track["url"]))
         if not url:
             continue
@@ -1574,8 +1769,15 @@ def legacy_post(handle, params):
             thumb=art(MENU_ART["pack_ravetapepacks"]),
             plot="RaveTapePacks.com · %s" % album,
             album=album,
-            context=_rtp_track_context(url, name),
+            tracknumber=start + index + 1,
+            context=_rtp_track_context(url, name) + [
+                ("Play all from here", "RunPlugin(%s)" % url_for(
+                    mode="play_all_collection", source="legacy_post",
+                    key=post_id, start=start + index)),
+            ],
         )
+    _page_nav(handle, "legacy_post", {"post": post_id}, page, pages, total,
+              rows, "tracks")
     kodi.end_directory(handle, "songs")
 
 
@@ -1583,9 +1785,11 @@ def legacy_jt(handle, params):
     shows = legacy.jungle_shows()
     if not shows:
         kodi.notify("Jungle Tapes did not answer — try again later.")
+    rows = _rows_per_page()
     page = _page_number(params)
-    start = (page - 1) * JT_SHOWS_PER_PAGE
-    window = shows[start:start + JT_SHOWS_PER_PAGE]
+    window, page, pages, total, start = _paged(shows, page, rows)
+    _page_header(handle, page, pages, total, "shows",
+                 icon=art(MENU_ART["pack_jungletapes"]))
     for show in window:
         name = ui.plain(show["name"])
         ui.menu_item(
@@ -1596,10 +1800,7 @@ def legacy_jt(handle, params):
             plot="JungleTapes.com · Toronto jungle radio",
             context=[_favourite("legacy_jt", show["key"], name, "JungleTapes.com")],
         )
-    if start + JT_SHOWS_PER_PAGE < len(shows):
-        ui.menu_item(handle, url_for(mode="legacy_jt", page=page + 1),
-                     "Next page  ›", plot=_page_plot(len(shows), page + 1,
-                                                     JT_SHOWS_PER_PAGE))
+    _page_nav(handle, "legacy_jt", {}, page, pages, total, rows, "shows")
     ui.menu_item(handle, url_for(mode="packs_menu"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -1613,7 +1814,12 @@ def legacy_jt_show(handle, params):
     tracks = legacy.jungle_tracks(key)
     if not tracks:
         kodi.notify("No audio on that show.")
-    for track in tracks:
+    rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(tracks, page, rows)
+    _page_header(handle, page, pages, total, "tracks",
+                 icon=art(MENU_ART["pack_jungletapes"]))
+    for index, track in enumerate(window):
         stream = _playable_url(track["url"])
         if not stream:
             continue
@@ -1625,8 +1831,14 @@ def legacy_jt_show(handle, params):
             name,
             thumb=art(MENU_ART["pack_jungletapes"]),
             plot="JungleTapes.com · %s" % ui.plain(key.replace("-", " ")),
-            context=[_favourite("stream", stream, name, "JungleTapes.com")],
+            tracknumber=start + index + 1,
+            context=[_favourite("stream", stream, name, "JungleTapes.com"),
+                     ("Play all from here", "RunPlugin(%s)" % url_for(
+                         mode="play_all_collection", source="legacy_jt",
+                         key=key, start=start + index))],
         )
+    _page_nav(handle, "legacy_jt_show", {"key": key}, page, pages, total, rows,
+              "tracks")
     kodi.end_directory(handle, "songs")
 
 
@@ -1652,13 +1864,17 @@ def toronto(handle, params):
 
 
 def toronto_genre(handle, params):
-    """Direct MP3 rows for one Toronto genre page."""
+    """Direct MP3 rows for one Toronto genre page, paged like every list."""
     slug = params.get("genre", "")
-    tracks = toronto_source.tracks(slug)
+    all_tracks = toronto_source.tracks(slug)
     genre_label = next((label for name, label in toronto_source.GENRES if name == slug), slug)
-    if not tracks:
+    if not all_tracks:
         kodi.notify("No Toronto mixtapes on that page right now.")
-    for track in tracks:
+    rows = _rows_per_page()
+    page = _page_number(params)
+    tracks, page, pages, total, start = _paged(all_tracks, page, rows)
+    _page_header(handle, page, pages, total, "mixtapes", icon=art("toronto.png"))
+    for index, track in enumerate(tracks):
         stream = _playable_url(track["url"])
         if not stream:
             continue
@@ -1666,6 +1882,9 @@ def toronto_genre(handle, params):
         plot = "Toronto Rave Mixtape Archive · %s" % ui.plain(genre_label)
         context = [_favourite("stream", stream, name, "Toronto Rave Archive")]
         context.extend(_download_context(stream, name, "Toronto Rave Mixtape Archive"))
+        context.append(("Play all from here", "RunPlugin(%s)" % url_for(
+            mode="play_all_collection", source="toronto", key=slug,
+            start=start + index)))
         ui.track_item(
             handle,
             url_for(mode="play", url=stream, label=name, thumb=kodi.ROUND_FACE),
@@ -1674,8 +1893,11 @@ def toronto_genre(handle, params):
             plot=plot,
             album=ui.plain(genre_label),
             genre=ui.plain(genre_label),
+            tracknumber=start + index + 1,
             context=context,
         )
+    _page_nav(handle, "toronto_genre", {"genre": slug}, page, pages, total, rows,
+              "mixtapes")
     ui.menu_item(handle, url_for(mode="toronto"), "Back")
     kodi.end_directory(handle, "songs")
 
@@ -1690,6 +1912,9 @@ def legacy_packs(handle, params):
         return
     if not posts and page == 1:
         kodi.notify("No packs in the RaveTapePacks archive.")
+    if page > 1 or next_url:
+        _page_header(handle, page, None, len(posts), "packs",
+                     icon=art(MENU_ART["curated_legacy"]))
     for entry in posts:
         name = ui.plain(entry["name"])
         ui.menu_item(
@@ -1701,9 +1926,9 @@ def legacy_packs(handle, params):
             title=name,
             context=[_favourite("legacy_post", entry["id"], name, "RaveTapePacks.com")],
         )
-    if next_url:
-        ui.menu_item(handle, url_for(mode="legacy_packs", page=page + 1),
-                     "Next page  ›", plot="More RaveTapePacks packs")
+    _page_nav(handle, "legacy_packs", {}, page, None, len(posts),
+              max(1, len(posts)), "packs",
+              has_next=bool(next_url), has_prev=page > 1)
     kodi.end_directory(handle, "files")
 
 
@@ -1716,7 +1941,12 @@ def legacy_pack(handle, params):
     if not entry:
         kodi.end_directory(handle, "songs")
         return
-    for track in entry["tracks"]:
+    rows = _rows_per_page()
+    page = _page_number(params)
+    tracks, page, pages, total, start = _paged(entry["tracks"], page, rows)
+    _page_header(handle, page, pages, total, "tracks",
+                 icon=art(MENU_ART["pack_ravetapepacks"]))
+    for index, track in enumerate(tracks):
         url = _playable_url(legacy.playable(track["url"]))
         if not url:
             continue
@@ -1728,8 +1958,15 @@ def legacy_pack(handle, params):
             thumb=kodi.ROUND_FACE,
             plot="RaveTapePacks.com · %s" % ui.plain(entry["name"]),
             album=ui.plain(entry["name"]),
-            context=_rtp_track_context(url, name),
+            tracknumber=start + index + 1,
+            context=_rtp_track_context(url, name) + [
+                ("Play all from here", "RunPlugin(%s)" % url_for(
+                    mode="play_all_collection", source="legacy_pack",
+                    key=key, start=start + index)),
+            ],
         )
+    _page_nav(handle, "legacy_pack", {"pack": key}, page, pages, total, rows,
+              "tracks")
     kodi.end_directory(handle, "songs")
 
 
@@ -1805,10 +2042,15 @@ def _handoff_link_items(handle, links, title, icon, plot):
 
 
 def moxser(handle, params):
-    rows = moxser_source.mixes(limit=moxser_source.MAX_MIXES)
-    if not rows:
+    all_rows = moxser_source.mixes(limit=moxser_source.MAX_MIXES)
+    if not all_rows:
         kodi.notify("Moxser did not answer — try again later.")
-    for row in rows:
+    rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(all_rows, page, rows)
+    _page_header(handle, page, pages, total, "mixes",
+                 icon=art(MENU_ART["shows_moxser"]))
+    for offset, row in enumerate(window):
         title = ui.plain(row["title"])
         label = title
         if row.get("date"):
@@ -1822,7 +2064,9 @@ def moxser(handle, params):
             icon=flyer,
             plot="Moxser.com · direct MP3 when available",
             title=title,
+            label2="%d of %s" % (start + offset + 1, _format_count(total)),
         )
+    _page_nav(handle, "moxser", {}, page, pages, total, rows, "mixes")
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -1864,7 +2108,12 @@ def hardscore(handle, params):
     rows = hardscore_source.items(limit=hardscore_source.MAX_ITEMS)
     if not rows:
         kodi.notify("Hardscore did not answer — try again later.")
-    for row in rows:
+    page_rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(rows, page, page_rows)
+    _page_header(handle, page, pages, total, "mixes",
+                 icon=art(MENU_ART["shows_hardscore"]))
+    for row in window:
         title = ui.plain(row["title"])
         date = row.get("date") or ""
         label = title + ("  [COLOR gray](%s)[/COLOR]" % ui.plain(date) if date else "")
@@ -1890,6 +2139,7 @@ def hardscore(handle, params):
                 plot=row.get("description") or "Hardscore.com post",
                 title=title,
             )
+    _page_nav(handle, "hardscore", {}, page, pages, total, page_rows, "mixes")
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -1933,7 +2183,12 @@ def getdarker(handle, params):
     )
     if not rows:
         kodi.notify("GetDarker RSS did not answer — showing the Mixcloud archive only.")
-    for row in rows:
+    page_rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(rows, page, page_rows)
+    _page_header(handle, page, pages, total, "sets",
+                 icon=art(MENU_ART["shows_getdarker"]))
+    for row in window:
         title = ui.plain(row["title"])
         date = row.get("date") or ""
         label = title + ("  [COLOR gray](%s)[/COLOR]" % ui.plain(date) if date else "")
@@ -1945,6 +2200,7 @@ def getdarker(handle, params):
             plot="GetDarker · RSS set page",
             title=title,
         )
+    _page_nav(handle, "getdarker", {}, page, pages, total, page_rows, "sets")
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -1983,7 +2239,11 @@ def mixcloud_account(handle, params):
     rows = mixcloud_source.cloudcasts(source["account"], limit=mixcloud_source.MAX_CLOUDS)
     if not rows:
         kodi.notify("%s did not return any cloudcasts." % source["name"])
-    for row in rows:
+    page_rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(rows, page, page_rows)
+    _page_header(handle, page, pages, total, "sets", icon=art("radio.png"))
+    for row in window:
         title = ui.plain(row["title"])
         target = handoff.mixcloud_cloudcast(row["url"]) or handoff.mixcloud_search(title)
         if not target:
@@ -1999,6 +2259,8 @@ def mixcloud_account(handle, params):
             plot="%s · opens in the Kodi Mixcloud add-on." % source["name"],
             title=title,
         )
+    _page_nav(handle, "mixcloud_account", {"key": params.get("key", "")},
+              page, pages, total, page_rows, "sets")
     ui.menu_item(handle, url_for(mode="root"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -2102,7 +2364,12 @@ def downloads_menu(handle, params):
             fact="empty", kind="empty",
             retry_url=url_for(mode="downloads_menu"),
             icon=art(MENU_ART["downloads"]))
-    for row in rows:
+    page_rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(rows, page, page_rows)
+    _page_header(handle, page, pages, total, "downloads",
+                 icon=art(MENU_ART["downloads"]))
+    for row in window:
         label = ui.plain(row["title"])
         if row.get("exists"):
             label += "  [COLOR gray](%s)[/COLOR]" % downloads.format_size(row["size"])
@@ -2130,6 +2397,9 @@ def downloads_menu(handle, params):
                 context=[("Delete download", "RunPlugin(%s)" % url_for(
                     mode="download_delete", key=row["key"]))],
             )
+    if rows:
+        _page_nav(handle, "downloads_menu", {}, page, pages, total, page_rows,
+                  "downloads")
     ui.menu_item(handle, url_for(mode="fav_list"), "Back")
     kodi.end_directory(handle, "files")
 
@@ -2239,14 +2509,11 @@ def search(handle, params):
                  "search again with a different word.",
             fact="empty", kind="empty",
             retry_url=url_for(mode="search", q=query, page=1))
+    pages = max(1, (total + rows - 1) // rows)
+    _page_header(handle, page, pages, total, "items")
     _archive_items(handle, docs)
-    if docs and total > page * rows:
-        ui.menu_item(
-            handle,
-            url_for(mode="search", q=query, page=page + 1),
-            "Next page  ›",
-            plot=_page_plot(total, page + 1, rows),
-        )
+    _page_nav(handle, "search", {"q": query}, page, pages, total, rows,
+              "items", has_next=bool(docs))
     kodi.end_directory(handle, "files")
 
 
@@ -2533,6 +2800,7 @@ HANDLERS = {
     "archive_list": archive_list,
     "archive_item": archive_item,
     "play_all": play_all,
+    "play_all_collection": play_all_collection,
     "fav_list": fav_list,
     "fav_add": fav_add,
     "fav_remove": fav_remove,
