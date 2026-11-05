@@ -97,14 +97,16 @@ Built with `./scripts/build.sh && ./scripts/build-repo.sh`; committed under
 ```text
 origin/main          22cbf4d  3.9.50: clamp out-of-range pages (advisor P3-1)
 tag v3.9.50          22cbf4d  (lightweight tag; previous release)
-feat/app-integration 437bcfa  release content commit
-git rev-list --left-right --count origin/main...437bcfa   ->  0    14
-git merge-base --is-ancestor origin/main 437bcfa          ->  exit 0
+feat/app-integration HEAD     release content 437bcfa + release notes commits
+git merge-base --is-ancestor origin/main feat/app-integration  ->  exit 0
+git rev-list --left-right --count origin/main...feat/app-integration  ->  0  N
 ```
 
 `main` is a strict ancestor: the merge is a clean fast-forward, 0 commits
-behind / 14 ahead (15 including this document's commit). `origin/main` and
-local `main` both point at `22cbf4d`; no rebase or merge commit is needed.
+behind and only release commits ahead (14 ahead at the first push; the
+release-notes commits add to that, so take the live count from git rather than
+a literal). `origin/main` and local `main` both point at `22cbf4d`; no rebase
+or merge commit is needed.
 
 Pushed ref (done in this pass, nothing else):
 
@@ -124,11 +126,11 @@ configured, so plain `git push` works.
 # 0. Preconditions
 git status --short                       # must be clean
 git fetch origin
-git rev-list --count origin/main..feat/app-integration   # 15
+git rev-list --count origin/main..feat/app-integration   # live count (0 behind)
 git merge-base --is-ancestor origin/main feat/app-integration && echo FF-OK
 
 # 1. Confirm the branch is pushed (done)
-git ls-remote --heads origin feat/app-integration          # 437bcfa...
+git ls-remote --heads origin feat/app-integration          # must equal HEAD
 
 # 2. Fast-forward main only after explicit approval
 git checkout main
