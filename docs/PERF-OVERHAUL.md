@@ -144,6 +144,19 @@ tests. `test/test_cache.py` (+6) covers `parsed()` and `sync=False`.
 the existing gap test now forces a miss (it depended on the machine's cache
 state). `test/test_latest.py` isolates the new disk map per test.
 
+## Audited, no change needed
+
+- **Per-item art resolution.** `routes.art()` is one `os.path.join` and
+  `archive.thumb()` one `quote`/format per row — the 679-row Toronto build
+  shows both at <1 ms total. Artwork is never fetched at directory time.
+- **Disk cache key bloat.** RTP homepage/category/post bodies all go through
+  `legacy.PAGE_HEADERS`, so one view never writes a second body entry under a
+  different header set (the duplicate the web build fixed in 1.6.18); every key
+  is sha256-digested to a fixed 64-char filename.
+- **Serial playlist building.** `_play_tracks()` builds the playlist once and
+  re-validates each URL against the per-route host cache (one DNS lookup per
+  host), so `play_all` warm is 3.1 ms for a 20-track pack.
+
 ## Residual risks / not done
 
 - `toronto_genre` warm is now 82 ms for **679 rows**, dominated by per-row
