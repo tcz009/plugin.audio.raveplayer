@@ -133,11 +133,13 @@ class KodiView(object):
 
     def _visible(self, control_id, visible):
         control = self._control(control_id)
-        if control is not None:
-            try:
-                control.setVisible(bool(visible))
-            except Exception:
-                pass
+        if control is None:
+            return False
+        try:
+            control.setVisible(bool(visible))
+        except Exception:
+            return False
+        return True
 
     def set_title(self, text):
         text = str(text or "")
@@ -262,8 +264,12 @@ class KodiView(object):
             return 0
 
     def set_spinner_visible(self, visible):
+        shown = 0
         for control_id in SPINNER_CONTROLS:
-            self._visible(control_id, visible)
+            if self._visible(control_id, visible):
+                shown += 1
+        xbmc.log("[script.raveplayer.ui] spinner visible=%s controls=%d" % (visible, shown),
+                 level=xbmc.LOGDEBUG)
 
     def set_spinner_background(self, path):
         control = self._control(CONTROL_SPINNER_BG)
