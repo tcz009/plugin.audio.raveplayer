@@ -42,6 +42,9 @@ class RaveScreenController(object):
         self._logger = logger or self._default_log
         self._task_runner = task_runner or ThreadTaskRunner(
             sleep=self._sleep_ms, clock=clock, monitor=monitor,
+            # RTP/VPN egress fetches regularly take 20-30 s; 15 s timed out
+            # every Surprise pick.
+            timeout=45.0,
             # Back closes the window while a 15 s source load or random pick is
             # still polling; stop waiting immediately instead of keeping the
             # script (and the closed window) alive until the worker finishes.
