@@ -113,8 +113,17 @@ class RaveScreenController(object):
             # Hand it to a worker so Kodi can paint the spinner, then return.
             if self._closed or self._busy or self._handed_off:
                 return False
-            thread = threading.Thread(target=self.surprise, name="rave-surprise",
-                                      daemon=True)
+            # Paint the splash on the GUI thread first; Kodi will not apply
+            # control visibility changes made from the worker thread.
+            self._busy = True
+            self._surprising = True
+            self.view.set_spinner_visible(True)
+            if self._frames:
+                self.view.set_spinner_image(self._frames[0])
+            self.view.set_spinner_label("RANDOM PACK · RP-02")
+            self.view.set_status("Spinning for one random pack and track…")
+            thread = threading.Thread(target=self.surprise, args=(True,),
+                                      name="rave-surprise", daemon=True)
             thread.start()
             return True
         if entry.track is not None:
@@ -151,17 +160,20 @@ class RaveScreenController(object):
         return True
 
     # ------------------------------------------------------------- surprises
-    def surprise(self):
+    def surprise(self, prepared=False):
         """Pick one pack + track, spin for >=1.2s, then hand off playback."""
-        if self._closed or self._busy or self._handed_off:
+        if self._closed:
             return False
-        self._busy = True
-        self._surprising = True
-        self.view.set_spinner_visible(True)
-        if self._frames:
-            self.view.set_spinner_image(self._frames[0])
-        self.view.set_spinner_label("RANDOM PACK · RP-02")
-        self.view.set_status("Spinning for one random pack and track…")
+        if not prepared:
+            if self._busy or self._handed_off:
+                return False
+            self._busy = True
+            self._surprising = True
+            self.view.set_spinner_visible(True)
+            if self._frames:
+                self.view.set_spinner_image(self._frames[0])
+            self.view.set_spinner_label("RANDOM PACK · RP-02")
+            self.view.set_status("Spinning for one random pack and track…")
         try:
             pick = self._task_runner.run(self.data.random_pick)
             if self._closed:
