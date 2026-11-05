@@ -235,7 +235,11 @@ Warm root import+dispatch is ~0.08 s (was 0.78 s), the root route itself is
 ~0.0001 s, Latest cold is ~6 s / warm ~0.04 s, and cached pack open ~0.003 s.
 Full methodology, before/after table and residual risks:
 [`docs/PERF-3.9.20.md`](docs/PERF-3.9.20.md); reproduce with
+<<<<<<< HEAD
 `python3 scripts/benchmark.py`. RTP egress + loopback playback bridge; 542 tests in 3.9.44.
+=======
+`python3 scripts/benchmark.py`. Round-face fallback for coverless tracks; 524 tests in 3.9.48.
+>>>>>>> hardening/3.9.48
 
 ## Why it was rebuilt rather than patched
 

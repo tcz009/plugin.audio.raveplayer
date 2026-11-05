@@ -110,7 +110,7 @@ class TorontoRouteTests(unittest.TestCase):
         item = xbmcplugin.ITEMS[0]
         self.assertIn("mode=play", item["url"])
         self.assertIn("files%2Fmixtape%2Fa.mp3", item["url"])
-        self.assertTrue(item["art"]["thumb"].endswith("toronto.png"))
+        self.assertTrue(item["art"]["thumb"] == routes.kodi.ROUND_FACE)
         labels = [ctx[0] for ctx in item["context"]]
         self.assertIn("Add to favourites", labels)
         self.assertIn("Download", labels)

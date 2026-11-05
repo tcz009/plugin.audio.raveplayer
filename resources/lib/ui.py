@@ -228,8 +228,8 @@ def track_item(handle, url, label, thumb=None, fanart=None, plot=None, artist=No
                duration=None, context=None, title=None, label2=None, year=None, genre=None,
                tracknumber=None):
     art = {
-        "icon": thumb or kodi.ICON,
-        "thumb": thumb or kodi.ICON,
+        "icon": thumb or kodi.ROUND_FACE,
+        "thumb": thumb or kodi.ROUND_FACE,
         "fanart": fanart or DEFAULT_FANART,
     }
     # Kodi 22 rejects the music "plot" key; kodi.music_info keeps "comment"

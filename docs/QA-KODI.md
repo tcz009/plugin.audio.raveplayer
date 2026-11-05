@@ -16,7 +16,11 @@ bottom.
 - Optional: `RAVE_DOWNLOAD_DIR` is not needed on the Shield; downloads go to
   `special://userdata/downloads/raveplayer/`.
 - Full suite on the build machine: `python3 -m unittest discover -s test`
+<<<<<<< HEAD
   → **542 tests OK**.
+=======
+  → **524 tests OK**.
+>>>>>>> hardening/3.9.48
 
 ## 1. Install / update
 
@@ -156,7 +160,11 @@ Reference: `docs/LOOK-AND-FEEL-2026.md` and `docs/LOOK-AND-FEEL-3.9.44.md`.
 ## 10. Local smoke commands (build machine)
 
 ```sh
+<<<<<<< HEAD
 python3 -m unittest discover -s test          # 542 tests
+=======
+python3 -m unittest discover -s test          # 524 tests
+>>>>>>> hardening/3.9.48
 python3 test/run.py root
 python3 test/run.py packs_menu
 python3 test/run.py shows_menu

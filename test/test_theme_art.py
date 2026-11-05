@@ -213,7 +213,7 @@ class ThemeArtTests(unittest.TestCase):
                 mock.patch.object(routes.downloads, "eligible", return_value=True):
             rows = rows_before_back(capture(routes.toronto_genre, {"genre": "jungle"}))
         self.assertEqual(len(rows), 1)
-        self.assertTrue(rows[0]["art"]["thumb"].endswith("toronto.png"))
+        self.assertTrue(rows[0]["art"]["thumb"] == routes.kodi.ROUND_FACE)
 
     def test_all_fanart_assets_are_used(self):
         used = {os.path.basename(name) for name in art_literals()

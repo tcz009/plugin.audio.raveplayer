@@ -1,44 +1,9 @@
 Rave Player 3.9.48
-- RaveTapePacks index navigation fixed: By Event / By DJ / By MC / By Year now
-  open their own category lists instead of all showing the homepage packs.
-- legacy.categories() parses the homepage category anchors in document order
-  and classifies them at the verified boundaries (50 events, 209 DJs from
-  Adam F, 90 MCs from 5ive-O, 13 years 1992–2004); genre/sidebar categories
-  after 2004 are excluded.  The old PACKS BY <ul> nesting is a fallback only.
-- New legacy.category() follows WordPress "Older posts" paging (bounded) and
-  returns every ?p=<id> pack in the category; new legacy_category route lists
-  those packs and opens legacy_post.
-- New legacy.post() parses a pack post page's direct MP3 players, preserving
-  player order and reusing the existing resolver/Referer suffix.  legacy_post
-  lists the tracks with Add to favourites and Download context.
-- RaveTapePacks.com is now an approved download source (host-allowlisted;
-  downloads use the same egress route as playback), so the new post rows can
-  offer Download without weakening the source check.
-- Fixtures: 2024 homepage nav (50/209/90/13), real Wayback excerpts of a
-  paginated Dreamscape category and post 899.  No live network in tests.
-- Tests: 563 OK (20 new in test/test_rtp_navigation.py plus the kind-route test).  Version 3.9.48
-  because the uncommitted Rave Screen work already claims 3.9.47.
-  Repo artifacts are not rebuilt; nothing pushed or deployed.
-
-Rave Player 3.9.44
-- Look-and-feel pass 1–3 from docs/LOOK-AND-FEEL-2026.md, no playback changes.
-- Label2 everywhere: a plain ≤16-character fact on every row it helps —
-  duration on tracks, size · date on downloads, counts/spans on hubs,
-  venue/year where parsed. Markup stripped; over-long facts clipped.
-- Visible descriptions: descriptions now go on a minimal video InfoTag as well
-  as the music tag, because Estuary resolves ListItem.Plot from the video tag
-  on Kodi 22. Root/hub, About & Sources and Downloads copy we written but had
-  never displayed. Music comment/plot stays authoritative for the dialog/OSD;
-  Kodi <22 keeps both tags, Kodi 22 keeps comment + video plot.
-- Track InfoTags: stop discarding parsed metadata. artist, year, genre,
-  tracknumber and the real album (item title, no more identifier slug) are set
-  on archive track rows and on the "Play all" playlist, so the Estuary song
-  panel and the OSD have real values. Genre comes from Archive subject tags (or an
-  explicit genre word in the title); unknown stays blank rather than guessed.
-- Removed all 70 tracked "* 2.*" duplicate artifacts (docs/theme-2026, art,
-  tests, scripts) that made test_naming fail; suite green again.
-- Tests: 542 OK (21 new in test/test_look_feel.py). Repo artifacts rebuilt for
-  3.9.44. Not pushed or deployed; Shield check is pending.
+- Round-face fallback for Kodi’s player/Now Playing: playable tracks with no
+  cover now use resources/art/icon.png instead of the generic eye; genuine
+  cover art is preserved. Applied in play/playlist resolution, ui.track_item
+  and RaveTapePacks/Toronto/Moxser track rows.
+- Tests: 524 OK. No playback/autoplay changes.
 
 Rave Player 3.9.43
 - Merged feat/rtp-egress: per-host RaveTapePacks HTTP CONNECT proxy via

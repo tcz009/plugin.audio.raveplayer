@@ -490,8 +490,9 @@ def _play_tracks(tracks, identifier, start=0, shuffle=False):
                     % (dropped, "" if dropped == 1 else "s"))
     if not playable:
         return False
-    thumb = archive.thumb(identifier)
-    pack_title = archive.item_title(identifier) or identifier.replace("-", " ")
+    album = identifier.replace("-", " ")
+    thumb = archive.thumb(identifier) or kodi.ROUND_FACE
+    pack_title = archive.item_title(identifier) or album
     playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
     playlist.clear()
     for index, track, url in playable:
@@ -1233,7 +1234,7 @@ def dnb_play(handle, params):
         _fail_playback(handle, "Could not resolve that DNBRADIO mix.")
         return
     play(handle, {"url": url, "label": label,
-                  "thumb": params.get("thumb") or kodi.ICON})
+                  "thumb": params.get("thumb") or kodi.ROUND_FACE})
 
 
 def legacy_menu(handle, params):
@@ -1433,9 +1434,9 @@ def toronto_genre(handle, params):
         context.extend(_download_context(stream, name, "Toronto Rave Mixtape Archive"))
         ui.track_item(
             handle,
-            url_for(mode="play", url=stream, label=name, thumb=art("toronto.png")),
+            url_for(mode="play", url=stream, label=name, thumb=kodi.ROUND_FACE),
             name,
-            thumb=art("toronto.png"),
+            thumb=kodi.ROUND_FACE,
             plot=plot,
             album=ui.plain(genre_label),
             genre=ui.plain(genre_label),
@@ -1478,10 +1479,9 @@ def legacy_pack(handle, params):
         name = ui.plain(track["name"])
         ui.track_item(
             handle,
-            url_for(mode="play", url=url, label=name,
-                    thumb=art(MENU_ART["pack_ravetapepacks"])),
+            url_for(mode="play", url=url, label=name, thumb=kodi.ROUND_FACE),
             name,
-            thumb=art(MENU_ART["pack_ravetapepacks"]),
+            thumb=kodi.ROUND_FACE,
             plot="RaveTapePacks.com · %s" % ui.plain(entry["name"]),
             album=ui.plain(entry["name"]),
             context=_rtp_track_context(url, name),
@@ -1592,7 +1592,7 @@ def moxser_mix(handle, params):
         return
     title = ui.plain(details["title"])
     flyer = _safe_art(params.get("flyer") or details.get("flyer"),
-                      art(MENU_ART["shows_moxser"]))
+                      kodi.ROUND_FACE)
     plotted = "Moxser.com"
     if details.get("date"):
         plotted += " · %s" % details["date"]
@@ -2139,7 +2139,7 @@ def play(handle, params):
     bridge = None
     try:
         stream = _playable_url(params.get("url", ""))
-        thumb = _safe_art(params.get("thumb"), kodi.ICON)
+        thumb = _safe_art(params.get("thumb"), kodi.ROUND_FACE)
         fanart = _safe_art(params.get("fanart"), "")
         plotted = params.get("plot") or ""
         if not stream:
