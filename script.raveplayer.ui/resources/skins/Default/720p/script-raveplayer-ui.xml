@@ -43,9 +43,9 @@
         <control type="label" id="21">
             <description>Rave Screen wordmark</description>
             <posx>48</posx>
-            <posy>28</posy>
+            <posy>14</posy>
             <width>560</width>
-            <height>36</height>
+            <height>50</height>
             <font>font45</font>
             <textcolor>0xFFE8FF00</textcolor>
             <label>RAVE SCREEN</label>
@@ -58,7 +58,7 @@
             <posy>76</posy>
             <width>530</width>
             <height>52</height>
-            <font>font20</font>
+            <font>font27</font>
             <textcolor>0xFFF2EEE3</textcolor>
             <label>RAVE SCREEN</label>
         </control>
@@ -124,7 +124,7 @@
                     <posy>6</posy>
                     <width>474</width>
                     <height>34</height>
-                    <font>font16</font>
+                    <font>font14</font>
                     <textcolor>0xFF07070B</textcolor>
                     <label>$INFO[ListItem.Label]</label>
                     <animation effect="zoom" start="100" end="102" center="left" time="150">Focus</animation>
@@ -168,12 +168,15 @@
             <posy>654</posy>
             <width>1184</width>
             <height>34</height>
-            <font>font16</font>
+            <font>font14</font>
             <textcolor>0xFFFF2D8F</textcolor>
             <label></label>
         </control>
 
-        <!-- Spinning Surprise: a full-window reveal, not a dialog on top of a plugin. -->
+        <!-- Spinning Surprise: a full-window reveal, not a dialog on top of a plugin.
+             Hidden in the XML as well as in onInit(): Kodi renders the window
+             before the deferred onInit callback runs, so a default-visible
+             overlay flashes on every open. -->
         <control type="image" id="60">
             <description>Surprise backdrop</description>
             <posx>0</posx>
@@ -182,6 +185,7 @@
             <height>720</height>
             <aspectratio>stretch</aspectratio>
             <texture>screen-bg.jpg</texture>
+            <visible>false</visible>
             <animation effect="fade" start="0" end="100" time="180">Visible</animation>
         </control>
         <control type="image" id="64">
@@ -192,6 +196,7 @@
             <height>640</height>
             <aspectratio>keep</aspectratio>
             <texture>surprise-ring.png</texture>
+            <visible>false</visible>
         </control>
         <control type="image" id="61">
             <description>Spinning Rave Player head</description>
@@ -201,6 +206,7 @@
             <height>400</height>
             <aspectratio>keep</aspectratio>
             <align>center</align>
+            <visible>false</visible>
         </control>
         <control type="label" id="62">
             <description>Surprise label</description>
@@ -208,10 +214,11 @@
             <posy>530</posy>
             <width>800</width>
             <height>60</height>
-            <font>font30</font>
+            <font>font37</font>
             <align>center</align>
             <textcolor>0xFFFF2D8F</textcolor>
             <label>SPINNING…</label>
+            <visible>false</visible>
         </control>
         <control type="label" id="63">
             <description>Surprise hint</description>
@@ -223,6 +230,7 @@
             <align>center</align>
             <textcolor>0xFFF2EEE3</textcolor>
             <label>One pick. One track. No re-roll loop.</label>
+            <visible>false</visible>
         </control>
     </controls>
     <defaultcontrol>50</defaultcontrol>
