@@ -264,6 +264,8 @@ def open_screen(window_factory=None, monitor_factory=None):
     # dialogs" without an add-on id).  Retry briefly, then fail fast instead of
     # looping forever with an invisible window.
     def _active():
+        if getattr(window, "closed", False):
+            return True
         try:
             current = xbmcgui.getCurrentWindowId()
         except Exception:
