@@ -1063,6 +1063,9 @@ class LibraryScreens:
         target = _text(payload.get("target") or payload.get("url"))
         title = _text(payload.get("title"))
         source = _text(payload.get("source"))
+        if payload.get("local"):
+            return ActionResult(False, ACTION_FAVOURITE,
+                                "That file is already downloaded.")
         if not target or not title:
             return ActionResult(False, ACTION_FAVOURITE,
                                 "That row cannot be favourited.")

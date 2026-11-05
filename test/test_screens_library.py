@@ -603,6 +603,13 @@ class DownloadsTests(LibraryTestCase):
         self.assertTrue(playback.calls[0].local)
         self.assertEqual(self.backend.playable_calls, [])
 
+    def test_a_downloaded_file_is_not_favourited_as_a_stream(self):
+        screen = self.screens.downloads(1)
+        result = self.screens.favourite(screen.rows[0])
+        self.assertFalse(result.ok)
+        self.assertEqual(result.message, "That file is already downloaded.")
+        self.assertEqual(self.backend.favourite_store, [])
+
     def test_remove_a_missing_download(self):
         screen = self.screens.downloads(1)
         result = self.screens.remove(screen.rows[1])

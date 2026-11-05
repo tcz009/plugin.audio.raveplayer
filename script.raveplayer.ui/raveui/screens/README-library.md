@@ -25,7 +25,7 @@ second visual language to learn or reskin.
 script.raveplayer.ui/raveui/screens/__init__.py          # public re-exports
 script.raveplayer.ui/raveui/screens/library.py           # protocol + adapter
 script.raveplayer.ui/raveui/screens/README-library.md    # this file
-test/test_screens_library.py                             # 74 offline tests
+test/test_screens_library.py                             # 75 offline tests
 ```
 
 > **Package merge note:** `raveui/screens/` is shared with the live-radio
@@ -291,7 +291,7 @@ the worker blocks. A download is refused before the network when the plugin's
 python3 -m unittest test.test_screens_library -v
 ```
 
-74 tests, all offline, using the existing `test/stubs` Kodi stubs:
+75 tests, all offline, using the existing `test/stubs` Kodi stubs:
 
 * 25/50/100 page sizes, backend snapshot, clamping, page labels;
 * scoped search (`collection:ravetapes AND mediatype:audio`), blank query,
@@ -307,7 +307,7 @@ python3 -m unittest test.test_screens_library -v
   path through `raveplayer_plugin.resources.lib.*`;
 * a library `Row` renders through the existing `KodiView.set_rows` unchanged.
 
-Full suite remains green: `python3 -m unittest discover -s test` → 799 tests.
+Full suite remains green: `python3 -m unittest discover -s test` → 800 tests.
 
 ---
 
