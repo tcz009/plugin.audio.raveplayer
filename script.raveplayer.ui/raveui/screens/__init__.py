@@ -1,19 +1,90 @@
 # -*- coding: utf-8 -*-
-"""Screens package for the full-screen Rave Screen.
+"""Screens package for the full-screen Rave app.
 
-New screen data/action modules live here so the main shell
-(``raveui/window.py``, ``raveui/controller.py`` and the skin XML) can stay a
-thin adapter.  Every module in this package is pure Python: it can be imported
-and tested without ``xbmc``/``xbmcgui`` or a device.
+Pure-Python data/action modules for the shell: Live Radio (``live``) and the
+library rooms Search/Favourites/Downloads/About (``library``).  Nothing in
+this package imports Kodi at module level, so it stays import-light and
+testable; the shell is the only adapter that touches xbmc/xbmcgui.
 """
 
-from .live import LiveRadio, LiveTrack, Row, Station, StationState, load_stations
+from .library import (  # noqa: F401 - public re-exports for the shell
+    AboutInfo,
+    ActionResult,
+    DEFAULT_PAGE_SIZE,
+    KIND_ACTION,
+    KIND_ROOM,
+    KIND_TRACK,
+    LibraryScreens,
+    Link,
+    PluginBackend,
+    PlayItem,
+    ROW_KINDS,
+    ROUTE_ABOUT,
+    ROUTE_DOWNLOADS,
+    ROUTE_FAVOURITES,
+    ROUTE_SEARCH,
+    Row as LibraryRow,
+    Screen,
+    STATE_EMPTY,
+    STATE_ERROR,
+    STATE_LOADING,
+    STATE_READY,
+    ACTION_DOWNLOAD,
+    ACTION_FAVOURITE,
+    ACTION_OPEN,
+    ACTION_PLAY,
+    ACTION_PLAY_ALL,
+    ACTION_REMOVE,
+    ACTION_RETRY,
+    ACTION_SHUFFLE,
+    PAGE_SIZES,
+    normalise_page_size,
+)
+from .live import (  # noqa: F401 - public re-exports for the shell
+    LiveRadio,
+    LiveTrack,
+    Row as LiveRow,
+    Station,
+    StationState,
+    load_stations,
+)
 
 __all__ = [
+    "AboutInfo",
+    "ActionResult",
+    "DEFAULT_PAGE_SIZE",
+    "KIND_ACTION",
+    "KIND_ROOM",
+    "KIND_TRACK",
+    "LibraryRow",
+    "LibraryScreens",
+    "Link",
     "LiveRadio",
+    "LiveRow",
     "LiveTrack",
-    "Row",
+    "PluginBackend",
+    "PlayItem",
+    "ROW_KINDS",
+    "ROUTE_ABOUT",
+    "ROUTE_DOWNLOADS",
+    "ROUTE_FAVOURITES",
+    "ROUTE_SEARCH",
+    "Screen",
     "Station",
     "StationState",
+    "STATE_EMPTY",
+    "STATE_ERROR",
+    "STATE_LOADING",
+    "STATE_READY",
+    "ACTION_DOWNLOAD",
+    "ACTION_FAVOURITE",
+    "ACTION_OPEN",
+    "ACTION_PLAY",
+    "ACTION_PLAY_ALL",
+    "ACTION_REMOVE",
+    "ACTION_RETRY",
+    "ACTION_SHUFFLE",
+    "PAGE_SIZES",
     "load_stations",
+    "normalise_page_size",
 ]
