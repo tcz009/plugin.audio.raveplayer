@@ -1,3 +1,26 @@
+Rave Player 3.9.50
+- Fix pass for the independent 3.9.49 advisor review (NOT SHIP -> fixed).
+- JungleTapes playback (P1-1): the Shield's Kodi/libcurl fetch of a
+  jungletapes.com MP3 timed out (`CFileCache::Open failed`, cache stayed 0 %)
+  even though the add-on's own Python fetch of the same URL worked. Playback now
+  takes the existing tokenised 127.0.0.1 bridge for JungleTapes as well as RTP,
+  so the add-on streams it with Python and Kodi reads the loopback URL. Browsing
+  and direct fallback are unchanged; every other host is still refused (403).
+  Device: two Rinse Out shows played (9 s/35.9 % cache and 11 s/32.6 % cache);
+  no CFileCache/CCurlFile errors after the change.
+- Rave Screen (3.9.49): successful navigation now replaces "Loading <section>…"
+  with "<N> rows · ready" and Back clears to the home STANDBY state (P1-2);
+  Back restores the selected row instead of row 1 (P2-6); over-long header
+  titles/subtitles are ellipsised before Kodi can draw them over the wordmark
+  (P2-1); the room count is plural-aware ("1 ROOM", "6 ROOMS", P2-1); the RTP
+  room now opens with By Event / By DJ / By MC / By Year / All Packs doors over
+  the real indexes, followed by the homepage's featured packs (P2-5).
+- Release hygiene: `rtp_egress_proxy` ships blank (direct) instead of the
+  developer's private LAN address; docs show a placeholder (P2-3). Changelog no
+  longer repeats the private default.
+- Tests: 705 Kodi tests OK (twice). New bridge/JT, status, focus, plural,
+  title-clip and RTP-index regression tests.
+
 Rave Player 3.9.49
 - Integration release: the sources overhaul, the 3.9.49 performance pass and
   the 2026 look now ship together. Sources correctness is authoritative where
@@ -61,7 +84,7 @@ Rave Player 3.9.48
 
 Rave Player 3.9.43
 - Merged feat/rtp-egress: per-host RaveTapePacks HTTP CONNECT proxy via
-  rtp_egress_proxy (default 192.168.1.142:8888) / RTP_EGRESS_PROXY; only RTP
+  rtp_egress_proxy (blank by default = direct) / RTP_EGRESS_PROXY; only RTP
   hosts proxied, everything else direct, one-shot direct fallback, SSRF guards
   preserved.
 - Loopback playback bridge for RTP: Kodi fetches a tokenised 127.0.0.1 URL;

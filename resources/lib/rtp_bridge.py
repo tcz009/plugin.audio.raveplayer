@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Tiny loopback bridge for RaveTapePacks playback.
+"""Tiny loopback bridge for RaveTapePacks + JungleTapes playback.
 
-Kodi's player cannot use the add-on's HTTP proxy directly.  This module starts
-a server on 127.0.0.1 with a random token; only RaveTapePacks/RTP URLs can be
-fetched through it, and every upstream request uses the same egress proxy and
-SSRF guards as the rest of the add-on.  The server is bounded per request and
-closed by the play route in a finally block.
+Kodi's player cannot use the add-on's HTTP proxy directly, and on the Shield
+its libcurl fetch of a JungleTapes MP3 host stalls (`CFileCache::Open failed`)
+while the add-on's own Python fetch works.  This module starts a server on
+127.0.0.1 with a random token; only allowlisted playback hosts (RTP egress
+hosts plus JungleTapes) can be fetched through it, and every upstream request
+uses the same SSRF guards as the rest of the add-on.  The server is bounded per
+request and closed by the play route in a finally block.
 """
 
 import base64
@@ -67,8 +69,9 @@ class _Handler(http_server.BaseHTTPRequestHandler):
         except Exception:
             self._reject(400)
             return
-        # The bridge is never an open proxy: only RTP hosts may be bridged.
-        if not http.is_egress_host(target):
+        # The bridge is never an open proxy: only hosts on its allowlist
+        # (RaveTapePacks egress + JungleTapes playback) may be bridged.
+        if not http.is_bridge_host(target):
             self._reject(403)
             return
         forwarded = {}
@@ -81,7 +84,7 @@ class _Handler(http_server.BaseHTTPRequestHandler):
                                  headers=forwarded,
                                  method="HEAD" if head else "GET") as upstream:
                 final = getattr(upstream, "geturl", lambda: target)()
-                if not http.is_egress_host(final):
+                if not http.is_bridge_host(final):
                     self._reject(502)
                     return
                 status = int(getattr(upstream, "status", 200) or 200)
@@ -144,9 +147,13 @@ class RTPBridge(object):
             return False
 
     def url_for(self, target):
-        """Return a loopback URL for an RTP target, or '' for anything else."""
+        """Return a loopback URL for a bridge-eligible target, or ''.
+
+        RaveTapePacks (egress proxy) and JungleTapes (Kodi's libcurl stalls on
+        its MP3 host on the Shield) are eligible; everything else is refused.
+        """
         text = str(target or "")
-        if not http.is_egress_host(text) or not self._httpd:
+        if not http.is_bridge_host(text) or not self._httpd:
             return ""
         return "http://127.0.0.1:%d/%s/%s" % (self.port, self.token, _b64(text))
 

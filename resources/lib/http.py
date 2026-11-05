@@ -74,21 +74,48 @@ def _egress_hosts():
     return hosts or DEFAULT_EGRESS_HOSTS
 
 
-def is_egress_host(value):
-    """True when ``value`` (URL or hostname) should use the RTP egress route."""
+def _host_of(value):
+    """Return the lowercase host of ``value`` (URL, hostname, or "")."""
     try:
         text = str(value or "").strip()
         if not text:
-            return False
+            return ""
         if "://" in text:
             host = urllib.parse.urlsplit(text).hostname or ""
         else:
             host = text
-        host = host.lower().rstrip(".")
+        return host.lower().rstrip(".")
     except (ValueError, AttributeError):
+        return ""
+
+
+def is_egress_host(value):
+    """True when ``value`` (URL or hostname) should use the RTP egress route."""
+    host = _host_of(value)
+    if not host:
         return False
     return any(host == suffix or host.endswith("." + suffix)
                for suffix in _egress_hosts())
+
+
+# JungleTapes serves its show pages to this client's Python stack but Kodi's
+# libcurl fetch of the same MP3 times out on the Shield (CFileCache::Open
+# failed, 0 % cache).  The stream is therefore routed through the same
+# loopback bridge as RTP; the bridge fetches with Python, which works on the
+# device.  This is a playback transport fix, not an egress-proxy rule: the
+# bridge never becomes an open proxy.
+BRIDGE_HOSTS = ("jungletapes.com",)
+
+
+def is_bridge_host(value):
+    """True when a media URL should be played through the loopback bridge."""
+    host = _host_of(value)
+    if not host:
+        return False
+    if is_egress_host(host):
+        return True
+    return any(host == suffix or host.endswith("." + suffix)
+               for suffix in BRIDGE_HOSTS)
 
 
 def egress_proxy():

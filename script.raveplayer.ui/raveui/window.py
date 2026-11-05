@@ -79,6 +79,21 @@ CONTROL_SPINNER_NOISE = 713
 # XML condition and the Python state in agreement.
 SPLASH_PROPERTY = "rp_splash"
 
+# The view title/subtitle are right-aligned inside 440 px at 720p.  Kodi draws
+# an over-long right-aligned label leftwards past its control, into the
+# wordmark (P2-1: the Damon Wild pack title overlapped RAVE PLAYER).  Clip at a
+# character budget that comfortably fits 440 px in font12; the visible ellipsis
+# keeps the title readable and the hero still shows the full name.
+MAX_VIEW_TITLE = 30
+MAX_VIEW_SUBTITLE = 40
+
+
+def _clip(text, limit):
+    text = " ".join(str(text or "").split())
+    if len(text) <= limit:
+        return text
+    return text[:max(1, limit - 1)].rstrip() + "…"
+
 SPINNER_CONTROLS = (
     CONTROL_SPINNER_BG, CONTROL_SPINNER_RING, CONTROL_SPINNER_HEAD,
     CONTROL_SPINNER_CAPTION, CONTROL_SPINNER_TITLE, CONTROL_SPINNER_SUB,
@@ -150,7 +165,7 @@ class KodiView(object):
         return True
 
     def set_title(self, text):
-        text = str(text or "")
+        text = _clip(str(text or ""), MAX_VIEW_TITLE)
         self._view_title = text
         self._label(CONTROL_VIEW_TITLE, text)
         self._visible(CONTROL_VIEW_TITLE, text != HOME_TITLE)
@@ -158,12 +173,28 @@ class KodiView(object):
             self._visible(CONTROL_VIEW_SUBTITLE, False)
 
     def set_subtitle(self, text):
-        self._label(CONTROL_VIEW_SUBTITLE, text)
+        self._label(CONTROL_VIEW_SUBTITLE, _clip(text, MAX_VIEW_SUBTITLE))
         self._visible(CONTROL_VIEW_SUBTITLE,
                       getattr(self, "_view_title", HOME_TITLE) != HOME_TITLE)
 
     def set_status(self, text):
         self._label(CONTROL_STATUS, text)
+
+    def set_room_count(self, count):
+        """Write the plural-aware "N ROOM(S) · STANDBY/ON AIR" footer labels.
+
+        The XML used a literal "ROOMS", which produced "1 ROOMS · STANDBY"
+        (P2-1).  Kodi's label forms have no plural rule, so both the idle and
+        the on-air label are written from Python; the XML still owns their
+        visibility conditions.
+        """
+        try:
+            count = max(0, int(count))
+        except (TypeError, ValueError):
+            count = 0
+        unit = "ROOM" if count == 1 else "ROOMS"
+        self._label(CONTROL_ROOMS_IDLE, "[B]%d[/B] %s · STANDBY" % (count, unit))
+        self._label(CONTROL_ROOMS_ON_AIR, "[B]%d[/B] %s · ON AIR" % (count, unit))
 
     def set_now_playing(self, text):
         # The footer is bound to Player.* so Kodi keeps it current without a
@@ -192,10 +223,11 @@ class KodiView(object):
             icon = hero
         return icon, hero
 
-    def set_rows(self, rows):
+    def set_rows(self, rows, selected=0):
         control = self._control(CONTROL_LIST)
         if control is None:
             return
+        rows = list(rows or [])
         try:
             control.reset()
         except Exception:
@@ -240,7 +272,13 @@ class KodiView(object):
                 except Exception:
                     break
         try:
-            control.selectItem(0)
+            position = max(0, min(int(selected), len(items) - 1)) if items else 0
+            control.selectItem(position)
+        except (TypeError, ValueError):
+            try:
+                control.selectItem(0)
+            except Exception:
+                pass
         except Exception:
             pass
 

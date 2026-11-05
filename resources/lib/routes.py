@@ -2415,6 +2415,10 @@ def _tuning_aborted(handle, tuning):
 def play(handle, params):
     label = params.get("label", "Rave Player")
     is_rtp = http.is_egress_host(params.get("url", ""))
+    # JungleTapes MP3s also go through the loopback bridge: Kodi's libcurl
+    # fetch of that host stalls on the Shield while the add-on's Python fetch
+    # works (3.9.50 P1-1).  Keep the RTP silence rule scoped to RTP only.
+    is_bridge = http.is_bridge_host(params.get("url", ""))
     # RTP failures must stay silent: no spinner notification/dialog/banner.
     tuning = None if is_rtp else _start_tuning_spinner(params.get("station") or label)
     bridge = None
@@ -2431,7 +2435,7 @@ def play(handle, params):
                            "(private, loopback or unresolved host).",
                            quiet=is_rtp)
             return
-        if is_rtp:
+        if is_bridge:
             try:
                 bridge = rtp_bridge.RTPBridge()
                 if bridge.start():
@@ -2444,7 +2448,7 @@ def play(handle, params):
                 else:
                     bridge = None
             except Exception as exc:  # noqa: BLE001 - fall back direct silently
-                kodi.log("RTP bridge unavailable (%s)" % exc.__class__.__name__,
+                kodi.log("stream bridge unavailable (%s)" % exc.__class__.__name__,
                          level=10)
                 bridge = None
         if tuning is not None and not live.is_live_stream(stream) \

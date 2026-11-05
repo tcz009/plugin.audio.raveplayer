@@ -27,6 +27,9 @@ class _ViewState:
     title: str
     subtitle: str
     rows: list
+    # 3.9.50 P2-6: Back restores the row the user opened, not row 1.  The
+    # stack has to remember the list position as well as the data.
+    index: int = 0
 
 
 class RaveScreenController(object):
@@ -66,6 +69,7 @@ class RaveScreenController(object):
         self._title = HOME_TITLE
         self._subtitle = HOME_SUBTITLE
         self._render(rows)
+        self.view.set_status("")
         return rows
 
     @property
@@ -131,10 +135,12 @@ class RaveScreenController(object):
             return True
         if entry.track is not None:
             return self._handoff(entry.track)
-        if entry.kind in ("pack", "genre", "show"):
-            return self._open_children(entry)
-        self.view.set_status("Nothing to play on that row.")
-        return False
+        if entry.kind in ("section", "surprise"):
+            self.view.set_status("Nothing to play on that row.")
+            return False
+        # Any other row is a folder: a pack/genre/show and the RTP index,
+        # category, post and "More packs" levels all open one level deeper.
+        return self._open_children(entry)
 
     def shutdown(self):
         """Mark closed without touching the window (called by the adapter)."""
@@ -156,7 +162,9 @@ class RaveScreenController(object):
             state = self._stack.pop()
             self._title = state.title
             self._subtitle = state.subtitle
-            self._render(state.rows)
+            # Restore both the rows and the list position.  The previous code
+            # re-rendered from index 0, so Back always jumped to row 1 (P2-6).
+            self._render(state.rows, state.index)
             return False
         self._closed = True
         self.view.close()
@@ -263,7 +271,8 @@ class RaveScreenController(object):
         if not rows:
             self.view.set_status("Nothing in %s right now." % entry.label)
             return False
-        self._stack.append(_ViewState(self._title, self._subtitle, self._rows))
+        self._stack.append(_ViewState(self._title, self._subtitle, self._rows,
+                                      self._current_index()))
         self._title = title
         self._subtitle = subtitle
         self._render(rows)
@@ -289,15 +298,40 @@ class RaveScreenController(object):
             pass
         return True
 
-    def _render(self, rows):
+    def _render(self, rows, index=0):
         self._rows = list(rows or [])
         self.view.set_title(self._title)
         self.view.set_subtitle(self._subtitle)
-        self.view.set_rows(self._rows)
+        # set_rows now restores a position; on a new section index is 0.
+        set_rows = self.view.set_rows
+        try:
+            set_rows(self._rows, index)
+        except TypeError:
+            # Test doubles / older views only accept the list.
+            set_rows(self._rows)
         if self._rows:
-            self.view.set_hero(self._rows[0])
+            restore = index if 0 <= index < len(self._rows) else 0
+            self.view.set_hero(self._rows[restore])
         else:
             self.view.set_hero(None)
+        # Never leave "Loading <section>…" behind after a successful paint
+        # (P1-2).  A section reports its row count; home clears the line so the
+        # footer's "N ROOMS · STANDBY" is the only status.
+        set_room_count = getattr(self.view, "set_room_count", None)
+        if set_room_count is not None:
+            set_room_count(len(self._rows))
+        self.view.set_status(self._rows_status(len(self._rows)))
+
+    def _rows_status(self, count):
+        if self._stack:
+            return "%d row%s · ready" % (count, "" if count == 1 else "s")
+        return ""
+
+    def _current_index(self):
+        try:
+            return int(self.view.selected_index())
+        except (TypeError, ValueError, AttributeError):
+            return 0
 
     def _selected(self):
         try:

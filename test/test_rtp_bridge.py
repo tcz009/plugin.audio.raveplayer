@@ -70,6 +70,17 @@ class RTPBridgeTests(unittest.TestCase):
             "http://127.0.0.1:"))
         self.assertEqual(self.bridge.url_for("https://example.com/a.mp3"), "")
 
+    def test_url_for_also_bridges_jungletapes_playback(self):
+        # 3.9.50 P1-1: Kodi's libcurl stalls on the JungleTapes MP3 host on the
+        # Shield, so the add-on's Python stack fetches it through the same
+        # loopback bridge.  This is playback transport, not a second egress
+        # proxy: every other host is still refused.
+        target = ("https://jungletapes.com/sites/default/files/"
+                  "jungle_tapes_uploaded_audio_files/show.mp3")
+        self.assertTrue(self.bridge.url_for(target).startswith(
+            "http://127.0.0.1:"))
+        self.assertEqual(self.bridge.url_for("https://example.com/a.mp3"), "")
+
     def test_range_and_headers_are_forwarded(self):
         url = self.bridge.url_for(TARGET)
         request = urllib.request.Request(url, headers={

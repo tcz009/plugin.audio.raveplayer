@@ -54,6 +54,17 @@ class BridgeRouteTests(unittest.TestCase):
         self.assertEqual(item.path, "http://127.0.0.1:9999/t/token")
         self.assertEqual(FakeBridge.events, ["start", "wait", "close"])
 
+    def test_jungletapes_play_uses_the_bridge(self):
+        # 3.9.50 P1-1: JungleTapes is not an RTP host, but its playback still
+        # takes the loopback bridge because Kodi's libcurl stalls on that MP3
+        # host on the Shield.
+        with mock.patch.object(routes.http, "is_egress_host", return_value=False), \
+                mock.patch.object(routes.http, "is_bridge_host", return_value=True):
+            routes.play(1, {"url": TARGET, "label": "Show"})
+        item = self.resolved.call_args[0][2]
+        self.assertEqual(item.path, "http://127.0.0.1:9999/t/token")
+        self.assertEqual(FakeBridge.events, ["start", "wait", "close"])
+
     def test_bridge_failure_falls_back_to_direct_quietly(self):
         FakeBridge.start_ok = False
         with mock.patch.object(routes.kodi, "notify") as notify:

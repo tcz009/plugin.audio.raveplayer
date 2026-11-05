@@ -63,9 +63,12 @@ class FakeView(object):
     def set_subtitle(self, text):
         self.subtitle = text
 
-    def set_rows(self, rows):
+    def set_rows(self, rows, selected=0):
         self.rows = list(rows)
-        self.index = 0
+        self.index = int(selected or 0)
+
+    def set_room_count(self, count):
+        self.room_count = count
 
     def set_hero(self, entry):
         self.hero = entry
@@ -243,6 +246,44 @@ class ControllerTests(unittest.TestCase):
         self.assertTrue(ctl.on_back())
         self.assertTrue(view.closed)
         self.assertTrue(ctl.closed)
+
+    def test_successful_section_paint_replaces_the_loading_status(self):
+        # P1-2: "Loading Latest…" used to survive the rows painting and Back.
+        ctl, view, _, _ = controller()
+        ctl.start()
+        self.assertEqual(view.status, "")
+        ctl.on_click()
+        self.assertNotIn("Loading", view.status)
+        self.assertIn("row", view.status)
+        self.assertEqual(view.room_count, 1)
+
+        ctl.on_back()
+        self.assertEqual(view.status, "")
+        self.assertNotIn("Loading", view.status)
+
+    def test_back_restores_the_opened_row_not_row_one(self):
+        # P2-6: open row 3 of a 3-pack section, then Back into the section.
+        ctl, view, data, _ = controller()
+        data.section_rows = [
+            Entry("pack-%d" % index, "Pack %d" % index, "Rave Tape Packs",
+                  "", "pack", "latest", "pack-%d" % index)
+            for index in range(3)]
+        ctl.start()
+        view.index = 0
+        ctl.on_click()
+        self.assertEqual(ctl.stack_depth, 1)
+        view.index = 2
+        ctl.on_focus()
+        self.assertTrue(ctl.on_click())  # open pack row 3
+        self.assertEqual(ctl.stack_depth, 2)
+
+        self.assertFalse(ctl.on_back())
+        self.assertEqual(view.index, 2)
+        self.assertEqual(view.hero.label, "Pack 2")
+
+        self.assertFalse(ctl.on_back())
+        self.assertEqual(view.index, 0)
+        self.assertEqual(view.hero.label, "Latest")
 
     def test_back_while_loading_closes_once(self):
         ctl, view, _, _ = controller()
@@ -638,6 +679,20 @@ def fake_modules():
             "key": "Dreamscape 19", "name": "Dreamscape 19",
             "tracks": [{"name": "Tape 1", "url": "https://rtp.test/a.mp3"}]}),
         playable=mock.Mock(side_effect=lambda url: url + "|Referer=https://ravetapepacks.com/"),
+        categories=mock.Mock(return_value={
+            "events": [{"id": "33", "name": "Vision"}],
+            "djs": [{"id": "106", "name": "Brockie"}],
+            "mcs": [{"id": "7", "name": "Det"}],
+            "years": [{"id": "1994", "name": "1994"}],
+        }),
+        category_page=mock.Mock(return_value=(
+            [{"id": "899", "name": "Dreamscape 7"}], "next")),
+        all_packs=mock.Mock(return_value=(
+            [{"id": "899", "name": "Dreamscape 7"}], "next")),
+        post=mock.Mock(return_value={
+            "key": "899", "name": "Dreamscape 7",
+            "tracks": [{"name": "Charlie Hall",
+                        "url": "https://rtp.test/Charlie_Hall.mp3"}]}),
     )
     radio = types.SimpleNamespace(
         curated=mock.Mock(side_effect=lambda token: [
@@ -683,7 +738,9 @@ class DataTests(unittest.TestCase):
         self.assertEqual(data.section_entries("latest")[0].fact, "pack")
         self.assertEqual(data.section_entries("toronto")[0].fact, "genre")
         self.assertEqual(data.section_entries("jungletapes")[0].fact, "show")
-        self.assertEqual(data.section_entries("ravetapepacks")[0].fact, "1 tape")
+        rtp_rows = data.section_entries("ravetapepacks")
+        featured = next(row for row in rtp_rows if row.kind == "pack")
+        self.assertEqual(featured.fact, "1 tape")
         self.assertEqual(data.section_entries("live")[0].fact, "live")
         for key in ("latest", "toronto", "jungletapes", "ravetapepacks", "live"):
             for row in data.section_entries(key):
@@ -718,9 +775,48 @@ class DataTests(unittest.TestCase):
 
     def test_ravetapepacks_track_keeps_the_referer_suffix(self):
         data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
-        parent = data.section_entries("ravetapepacks")[0]
+        parent = next(row for row in data.section_entries("ravetapepacks")
+                      if row.kind == "pack")
         rows = data.entries_for(parent)
         self.assertIn("Referer=", rows[0].track.url)
+
+    def test_ravetapepacks_room_exposes_the_real_indexes(self):
+        # P2-5: the room used to be only the homepage's rotating picks.
+        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+        rows = data.section_entries("ravetapepacks")
+        doors = [row for row in rows if row.kind == "rtp_index"]
+        self.assertEqual([row.target for row in doors],
+                         ["events", "djs", "mcs", "years", "all"])
+        self.assertEqual(doors[0].label, "By Event (1)")
+        self.assertEqual(doors[4].label, "All Packs")
+
+        events = data.entries_for(doors[0])
+        self.assertEqual(events[0].kind, "rtp_category")
+        self.assertEqual(events[0].label, "Vision")
+        self.assertEqual(events[0].target, "events:33:1")
+
+    def test_rtp_category_and_post_navigation_reaches_tracks(self):
+        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+        door = next(row for row in data.section_entries("ravetapepacks")
+                    if row.target == "events")
+        category = data.entries_for(door)[0]
+        posts = data.entries_for(category)
+        self.assertEqual(posts[0].kind, "rtp_post")
+        self.assertEqual(posts[0].label, "Dreamscape 7")
+        self.assertEqual(posts[-1].kind, "rtp_more")
+
+        tracks = data.entries_for(posts[0])
+        self.assertEqual(tracks[0].kind, "track")
+        self.assertIn("Referer=", tracks[0].track.url)
+
+    def test_rtp_all_packs_door_lists_the_archive(self):
+        data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
+        door = next(row for row in data.section_entries("ravetapepacks")
+                    if row.target == "all")
+        rows = data.entries_for(door)
+        self.assertEqual(rows[0].kind, "rtp_post")
+        self.assertEqual(rows[-1].kind, "rtp_more")
+        self.assertEqual(rows[-1].target, "all:2")
 
     def test_live_rows_are_direct_playable_stations(self):
         data = RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN)
@@ -864,11 +960,11 @@ class ManifestAndSkinTests(unittest.TestCase):
     def test_script_manifest_is_kodi_19_22_and_depends_on_the_plugin(self):
         root = ET.parse(os.path.join(SCREEN, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.raveplayer.ui")
-        self.assertEqual(root.get("version"), "3.9.48")
+        self.assertEqual(root.get("version"), "3.9.49")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
-        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.48")
+        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.50")
         extension = root.find("./extension[@point='xbmc.python.script']")
         self.assertIsNotNone(extension)
         self.assertEqual(extension.get("library"), "default.py")
@@ -1280,6 +1376,27 @@ class RowViewTests(unittest.TestCase):
         self.view.set_subtitle("Newest packs")
         self.assertTrue(self.window.getControl(119).visible)
         self.assertTrue(self.window.getControl(120).visible)
+
+    def test_long_titles_are_ellipsised_inside_the_header(self):
+        # P2-1: an over-long right-aligned label used to draw left over the
+        # RAVE PLAYER wordmark.  The label is clipped before Kodi sees it.
+        long_title = ("DAMON WILD - SONIC UNDERGROUND 05 - THE SYNEWAVE "
+                      "SELECTION 1994")
+        self.view.set_title(long_title)
+        label = self.window.getControl(119).label
+        self.assertLessEqual(len(label), ravewindow.MAX_VIEW_TITLE)
+        self.assertTrue(label.endswith("…"))
+
+    def test_room_count_is_pluralised(self):
+        # P2-1: the XML literal rendered "1 ROOMS · STANDBY".
+        self.view.set_room_count(1)
+        self.assertEqual(self.window.getControl(115).label,
+                         "[B]1[/B] ROOM · STANDBY")
+        self.assertEqual(self.window.getControl(116).label,
+                         "[B]1[/B] ROOM · ON AIR")
+        self.view.set_room_count(6)
+        self.assertEqual(self.window.getControl(115).label,
+                         "[B]6[/B] ROOMS · STANDBY")
 
     def test_spinner_visibility_covers_the_whole_surprise_state(self):
         self.view.set_spinner_visible(True)

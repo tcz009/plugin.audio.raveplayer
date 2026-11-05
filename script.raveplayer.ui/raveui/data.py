@@ -240,7 +240,40 @@ class RaveData(object):
         return entries
 
     def _ravetapepacks_entries(self):
+        # 3.9.50 P2-5: the room used to expose only the homepage's rotating
+        # "RANDOM SELECTION" (16 packs).  The real Event/DJ/MC/Year indexes and
+        # the complete archive are now the first five doors; the featured
+        # homepage packs stay underneath for the one-press path.
         entries = []
+        try:
+            categories = self.modules.legacy.categories() or {}
+        except Exception:  # noqa: BLE001 - the doors still work without counts
+            categories = {}
+        for kind, label, art in (
+                ("events", "By Event", "rave-nights.png"),
+                ("djs", "By DJ", "by-dj.png"),
+                ("mcs", "By MC", "by-mc.png"),
+                ("years", "By Year", "years.png")):
+            count = len(categories.get(kind) or [])
+            entries.append(Entry(
+                key="rtp-index-%s" % kind,
+                label="%s (%d)" % (label, count) if count else label,
+                subtitle="RaveTapePacks.com · full index",
+                art=self._art(art),
+                kind="rtp_index", source="ravetapepacks", target=kind,
+                hero=self._art("fanart-tapepacks.jpg"),
+                fact="index", code="RP-03",
+                plot="Browse every %s in the RaveTapePacks archive" %
+                     label.replace("By ", "")))
+        entries.append(Entry(
+            key="rtp-index-all",
+            label="All Packs",
+            subtitle="Every RaveTapePacks pack, newest first",
+            art=self._art("ravetapepacks.png"),
+            kind="rtp_index", source="ravetapepacks", target="all",
+            hero=self._art("fanart-tapepacks.jpg"),
+            fact="archive", code="RP-03",
+            plot="The complete RaveTapePacks archive, not just the homepage picks"))
         for row in self.modules.legacy.packs() or []:
             key = _text(row.get("key"))
             if not key:
@@ -257,6 +290,131 @@ class RaveData(object):
                 fact=_fact(count, "pack"), code="RP-03",
                 plot="UK rave tape pack on RaveTapePacks.com"))
         return entries
+
+    # ------------------------------------------------- rtp index navigation
+    def _rtp_index_entries(self, entry):
+        kind = _text(entry.target)
+        if kind == "all":
+            return self._rtp_all_page(1)
+        try:
+            categories = self.modules.legacy.categories() or {}
+        except Exception:  # noqa: BLE001 - empty row, never a crash
+            return []
+        labels = {"events": "By Event", "djs": "By DJ",
+                  "mcs": "By MC", "years": "By Year"}
+        rows = []
+        for row in categories.get(kind) or []:
+            cat_id = _text(row.get("id"))
+            if not cat_id:
+                continue
+            name = _text(row.get("name"), cat_id)
+            rows.append(Entry(
+                key="rtp-%s-%s" % (kind, cat_id),
+                label=name,
+                subtitle="RaveTapePacks.com · %s" % labels.get(kind, "index"),
+                art=self._art("ravetapepacks.png"),
+                kind="rtp_category", source="ravetapepacks",
+                target="%s:%s:1" % (kind, cat_id),
+                hero=self._art("fanart-tapepacks.jpg"),
+                fact="index", code="RP-03",
+                plot="RaveTapePacks packs filed under %s" % name))
+        return rows
+
+    def _rtp_category_page(self, kind, cat_id, page):
+        try:
+            posts, next_url = self.modules.legacy.category_page(cat_id, page)
+        except Exception:  # noqa: BLE001 - the screen reports the empty row
+            return []
+        return self._rtp_posts(posts or [], "%s:%s" % (kind, cat_id), page,
+                               next_url)
+
+    def _rtp_all_page(self, page):
+        try:
+            posts, next_url = self.modules.legacy.all_packs(page)
+        except Exception:  # noqa: BLE001 - the screen reports the empty row
+            return []
+        return self._rtp_posts(posts or [], "all", page, next_url)
+
+    def _rtp_posts(self, posts, route, page, next_url=""):
+        """Turn one archive page of posts into rows plus a "More" row."""
+        rows = []
+        for post in posts:
+            if not isinstance(post, dict):
+                continue
+            post_id = _text(post.get("id"))
+            if not post_id:
+                continue
+            name = _text(post.get("name"), "Pack %s" % post_id)
+            rows.append(Entry(
+                key="rtp-post-%s" % post_id,
+                label=name,
+                subtitle="RaveTapePacks.com",
+                art=self._art("ravetapepacks.png"),
+                kind="rtp_post", source="ravetapepacks", target=post_id,
+                hero=self._art("fanart-tapepacks.jpg"),
+                fact="pack", code="RP-03",
+                plot="RaveTapePacks pack"))
+        # The caller already has the page's next link; add an explicit door
+        # rather than silently ending a long category on page 1.
+        if rows and next_url:
+            target = ("all:%d" % (page + 1) if route == "all"
+                      else "cat:%s:%d" % (route, page + 1))
+            rows.append(Entry(
+                key="rtp-more-%s-%d" % (route, page + 1),
+                label="More packs  ›",
+                subtitle="Next page · RaveTapePacks.com",
+                art=self._art("ravetapepacks.png"),
+                kind="rtp_more", source="ravetapepacks", target=target,
+                hero=self._art("fanart-tapepacks.jpg"),
+                fact="next", code="RP-03",
+                plot="Next page of RaveTapePacks packs"))
+        return rows
+
+    def _rtp_post_entries(self, entry):
+        try:
+            post = self.modules.legacy.post(entry.target)
+        except Exception:  # noqa: BLE001 - SourceUnavailable or parser error
+            return []
+        if not post:
+            return []
+        tracks = []
+        for track in post.get("tracks") or []:
+            if not isinstance(track, dict):
+                continue
+            candidate = dict(track)
+            try:
+                candidate["url"] = self.modules.legacy.playable(
+                    track.get("url", ""))
+            except Exception:  # noqa: BLE001 - skip unbuildable row
+                continue
+            tracks.append(candidate)
+        parent = Entry(
+            key=_text(entry.target),
+            label=_text(post.get("name"), entry.label),
+            subtitle="RaveTapePacks.com",
+            art=self._art("ravetapepacks.png"),
+            kind="pack", source="ravetapepacks", target=_text(entry.target),
+            hero=self._art("fanart-tapepacks.jpg"),
+            fact="pack", code="RP-03",
+            plot="RaveTapePacks pack")
+        return self._track_entries(tracks, parent, source="ravetapepacks")
+
+    def _rtp_more_entries(self, entry):
+        target = _text(entry.target)
+        if target.startswith("all:"):
+            try:
+                return self._rtp_all_page(int(target.split(":", 1)[1]))
+            except (TypeError, ValueError):
+                return []
+        if target.startswith("cat:"):
+            parts = target.split(":")
+            if len(parts) != 4:
+                return []
+            try:
+                return self._rtp_category_page(parts[1], parts[2], int(parts[3]))
+            except (TypeError, ValueError):
+                return []
+        return []
 
     def _live_entries(self):
         stations = []
@@ -293,6 +451,25 @@ class RaveData(object):
 
     # -------------------------------------------------------------- children
     def entries_for(self, entry):
+        if entry.kind == "rtp_index":
+            return self._rtp_index_entries(entry)
+        if entry.kind == "rtp_category":
+            parts = _text(entry.target).split(":")
+            if len(parts) != 3:
+                return []
+            try:
+                return self._rtp_category_page(parts[0], parts[1], int(parts[2]))
+            except (TypeError, ValueError):
+                return []
+        if entry.kind == "rtp_all":
+            try:
+                return self._rtp_all_page(int(entry.target or 1))
+            except (TypeError, ValueError):
+                return []
+        if entry.kind == "rtp_more":
+            return self._rtp_more_entries(entry)
+        if entry.kind == "rtp_post":
+            return self._rtp_post_entries(entry)
         if entry.kind == "genre":
             tracks = self.modules.toronto.tracks(entry.target)
             return self._track_entries(tracks, entry, source="toronto")
