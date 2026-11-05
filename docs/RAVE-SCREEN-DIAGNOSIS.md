@@ -218,6 +218,13 @@ def rave_screen(handle, params):
 `RunScript` is queued and normally runs after that teardown (verified above),
 but it is still a race against any other modal dialog on the GUI thread.
 
+The invocation form itself is correct: `RunScript(script.raveplayer.ui)` takes
+the add-on id and no path or arguments (the script add-on has no plugin handle).
+Kodi resolves it and starts a new `LanguageInvoker`; the plugin route returns
+first (observed: route done at 26.425, script invoker starts at 26.442). The
+route does not wait for the window and cannot tell whether `show()` worked, so
+a refused activation is indistinguishable from success at the route level.
+
 ---
 
 ## 5. Root cause
