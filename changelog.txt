@@ -1,4 +1,7 @@
 Rave Player 3.9.49
+- Integration release: the sources overhaul, the 3.9.49 performance pass and
+  the 2026 look now ship together. Sources correctness is authoritative where
+  they overlap; caching and presentation are both kept.
 - Sources overhaul. JungleTapes no longer lists every tape side twice (the
   page's stream and download fields pointed at the same recordings); shows page
   at 50. RaveTapePacks "All Packs" now walks the complete blog archive
@@ -10,8 +13,27 @@ Rave Player 3.9.49
   both builds; Classic Pack Series lists all 16 (including Kool/Rinse) in the
   web order; Rave Nights lists all 55 researched rows alphabetically with
   Mixcloud hand-offs. Blocked/empty RTP browses now say so instead of showing an
-  empty folder. Offline fixtures cover the new pages. Full suite 651 OK.
-  See docs/SOURCES-OVERHAUL.md.
+  empty folder. Offline fixtures cover the new pages. See docs/SOURCES-OVERHAUL.md.
+- Performance: parsed pages persist beside their exact HTTP body (fingerprint
+  invalidated), the data JSON is parsed once per process, DNB stream pages are
+  batch-mapped and JungleTapes pages load in parallel. Device: latest 1.8 s,
+  RTP category 0.5 s, JungleTapes index 0.7 s (docs/PERF-OVERHAUL.md).
+- Look: the 2026 sticker/cover split (square cover in the art slot, 16:9 brand
+  fanart behind it), visible empty/error status plates, and the Rave Screen look
+  from 3.9.48 (docs/LOOK-OVERHAUL.md).
+- P0-2 Live Radio: station rows no longer resolve a favicon (and stream) host
+  per row. A 100-station door used to block for 28–53 s; device timings are now
+  hardcore 1.4 s cold / 0.7 s warm, jungle 1.3 s, drum & bass 1.4 s, house
+  1.6 s. Playback still runs the strict public-host guard before media starts.
+- P0-4 Archive packs: pack detail is capped at 200 rows per page (or the user
+  page size), shows "Page N of M · X tracks" and a Next page row. The
+  1,645-track Helter Skelter pack is 33 pages; page 1 is 4.8 s cold / page 2
+  1.5 s, instead of one 18.7 s directory.
+- P0-5 RaveTapePacks playback: Kodi stays deliberately silent when the source
+  is unreachable (owner decision; no blocking warning is re-added). The web
+  build shows a non-modal idle line and retries once in the background.
+- Tests: 695 Kodi OK (plus the web build's 531); the new P0 regressions cover
+  zero-DNS station listing and pack pagination.
 
 Rave Player 3.9.48
 - Rave Screen (`script.raveplayer.ui` 3.9.48) visual parity pass: the
