@@ -15,6 +15,8 @@ No Kodi, no network, no renderer.
 
 import os
 import sys
+import threading
+import time
 import types
 import unittest
 from unittest import mock
@@ -29,10 +31,11 @@ sys.path.insert(0, SCREEN)
 from raveui import nowplaying  # noqa: E402
 from raveui.controller import RaveScreenController  # noqa: E402
 from raveui.data import Entry, Page, Track  # noqa: E402
-from raveui.screens.library import (LibraryScreens, Row as LibraryRow)  # noqa: E402
+from raveui.screens.library import (  # noqa: E402
+    ACTION_CANCEL, LibraryScreens, Row as LibraryRow)
 from raveui.screens.live import LiveRadio, Row as LiveRow  # noqa: E402
 from raveui.surprise_pick import PackCache, PickedTrack, SurprisePicker  # noqa: E402
-from raveui.tasks import DirectTaskRunner  # noqa: E402
+from raveui.tasks import DirectTaskRunner, ThreadTaskRunner  # noqa: E402
 
 
 # --------------------------------------------------------------------- fakes
@@ -151,6 +154,9 @@ class IntegrationData(object):
                     side_effect=lambda station: station.get("url_resolved", ""))),
             handoff=types.SimpleNamespace(
                 target=mock.Mock(return_value="plugin://plugin.audio.mixcloud/?x=1")),
+            dnbradio=types.SimpleNamespace(
+                stream_url=mock.Mock(
+                    return_value="https://dnb.test/one.mp3")),
             root=ROOT,
         )
         self.frames = ["frame-0.png", "frame-1.png"]
@@ -177,6 +183,18 @@ class IntegrationData(object):
             return Page(list(self.pack_rows), 1, 1, 1, rows)
         self.loaded.append(("children", target.key))
         return Page(list(self.pack_rows), 1, 1, 1, rows)
+
+    def collection(self, entry, page=1, rows=50):
+        self.loaded.append(("collection", getattr(entry, "key", "")))
+        return list(self.pack_rows)
+
+    def resolve(self, entry):
+        self.loaded.append(("resolve", getattr(entry, "key", "")))
+        if getattr(entry, "kind", "") == "dnb_show":
+            return Track(entry.label, "DNB Radio",
+                         self.modules.dnbradio.stream_url(entry.target),
+                         source="dnb")
+        return self.pack_rows[0].track
 
     def spinner_frames(self):
         return list(self.frames)
@@ -641,6 +659,435 @@ class BackStackTests(unittest.TestCase):
         self.assertTrue(ctl.on_back())
         self.assertTrue(view.closed)
         self.assertEqual(view.closed_calls, 1)
+
+
+class BlockingRunner(object):
+    """A load path that has started and is parked until the test releases it."""
+
+    def __init__(self):
+        self.started = threading.Event()
+        self.release = threading.Event()
+
+    def run(self, function):
+        self.started.set()
+        self.release.wait(3.0)
+        return function()
+
+
+class P1BackDuringLoadTests(unittest.TestCase):
+    """P1-1: Back closes immediately from a real load, not a hand-set flag."""
+
+    def _back_cancels(self, trigger):
+        runner = BlockingRunner()
+        ctl, view, _, _ = build(task_runner=runner)
+        ctl.start()
+        thread = threading.Thread(target=lambda: trigger(ctl))
+        thread.start()
+        self.assertTrue(runner.started.wait(2.0))
+        self.assertIsNotNone(ctl._plate)
+        self.assertEqual(ctl._plate.kind, "loading")
+        self.assertTrue(ctl.on_back())
+        self.assertTrue(ctl.closed)
+        self.assertEqual(view.closed_calls, 1)
+        self.assertTrue(ctl._loading_cancel.is_set())
+        runner.release.set()
+        thread.join(3.0)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(view.closed_calls, 1)
+
+    def test_back_closes_during_load_target(self):
+        self._back_cancels(lambda ctl: ctl._load_target("latest", 1, push=True))
+
+    def test_back_closes_during_library_room(self):
+        self._back_cancels(
+            lambda ctl: ctl._load_library_screen("favourites", 1, push=True))
+
+    def test_back_closes_during_play_collection(self):
+        entry = Entry("pack", "Pack", "", "", "pack", target="p")
+        self._back_cancels(lambda ctl: ctl._play_collection(entry))
+
+    def test_back_closes_during_resolve_and_play(self):
+        entry = Entry("dnb-1", "DNB Show", "", "", "dnb_show",
+                      source="dnb", target="dnb-1")
+        self._back_cancels(lambda ctl: ctl._resolve_and_play(entry))
+
+
+class SurpriseBarrierTests(unittest.TestCase):
+    """P1-2: a timeout/cancel is a barrier; an abandoned worker cannot play."""
+
+    def _runner(self, timeout=0.05):
+        return ThreadTaskRunner(
+            sleep=lambda milliseconds: time.sleep(milliseconds / 1000.0),
+            clock=time.monotonic,
+            monitor=types.SimpleNamespace(abortRequested=lambda: False),
+            timeout=timeout, cancelled=lambda: False)
+
+    @staticmethod
+    def _slow_picker(delay=0.4, title="Late"):
+        def pick():
+            time.sleep(delay)
+            return {"identifier": "pack-1", "title": "Dreamscape 19"}
+
+        return SurprisePicker(
+            pick=pick,
+            resolve=lambda identifier: PickedTrack(
+                title, "https://example.test/late.mp3", identifier, "Pack"),
+            sleep=lambda seconds: None)
+
+    def test_timeout_never_allows_a_late_handoff(self):
+        ctl, view, _, playback = build(
+            surprise_picker=self._slow_picker(), task_runner=self._runner())
+        ctl.start()
+        self.assertFalse(ctl.surprise(True))
+        self.assertEqual(ctl.plate, "error")
+        self.assertEqual(view.plate[1], "PICK TIMED OUT")
+        time.sleep(0.7)
+        self.assertEqual(playback.calls, [])
+        self.assertNotEqual(view.footer.mode, "playing")
+
+    def test_async_timeout_never_allows_a_late_handoff(self):
+        ctl, view, _, playback = build(
+            surprise_picker=self._slow_picker(), task_runner=self._runner())
+        ctl.start()
+        self.assertTrue(ctl.surprise())
+        deadline = time.time() + 2.0
+        while time.time() < deadline and ctl._surprise_pending is None:
+            time.sleep(0.01)
+        ctl._drive_surprise()
+        self.assertEqual(ctl.plate, "error")
+        time.sleep(0.7)
+        ctl._drive_surprise()
+        self.assertEqual(playback.calls, [])
+        self.assertNotEqual(view.footer.mode, "playing")
+
+    def test_cancelled_pick_cannot_play_after_a_new_press(self):
+        calls = []
+        lock = threading.Lock()
+
+        def pick():
+            with lock:
+                calls.append(len(calls) + 1)
+                index = calls[-1]
+            if index == 1:
+                time.sleep(0.25)
+            return {"identifier": "old" if index == 1 else "new",
+                    "title": "Old" if index == 1 else "New"}
+
+        picker = SurprisePicker(
+            pick=pick,
+            resolve=lambda identifier: PickedTrack(
+                {"old": "old-pick", "new": "new-pick"}[identifier],
+                "https://example.test/%s.mp3" % identifier, identifier, "Pack"),
+            sleep=lambda seconds: None)
+        ctl, _, _, playback = build(
+            surprise_picker=picker, task_runner=DirectTaskRunner())
+        clock = [0.0]
+        ctl._monotonic = lambda: clock[0]
+        ctl.start()
+        self.assertTrue(ctl.surprise())
+        deadline = time.time() + 2.0
+        while time.time() < deadline and not calls:
+            time.sleep(0.01)
+        self.assertEqual(calls, [1])
+        self.assertFalse(ctl.on_back())          # cancel, window stays open
+        self.assertFalse(ctl._surprising)
+        self.assertTrue(ctl.surprise())          # new gesture
+        deadline = time.time() + 2.0
+        while time.time() < deadline and len(calls) < 2:
+            time.sleep(0.01)
+        self.assertGreaterEqual(len(calls), 2)
+        deadline = time.time() + 2.0
+        while time.time() < deadline and ctl._surprise_pending is None:
+            time.sleep(0.01)
+        ctl._drive_surprise()                    # begin the reveal
+        clock[0] = 2.0
+        ctl._drive_surprise()                    # finish it on the GUI thread
+        time.sleep(0.4)                          # let the old worker finish
+        self.assertEqual([track.title for track in playback.calls], ["new-pick"])
+        self.assertFalse(ctl._surprising)
+
+
+class LiveLifecycleTests(unittest.TestCase):
+    """P1-3: Kodi stops the stream / a normal track starts -> no stale ON AIR."""
+
+    def _play_kool(self, ctl, view):
+        ctl.start()
+        view.index = row_index(view, "Live Radio")
+        ctl.on_click()
+        view.index = 0
+        self.assertTrue(ctl.on_click())
+
+    def test_normal_playback_clears_live_state(self):
+        snapshot = {"title": "Kool FM", "playing": True, "paused": False}
+        ctl, view, _, playback = build(player_snapshot=lambda: snapshot)
+        self._play_kool(ctl, view)
+        self.assertTrue(view.footer.live)
+        self.assertEqual(view.rows[0].fact, "ON AIR")
+
+        self.assertFalse(ctl.on_back())          # back home
+        view.index = row_index(view, "Latest")
+        ctl.on_click()
+        view.index = 0
+        self.assertTrue(ctl.on_click())          # play the normal tape
+        snapshot.update(title="Tape 1", duration=240, elapsed=120,
+                        playing=True, paused=False)
+        ctl._footer_at = None
+        ctl.tick()
+        self.assertFalse(view.footer.live)
+        self.assertTrue(view.footer.show_duration)
+        self.assertEqual(view.footer.title, "Tape 1")
+        self.assertFalse(view.live)
+        self.assertEqual(ctl._live_ui.on_air, "")
+
+    def test_player_stop_clears_on_air(self):
+        snapshot = {"title": "Kool FM", "playing": True, "paused": False}
+        holder = {"snapshot": snapshot}
+        ctl, view, _, playback = build(
+            player_snapshot=lambda: holder["snapshot"])
+        self._play_kool(ctl, view)
+        self.assertEqual(ctl._live_ui.on_air, "kool")
+        holder["snapshot"] = None
+        ctl._live_started_at -= 4.0             # past the start-up grace
+        ctl._footer_at = None
+        ctl.tick()
+        self.assertFalse(view.footer.on_air)
+        self.assertEqual(ctl._live_ui.on_air, "")
+        self.assertFalse(view.live)
+        self.assertEqual(view.rows[0].fact, "LIVE")
+
+        # A stopped station is playable again, not a stale "already on air".
+        view.index = 0
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(len(playback.calls), 2)
+
+    def test_stop_key_clears_live_and_reports_status(self):
+        ctl, view, _, playback = build()
+        self._play_kool(ctl, view)
+        self.assertTrue(ctl.on_stop())
+        self.assertEqual(playback.stop_calls, 1)
+        self.assertEqual(ctl._live_ui.on_air, "")
+        self.assertFalse(view.footer.on_air)
+        self.assertEqual(view.rows[0].fact, "LIVE")
+        self.assertEqual(view.status, "Stopped.")
+
+
+class P1FavouritesRoutingTests(unittest.TestCase):
+    """P1-4: saved A/V rows resolve or hand off; they are not empty folders."""
+
+    def test_saved_handoff_favourite_plays_its_plugin_path(self):
+        ctl, view, data, playback = build()
+        ctl.start()
+        row = LibraryRow(
+            label="Saved Mixcloud set", kind="room",
+            payload={"mode": "handoff", "platform": "mixcloud",
+                     "target": "https://www.mixcloud.com/x/",
+                     "title": "Saved Mixcloud set"})
+        self.assertTrue(ctl._open_library_room(row))
+        self.assertEqual(data.loaded, [])
+        self.assertEqual(len(playback.calls), 1)
+        self.assertEqual(playback.calls[-1].path,
+                         "plugin://plugin.audio.mixcloud/?x=1")
+
+    def test_saved_dnb_favourite_resolves_and_plays(self):
+        ctl, view, data, playback = build()
+        ctl.start()
+        row = LibraryRow(
+            label="Saved DNB show", kind="room",
+            payload={"mode": "dnb_play", "id": "dnb-1",
+                     "title": "Saved DNB show"})
+        self.assertTrue(ctl._open_library_room(row))
+        self.assertEqual([item for item in data.loaded
+                          if item[0] == "children"], [])
+        self.assertEqual(len(playback.calls), 1)
+        self.assertEqual(playback.calls[-1].url,
+                         "https://dnb.test/one.mp3")
+        self.assertEqual(playback.calls[-1].title, "Saved DNB show")
+
+
+class FakeQueue(object):
+    def __init__(self, rows=None):
+        self._rows = list(rows or [])
+        self.cancelled = []
+        self.dismissed = []
+
+    def rows(self):
+        return [dict(row) for row in self._rows]
+
+    def cancel(self, key):
+        self.cancelled.append(key)
+        return True
+
+    def dismiss(self, key):
+        self.dismissed.append(key)
+        self._rows = [row for row in self._rows if row.get("key") != key]
+        return True
+
+
+class P1DownloadRoomTests(unittest.TestCase):
+    """P1-5: Downloads renders the live queue and can cancel from the room."""
+
+    def _build(self, queue):
+        library = LibraryScreens(backend=FakeBackend(), playback=None,
+                                 queue=queue)
+        return build(library=library, download_queue=queue)
+
+    def test_downloads_room_shows_active_progress_and_cancel(self):
+        queue = FakeQueue([{
+            "key": "dl-active", "title": "Active Set", "source": "Archive.org",
+            "status": "downloading", "percent": 42, "done": 42, "total": 100,
+            "detail": "Downloading"}])
+        ctl, view, _, _ = self._build(queue)
+        ctl.start()
+        view.index = row_index(view, "Downloads")
+        self.assertTrue(ctl.on_click())
+        active = view.rows[0]
+        self.assertEqual(active.label, "Active Set")
+        self.assertEqual(active.fact, "42%")
+        self.assertEqual(active.payload["action"], ACTION_CANCEL)
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(queue.cancelled, ["dl-active"])
+        self.assertIn("Cancelling", view.status)
+
+    def test_failed_queue_row_can_be_dismissed_from_downloads(self):
+        queue = FakeQueue([{
+            "key": "dl-bad", "title": "Broken Set", "source": "Archive.org",
+            "status": "failed", "detail": "network down"}])
+        ctl, view, _, _ = self._build(queue)
+        ctl.start()
+        view.index = row_index(view, "Downloads")
+        ctl.on_click()
+        self.assertEqual(view.rows[0].payload["action"], "remove")
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(queue.dismissed, ["dl-bad"])
+        self.assertIn("removed", view.status.lower())
+
+
+class CheapP2Tests(unittest.TestCase):
+    """P2s on the P1 paths: dead actions, double OK, retry plates, status."""
+
+    def test_library_rows_per_page_context_reloads_at_new_size(self):
+        ctl, view, _, _ = build()
+        ctl.start()
+        view.index = row_index(view, "Favourites")
+        ctl.on_click()
+        self.assertTrue(ctl.on_context())
+        labels = [row.label for row in view.rows]
+        index = next(i for i, label in enumerate(labels)
+                     if label.startswith("Rows per page"))
+        view.index = index
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(ctl.rows_per_page, 100)
+        self.assertEqual(ctl._library_ui.page_size(), 100)
+        self.assertIn("Rows per page: 100", view.status)
+
+    def test_stop_playback_context_action_stops_the_player(self):
+        ctl, view, _, playback = build()
+        ctl.start()
+        view.index = row_index(view, "Downloads")
+        ctl.on_click()
+        view.index = 0
+        self.assertTrue(ctl.on_click())          # play the saved file
+        self.assertTrue(ctl.on_context())
+        labels = [row.label for row in view.rows]
+        self.assertIn("Stop playback", labels)
+        view.index = labels.index("Stop playback")
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(playback.stop_calls, 1)
+        self.assertEqual(view.footer.mode, "idle")
+
+    def test_double_ok_on_a_track_plays_once(self):
+        ctl, view, _, playback = build()
+        ctl.start()
+        view.index = row_index(view, "Latest")
+        ctl.on_click()
+        view.index = 0
+        self.assertTrue(ctl.on_click())
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(len(playback.calls), 1)
+        self.assertIn("Already playing", view.status)
+
+    def test_collection_error_plate_retries(self):
+        class RetryData(IntegrationData):
+            def __init__(self):
+                IntegrationData.__init__(self)
+                self.collection_calls = 0
+
+            def collection(self, entry, page=1, rows=50):
+                self.collection_calls += 1
+                if self.collection_calls == 1:
+                    from raveui.tasks import TaskTimeout
+
+                    raise TaskTimeout("slow")
+                return list(self.pack_rows)
+
+        data = RetryData()
+        ctl, view, _, playback = build(data=data)
+        ctl.start()
+        entry = Entry("pack", "Pack", "", "", "pack", target="p")
+        self.assertFalse(ctl._play_collection(entry))
+        self.assertEqual(ctl.plate, "error")
+        self.assertEqual(view.plate[3], "OK retry · BACK back")
+        self.assertTrue(ctl.on_click())          # OK on the error plate
+        self.assertEqual(data.collection_calls, 2)
+        self.assertEqual(len(playback.collections), 1)
+
+    def test_live_action_and_remove_confirmations_stay_visible(self):
+        ctl, view, _, _ = build()
+        ctl.start()
+        view.index = row_index(view, "Live Radio")
+        ctl.on_click()
+        view.index = 0
+        ctl.on_click()
+        self.assertIn("ON AIR · Kool FM", view.status)
+
+        ctl.on_back()
+        view.index = row_index(view, "Favourites")
+        ctl.on_click()
+        self.assertTrue(ctl.on_context())
+        labels = [row.label for row in view.rows]
+        view.index = labels.index("Remove")
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(view.status, "Removed from favourites")
+
+    def test_all_control_mutations_happen_on_the_calling_thread(self):
+        identifiers = set()
+        main = threading.get_ident()
+
+        class ThreadView(FakeView):
+            def _touch(self):
+                identifiers.add(threading.get_ident())
+
+            def set_status(self, text):
+                self._touch()
+                FakeView.set_status(self, text)
+
+            def set_rows(self, rows, selected=0):
+                self._touch()
+                FakeView.set_rows(self, rows, selected)
+
+            def set_footer(self, footer):
+                self._touch()
+                FakeView.set_footer(self, footer)
+
+            def set_plate(self, kind, title, detail="", hint=""):
+                self._touch()
+                FakeView.set_plate(self, kind, title, detail, hint)
+
+        view = ThreadView()
+        data = IntegrationData()
+        playback = FakePlayback()
+        runner = ThreadTaskRunner(
+            sleep=lambda milliseconds: time.sleep(milliseconds / 1000.0),
+            clock=time.monotonic,
+            monitor=types.SimpleNamespace(abortRequested=lambda: False),
+            timeout=2.0, cancelled=lambda: False)
+        ctl = RaveScreenController(
+            view, data, playback, task_runner=runner,
+            logger=lambda message: None, surprise_sleep=lambda seconds: None)
+        ctl.start()
+        ctl._load_target("latest", 1, push=True)
+        self.assertTrue(identifiers)
+        self.assertEqual(identifiers, {main})
 
 
 if __name__ == "__main__":

@@ -17,6 +17,13 @@ if ADDON_DIR not in sys.path:
 
 def main():
     try:
+        if "downloads" in [str(arg).lower() for arg in sys.argv[1:]]:
+            # Headless queue owner: launched by DownloadQueue.spawn_worker()
+            # when the window closes with a transfer still active.
+            from raveui.downloadworker import run
+
+            run()
+            return
         from raveui.window import open_screen
 
         open_screen()

@@ -13,7 +13,9 @@ really ran and fails fast instead of waiting forever for a close that can never
 come.
 """
 
+import errno
 import os
+import threading
 import time
 
 import xbmc
@@ -21,13 +23,21 @@ import xbmcgui
 
 from .controller import HOME_TITLE, RaveScreenController
 from .data import RaveData
-from .downloadqueue import DownloadQueue
+from .downloadqueue import DownloadQueue, default_store_path
 from .playback import PlaybackService
 
 ADDON_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 XML_FILE = "script-raveplayer-ui.xml"
 ART_ROOT = os.path.join(ADDON_PATH, "resources", "art", "rave-screen")
 HERO_FALLBACK = os.path.join(ART_ROOT, "hero-fallback-640x360.jpg")
+WINDOW_ID = 15047
+INSTANCE_LOCK_TTL = 10 * 60
+
+# One live screen per Kodi process, and one marker file per profile so a second
+# RunScript/Addons.ExecuteAddon cannot stack a second window/controller on top
+# of the first (P1-6).
+_ACTIVE_WINDOW = None
+_INSTANCE_GUARD = threading.Lock()
 
 # Control IDs are the WINDOWXML-CONTROL-MAP.md contract. The list is 50:
 # Kodi's WindowXML window list lives on 50-59 and addItems()/getCurrentListPosition()
@@ -458,6 +468,7 @@ class RaveScreenWindow(xbmcgui.WindowXML):
         self._initialized = False
         self._controller = None
         self._view = None
+        self._queue = None
         super().__init__(*args, **kwargs)
 
     @property
@@ -482,7 +493,16 @@ class RaveScreenWindow(xbmcgui.WindowXML):
         self._view.set_spinner_background(
             os.path.join(ART_ROOT, "surprise-burst-1280x720.jpg"))
         try:
-            queue = DownloadQueue(logger=_Log())
+            queue = DownloadQueue(logger=_Log(),
+                                  store_path=default_store_path(),
+                                  local_workers=False)
+            self._queue = queue
+            if queue.worker_active():
+                # A headless owner survived the previous close; follow its
+                # on-disk progress instead of starting duplicate workers.
+                queue.refresh()
+            else:
+                queue.resume()
             data = RaveData(download_queue=queue)
             self._controller = RaveScreenController(
                 self._view, data, PlaybackService(),
@@ -559,6 +579,18 @@ class RaveScreenWindow(xbmcgui.WindowXML):
         shutdown = getattr(self._controller, "shutdown", None)
         if shutdown is not None:
             shutdown()
+        # The window interpreter is about to exit and its daemon download
+        # threads would die with it.  Hand an active queue to the headless
+        # owner before that happens (P1-5).
+        queue = self._queue
+        if queue is None:
+            queue = getattr(self._controller, "_download_queue", None)
+        if queue is not None:
+            try:
+                queue.spawn_worker()
+            except Exception as exc:  # noqa: BLE001 - close must still happen
+                xbmc.log("[script.raveplayer.ui] download worker spawn failed: "
+                         "%s" % exc, level=xbmc.LOGWARNING)
         # Closing a script window returns to whatever spawned it (the plugin
         # root launcher), which on Kodi 22 can immediately relaunch the app.
         # Clear the modal state, bring Home to the front, then close from under
@@ -641,34 +673,156 @@ def _cleanup(window):
             pass
 
 
-def open_screen(window_factory=None, monitor_factory=None):
-    """Create/show the window and keep the script alive until Back closes it."""
-    factory = window_factory or RaveScreenWindow
-    window = factory(XML_FILE, ADDON_PATH)
-
+def _instance_lock_path():
+    """Profile marker path, or "" when the profile is unavailable."""
     try:
-        if not _activate(window):
-            xbmc.log("[script.raveplayer.ui] window activation refused "
-                     "(a modal dialog was probably open); not waiting.",
-                     level=xbmc.LOGERROR)
-            _notify("Could not open Rave Screen. Close any dialog and try again.")
-            return window
-        monitor = monitor_factory() if monitor_factory else xbmc.Monitor()
-        controller = getattr(window, "_controller", None)
-        while not getattr(window, "closed", False):
-            try:
-                if monitor.abortRequested():
-                    break
-            except Exception:
-                pass
-            tick = getattr(controller, "tick", None)
-            if callable(tick):
-                try:
-                    tick()
-                except Exception:  # noqa: BLE001 - a footer probe never closes
-                    pass
-            xbmc.sleep(100)
-    finally:
-        _cleanup(window)
+        import xbmcaddon
 
-    return window
+        profile = xbmcaddon.Addon().getAddonInfo("profile")
+    except Exception:  # noqa: BLE001 - tests / CLI have no profile
+        profile = ""
+    if not profile:
+        return ""
+    try:
+        os.makedirs(profile, exist_ok=True)
+    except OSError:
+        return ""
+    return os.path.join(profile, "screen-instance.lock")
+
+
+def _read_pid(path):
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            return int(handle.read().strip() or "0")
+    except (OSError, ValueError, TypeError):
+        return 0
+
+
+def _pid_alive(pid):
+    if not pid:
+        return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError as exc:
+        return getattr(exc, "errno", None) == errno.EPERM
+    except Exception:  # noqa: BLE001 - platform without os.kill
+        return False
+
+
+def _acquire_instance(path):
+    """Atomically claim the one-window marker.  False means one is running."""
+    if not path:
+        return True
+    for _ in range(2):
+        try:
+            descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            try:
+                os.write(descriptor, str(os.getpid()).encode("utf-8"))
+            finally:
+                os.close(descriptor)
+            return True
+        except FileExistsError:
+            pid = _read_pid(path)
+            try:
+                age = time.time() - os.path.getmtime(path)
+            except OSError:
+                age = 0
+            if age > INSTANCE_LOCK_TTL or not _pid_alive(pid):
+                try:
+                    os.remove(path)
+                except OSError:
+                    return False
+                continue
+            return False
+        except OSError:
+            # A read-only profile must not make the screen unopenable.
+            return True
+    return False
+
+
+def _touch_instance(path):
+    if not path:
+        return
+    try:
+        os.utime(path, None)
+    except OSError:
+        pass
+
+
+def _release_instance(path):
+    if not path:
+        return
+    try:
+        if _read_pid(path) == os.getpid():
+            os.remove(path)
+    except OSError:
+        pass
+
+
+def _focus_existing():
+    """Bring an already-open Rave Screen forward instead of stacking one."""
+    try:
+        xbmc.executebuiltin("ActivateWindow(%d)" % WINDOW_ID)
+    except Exception:  # noqa: BLE001 - focus is best effort
+        pass
+
+
+def open_screen(window_factory=None, monitor_factory=None):
+    """Create/show the window and keep the script alive until Back closes it.
+
+    Single-instance: a second launch while the first window is alive focuses the
+    existing window (same process) or refuses with a notification (another
+    interpreter), so Back can only ever close the one window the user sees.
+    """
+    global _ACTIVE_WINDOW
+    with _INSTANCE_GUARD:
+        existing = _ACTIVE_WINDOW
+        if existing is not None and not getattr(existing, "closed", False):
+            _focus_existing()
+            return existing
+    path = _instance_lock_path()
+    if not _acquire_instance(path):
+        xbmc.log("[script.raveplayer.ui] second launch refused; a screen is "
+                 "already open.", level=xbmc.LOGINFO)
+        _focus_existing()
+        _notify("Rave Screen is already open.")
+        return None
+
+    factory = window_factory or RaveScreenWindow
+    window = None
+    try:
+        window = factory(XML_FILE, ADDON_PATH)
+        with _INSTANCE_GUARD:
+            _ACTIVE_WINDOW = window
+        try:
+            if not _activate(window):
+                xbmc.log("[script.raveplayer.ui] window activation refused "
+                         "(a modal dialog was probably open); not waiting.",
+                         level=xbmc.LOGERROR)
+                _notify("Could not open Rave Screen. Close any dialog and try again.")
+                return window
+            monitor = monitor_factory() if monitor_factory else xbmc.Monitor()
+            controller = getattr(window, "_controller", None)
+            while not getattr(window, "closed", False):
+                try:
+                    if monitor.abortRequested():
+                        break
+                except Exception:
+                    pass
+                tick = getattr(controller, "tick", None)
+                if callable(tick):
+                    try:
+                        tick()
+                    except Exception:  # noqa: BLE001 - a footer probe never closes
+                        pass
+                _touch_instance(path)
+                xbmc.sleep(100)
+        finally:
+            _cleanup(window)
+        return window
+    finally:
+        with _INSTANCE_GUARD:
+            if _ACTIVE_WINDOW is window:
+                _ACTIVE_WINDOW = None
+        _release_instance(path)

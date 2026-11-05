@@ -27,17 +27,18 @@ import time
 from dataclasses import dataclass
 
 from . import nowplaying
-from .animation import FPS, MIN_DURATION, SpinnerAnimator
+from .animation import FPS, MIN_DURATION, SpinnerAnimator, frame_index
 from .data import (DEFAULT_PAGE_SIZE, PAGE_SIZES, Entry, SearchTarget, Track,
                    _page_local)
 from .screens.library import (
-    ACTION_OPEN, ACTION_PLAY, ACTION_PLAY_ALL, ACTION_REMOVE, ACTION_RETRY,
-    ACTION_SHUFFLE, KIND_ACTION, KIND_ROOM, KIND_TRACK, LibraryScreens,
+    ACTION_CANCEL, ACTION_OPEN, ACTION_PLAY, ACTION_PLAY_ALL, ACTION_REMOVE,
+    ACTION_RETRY, ACTION_SHUFFLE, KIND_ACTION, KIND_ROOM, KIND_TRACK,
+    LibraryScreens,
     PluginBackend, ROUTE_ABOUT, ROUTE_DOWNLOADS, ROUTE_FAVOURITES,
     ROUTE_SEARCH, ROUTES as LIBRARY_ROUTES, Screen, TITLES,
 )
 from .screens.live import LiveRadio
-from .surprise_pick import PackCache, from_plugin, pick_and_handoff
+from .surprise_pick import PackCache, PlayOnce, from_plugin
 from .tasks import TaskCancelled, TaskTimeout, ThreadTaskRunner
 
 HOME_TITLE = "RAVE SCREEN"
@@ -93,7 +94,8 @@ class RaveScreenController(object):
         self._logger = logger or self._default_log
         self._task_runner = task_runner or ThreadTaskRunner(
             sleep=self._sleep_ms, clock=clock, monitor=monitor,
-            timeout=45.0, cancelled=lambda: self._closed)
+            timeout=45.0, cancelled=lambda: self._closed,
+            on_poll=self._on_runner_poll)
         self._frames = list(frames) if frames is not None else list(
             data.spinner_frames() if hasattr(data, "spinner_frames") else [])
         self._title = HOME_TITLE
@@ -113,6 +115,7 @@ class RaveScreenController(object):
         self._total = 0
         self._page_has_next = False
         self._rows_per_page = DEFAULT_PAGE_SIZE
+        self._page_size_explicit = False
         self._plate = None
         self._context_actions = []
         self._context_subject = None
@@ -121,6 +124,21 @@ class RaveScreenController(object):
         self._loading_cancel = threading.Event()
         self._loading_thread = None
         self._download_queue = download_queue
+        # Surprise runs are identified by a monotonically increasing token.  A
+        # worker from an old run can never paint or play, even if it outlives
+        # its timeout, because every UI/player callback checks the token.
+        self._surprise_run = 0
+        self._surprise_guard = None
+        self._surprise_pending = None
+        self._surprise_reveal = None
+        self._surprise_thread = None
+        self._state_lock = threading.Lock()
+        self._loading_active = False
+        self._loading_frame = -1
+        self._loading_started = 0.0
+        self._last_play_key = None
+        self._last_play_at = 0.0
+        self._live_started_at = 0.0
         # One implementation per concern.  The screen modules own the four
         # library rooms, Live Radio and the Surprise policy; the shell only
         # adapts their rows and actions and keeps the navigation stack.
@@ -320,18 +338,22 @@ class RaveScreenController(object):
         """Pop a level; return True when the caller must close the window."""
         if self._closed:
             return True
+        # A running Surprise is a gesture, not a navigation level: Back cancels
+        # the pick and keeps the window open.
+        if self._surprising:
+            self._cancel_surprise()
+            return False
         if self._plate is not None:
             if self._plate.kind == "loading" or self._busy:
-                return False
+                # A load always sets _busy *and* a loading plate.  Back must be
+                # able to abandon it at once; the runner's cancelled predicate
+                # then drops the late result (no zombie invoker).
+                self._close_loading_window()
+                return True
             self._clear_plate()
             return False
-        if self._busy or self._surprising:
-            if self._surprising:
-                self._cancel_surprise()
-                return False
-            self._closed = True
-            self.view.set_status("Closing…")
-            self.view.close()
+        if self._busy:
+            self._close_loading_window()
             return True
         if self._view_kind == "context":
             self._pop()
@@ -342,9 +364,26 @@ class RaveScreenController(object):
         self._closed = True
         self._surprise_cancel.set()
         self._loading_cancel.set()
+        self._stop_loading_animation()
+        self._cancel_surprise_run()
         self.view.set_status("Closing — audio continues.")
         self.view.close()
         return True
+
+    def _close_loading_window(self):
+        """Abandon an in-flight load and close once (P1-1)."""
+        self._closed = True
+        self._surprise_cancel.set()
+        self._loading_cancel.set()
+        self._stop_loading_animation()
+        self._cancel_surprise_run()
+        self._plate = None
+        self._busy = False
+        try:
+            self.view.set_status("Closing — audio continues.")
+        except Exception:  # noqa: BLE001 - window may already be gone
+            pass
+        self.view.close()
 
     def on_context(self):
         """Long-press OK / remote context menu: in-window actions for the row."""
@@ -382,7 +421,8 @@ class RaveScreenController(object):
         if self._closed:
             return False
         live = self._live_ui
-        if live is not None and live.on_air:
+        was_on_air = self._live_on_air()
+        if was_on_air:
             try:
                 stopped = bool(live.stop())
             except Exception:  # noqa: BLE001 - player unavailable
@@ -392,10 +432,16 @@ class RaveScreenController(object):
                 stopped = bool(self.playback.stop())
             except Exception:  # noqa: BLE001 - player unavailable
                 stopped = False
+        self._last_play_key = None
+        # Also clear a stale live latch: a normal stop must leave the live
+        # footer/row honestly idle (P1-3).
+        if live is not None and live.on_air:
+            self._stand_down_live("STANDBY")
         self._playing_live = False
+        self._live_started_at = 0.0
         self._call_view("set_live", False)
         if self._target == "live":
-            self._paint_live_rows()
+            self._paint_live_rows(index=self._current_index(), status="STANDBY")
         self._paint_footer(nowplaying.standby())
         self.view.set_status("Stopped." if stopped else "Nothing playing.")
         return stopped
@@ -406,25 +452,78 @@ class RaveScreenController(object):
             return False
         if self._plate is not None:
             self._clear_plate()
-        # The picker's single-play guard is reset for a new user gesture only.
-        # A retry inside one pick series (or Back then OK on the same plate) is
-        # explicitly *not* a new gesture.
-        picker = self._surprise_picker_for()
-        if picker is not None:
-            picker.guard.reset()
-        self._surprise_played = False
+        token = self._begin_surprise_run()
         self._busy = True
         self._surprising = True
-        self._surprise_cancel.clear()
         self.view.set_spinner_visible(True)
         if self._frames:
             self.view.set_spinner_image(self._frames[0])
         self.view.set_spinner_label("RANDOM PACK · RP-02")
         self.view.set_status("Spinning for one random pack and track…")
-        worker = threading.Thread(target=self.surprise, args=(True,),
+        worker = threading.Thread(target=self._surprise_worker, args=(token,),
                                   name="rave-surprise", daemon=True)
+        self._surprise_thread = worker
         worker.start()
         return True
+
+    def _begin_surprise_run(self):
+        """Start a new gesture: a fresh token, event and one-shot guard.
+
+        The old run's event is never cleared or reused.  A late worker from a
+        previous run therefore sees its own cancellation (set event or stale
+        token) and can neither paint nor play.
+        """
+        with self._state_lock:
+            self._surprise_run += 1
+            token = self._surprise_run
+            self._surprise_cancel = threading.Event()
+            self._surprise_guard = PlayOnce()
+            self._surprise_pending = None
+            self._surprise_reveal = None
+            self._surprise_played = False
+            event = self._surprise_cancel
+        picker = self._surprise_picker_for()
+        if picker is not None:
+            # Reuse the picker's own gate (and reset it for this new gesture),
+            # so code holding the picker sees the same one-shot truth.
+            guard = getattr(picker, "guard", None)
+            if not isinstance(guard, PlayOnce):
+                try:
+                    picker.guard = self._surprise_guard
+                except Exception:  # noqa: BLE001 - read-only fake picker
+                    pass
+            else:
+                guard.reset()
+                self._surprise_guard = guard
+            if not hasattr(self, "_surprise_stop_base"):
+                # A caller-injected predicate (e.g. a test's immediate cancel)
+                # keeps its meaning; this run's token is OR-ed on top once.
+                self._surprise_stop_base = getattr(picker, "should_stop", None)
+
+            def run_cancelled():
+                base = self._surprise_stop_base
+                if base is not None:
+                    try:
+                        if base():
+                            return True
+                    except Exception:  # noqa: BLE001 - advisory predicate
+                        pass
+                return self._run_cancelled(token, event)
+
+            try:
+                picker.should_stop = run_cancelled
+            except Exception:  # noqa: BLE001 - read-only fake picker
+                pass
+        return token
+
+    def _run_cancelled(self, token, event):
+        return (self._closed or event.is_set()
+                or token != self._surprise_run)
+
+    def _run_active(self, token):
+        return (not self._closed and token is not None
+                and token == self._surprise_run
+                and not self._surprise_cancel.is_set())
 
     def _surprise_picker_for(self):
         """The one Surprise policy, wired to the plugin's latest/archive."""
@@ -444,60 +543,86 @@ class RaveScreenController(object):
             **kwargs)
         return self._surprise_picker
 
+    def _surprise_worker(self, token):
+        """Background pick only: never touches a control or the player.
+
+        The GUI loop (``tick``) owns the reveal and the handoff.  A late result
+        is stored with its token and discarded when stale; a timeout
+        invalidates the run before its error plate is painted.
+        """
+        picker = self._surprise_picker_for()
+        try:
+            result = self._task_runner.run(lambda: picker.pick_once())
+        except TaskCancelled:
+            return
+        except TaskTimeout as exc:
+            self._store_surprise_outcome(
+                token, error=("PICK TIMED OUT",
+                              "The random pick took too long. Try again.", exc))
+            return
+        except Exception as exc:  # noqa: BLE001 - fail soft
+            self._store_surprise_outcome(
+                token, error=("SURPRISE FAILED",
+                              "Could not pick a random pack: %s" % exc, exc))
+            return
+        self._store_surprise_outcome(token, result=result)
+
+    def _store_surprise_outcome(self, token, result=None, error=None):
+        with self._state_lock:
+            if token != self._surprise_run or self._surprise_cancel.is_set():
+                return
+            self._surprise_pending = {"token": token, "result": result,
+                                      "error": error}
+
     def surprise(self, prepared=False):
-        """Pick one pack + track, spin for >=1.2s, then hand off once."""
+        """Pick one pack + track, spin for >=1.2s, then hand off once.
+
+        Called synchronously by tests and by callers that already run on the
+        GUI thread.  The window's normal entry point is ``_start_surprise()``:
+        it runs only the network pick on a worker, and ``tick`` drives the
+        reveal/handoff on the GUI thread.
+        """
         if self._closed:
             return False
         if not prepared:
-            if not self._start_surprise():
-                return False
-            return True
-        self._surprise_played = False
+            return self._start_surprise()
+        if self._surprise_guard is None or (
+                not self._run_active(self._surprise_run)
+                and not self._surprise_guard.fired):
+            # Direct (synchronous) callers are the first gesture (or a retry
+            # after a failed/cancelled run): give them the same fresh
+            # token/event/one-shot gate as the async entry point.  A completed
+            # gesture keeps its tripped gate, so a duplicate call cannot play.
+            self._begin_surprise_run()
+        token = self._surprise_run
+        picker = self._surprise_picker_for()
+        with self._state_lock:
+            self._surprise_played = False
         try:
-            picker = self._surprise_picker_for()
-
-            def handoff(track):
-                # This runs inside pick_and_handoff's one-shot guard: it is
-                # tripped before this callback, so no path can play twice.
-                if not self._spin_surprise():
-                    return False
-                if self._handoff(track):
-                    self._surprise_played = True
-                    return True
-                return False
-
-            result = self._task_runner.run(
-                lambda: pick_and_handoff(
-                    picker, handoff, on_result=self._surprise_result))
-            if self._closed or self._surprise_cancel.is_set():
-                return False
-            if not result:
-                if getattr(result, "cancelled", False):
-                    return False
-                self._surprise_failed(
-                    "NO PACK FOUND",
-                    getattr(result, "message", "") or
-                    "The random pick found nothing.", retry=True)
-                return False
-            return self._surprise_played
+            result = self._task_runner.run(lambda: picker.pick_once())
         except TaskCancelled:
             return False
         except TaskTimeout as exc:
-            self._surprise_failed("PICK TIMED OUT",
-                                  "The random pick took too long. Try again.",
-                                  retry=True)
-            self._log("surprise pick timeout: %s" % exc)
+            return self._abandon_surprise(
+                token, "PICK TIMED OUT",
+                "The random pick took too long. Try again.", exc)
+        except Exception as exc:  # noqa: BLE001 - fail soft, no traceback
+            return self._abandon_surprise(
+                token, "SURPRISE FAILED",
+                "Could not pick a random pack: %s" % exc, exc)
+        if not self._run_active(token):
             return False
-        except Exception as exc:  # noqa: BLE001 - fail soft, no traceback to Kodi
-            self._surprise_failed("SURPRISE FAILED",
-                                  "Could not pick a random pack: %s" % exc,
-                                  retry=True)
-            self._log("surprise pick failed: %s" % exc)
+        if result is None or getattr(result, "cancelled", False):
+            self._end_surprise_run()
             return False
-        finally:
-            self._hide_splash()
-            self._surprising = False
-            self._busy = False
+        if getattr(result, "track", None) is None:
+            return self._abandon_surprise(
+                token, "NO PACK FOUND",
+                getattr(result, "message", "") or
+                "The random pick found nothing.")
+        if not self._spin_surprise(token):
+            return False
+        return self._finish_surprise(token, result)
 
     def _surprise_result(self, result):
         """Status line while the worker owns the pick; failures wait for the plate."""
@@ -506,13 +631,17 @@ class RaveScreenController(object):
         if result:
             self.view.set_status("Random pack: %s" % result.title)
 
-    def _spin_surprise(self):
+    def _spin_surprise(self, token=None):
         """The one >=1.2 s reveal.  False means playback must not start."""
+        if token is None:
+            token = self._surprise_run
         self.view.set_spinner_label("RANDOM PACK · RP-02")
         if not self._frames:
             self._surprise_failed("ART UNAVAILABLE",
                                   "The spinning-head frames are missing; "
                                   "playback was not started.", retry=False)
+            return False
+        if not self._run_active(token):
             return False
         animator = self._animator_factory(
             frames=self._frames,
@@ -521,14 +650,14 @@ class RaveScreenController(object):
             fps=FPS,
             sleep=self._sleep_ms,
             clock=self._clock,
-            cancelled=lambda: self._closed or self._surprise_cancel.is_set(),
+            cancelled=lambda: not self._run_active(token),
         )
         try:
             completed = animator.run()
         except Exception as exc:  # noqa: BLE001 - dead control / bad frame
             completed = False
             self._log("surprise animation failed: %s" % exc)
-        if self._closed or self._surprise_cancel.is_set():
+        if not self._run_active(token):
             return False
         if not completed:
             self._surprise_failed("REVEAL FAILED",
@@ -537,16 +666,161 @@ class RaveScreenController(object):
             return False
         return True
 
+    def _finish_surprise(self, token, result):
+        """Hand off once, on the GUI thread, if the run is still current."""
+        if not self._run_active(token):
+            return False
+        track = getattr(result, "track", None)
+        if track is None:
+            return False
+        played = []
+
+        def handoff():
+            if not self._run_active(token):
+                return
+            if self._handoff(track):
+                self._surprise_played = True
+                played.append(True)
+
+        guard = self._surprise_guard
+        if guard is None:
+            # A direct caller still gets the picker's shared one-shot gate, so
+            # no path can hand the same gesture to the player twice (P1-2).
+            guard = getattr(picker, "guard", None)
+        if guard is not None:
+            guard.fire(handoff)
+        else:
+            handoff()
+        self._end_surprise_run()
+        return bool(played)
+
+    def _end_surprise_run(self):
+        self._hide_splash()
+        with self._state_lock:
+            self._surprising = False
+            self._busy = False
+            self._surprise_pending = None
+            self._surprise_reveal = None
+
+    def _abandon_surprise(self, token, title, detail, exc=None):
+        """Invalidate a run before painting its failure plate (P1-2)."""
+        with self._state_lock:
+            if token == self._surprise_run:
+                # Set the run's barrier first: any worker still alive sees it
+                # and can never reach the handoff.
+                self._surprise_cancel.set()
+                self._surprise_run += 1
+            self._surprise_pending = None
+            self._surprise_reveal = None
+        self._hide_splash()
+        with self._state_lock:
+            self._surprising = False
+            self._busy = False
+        self._show_plate("error", title, detail, "OK retry · BACK back",
+                         retry=self._start_surprise)
+        if exc is not None:
+            self._log("surprise %s: %s" % (title.lower(), exc))
+        return False
+
+    def _drive_surprise(self):
+        """Advance the async Surprise on the GUI thread (called by tick)."""
+        with self._state_lock:
+            pending = self._surprise_pending
+            reveal = self._surprise_reveal
+        if pending is not None:
+            with self._state_lock:
+                if self._surprise_pending is pending:
+                    self._surprise_pending = None
+            token = pending.get("token")
+            if not self._run_active(token):
+                self._end_surprise_run()
+                return
+            error = pending.get("error")
+            if error is not None:
+                title, detail, exc = error
+                self._abandon_surprise(token, title, detail, exc)
+                return
+            result = pending.get("result")
+            if result is None or getattr(result, "track", None) is None:
+                self._abandon_surprise(
+                    token, "NO PACK FOUND",
+                    getattr(result, "message", "") if result is not None else
+                    "The random pick found nothing.")
+                return
+            self._begin_reveal(token, result)
+            return
+        if reveal is not None:
+            self._step_reveal(reveal)
+
+    def _begin_reveal(self, token, result):
+        if not self._run_active(token):
+            self._end_surprise_run()
+            return
+        if not self._frames:
+            self._abandon_surprise(
+                token, "ART UNAVAILABLE",
+                "The spinning-head frames are missing; playback was not "
+                "started.", None)
+            return
+        reveal = {"token": token, "result": result,
+                  "started": self._monotonic(), "index": -1}
+        with self._state_lock:
+            self._surprise_reveal = reveal
+        self._step_reveal(reveal)
+
+    def _step_reveal(self, reveal):
+        token = reveal.get("token")
+        if not self._run_active(token):
+            with self._state_lock:
+                if self._surprise_reveal is reveal:
+                    self._surprise_reveal = None
+            self._end_surprise_run()
+            return
+        elapsed = max(0.0, self._monotonic() - reveal.get("started", 0.0))
+        index = frame_index(elapsed, len(self._frames), FPS)
+        if index != reveal.get("index"):
+            reveal["index"] = index
+            if 0 <= index < len(self._frames):
+                try:
+                    self.view.set_spinner_image(self._frames[index])
+                except Exception:  # noqa: BLE001 - dead control
+                    self._end_surprise_run()
+                    return
+        if elapsed < MIN_DURATION:
+            return
+        with self._state_lock:
+            if self._surprise_reveal is reveal:
+                self._surprise_reveal = None
+        self._finish_surprise(token, reveal.get("result"))
+
+    def _monotonic(self):
+        clock = self._clock
+        if clock is None:
+            return time.monotonic()
+        try:
+            return float(clock())
+        except Exception:  # noqa: BLE001 - fake clocks may not be callable
+            return time.monotonic()
+
     def _surprise_failed(self, title, detail, retry=True):
         self._hide_splash()
-        self._show_plate("error", title, detail, "OK retry · BACK back",
+        self._show_plate("error", title, detail,
+                         "OK retry · BACK back" if retry else "BACK back",
                          retry=self._start_surprise if retry else None)
 
+    def _cancel_surprise_run(self):
+        with self._state_lock:
+            self._surprise_cancel.set()
+            self._surprise_run += 1
+            self._surprise_pending = None
+            self._surprise_reveal = None
+
     def _cancel_surprise(self):
-        self._surprise_cancel.set()
+        self._cancel_surprise_run()
         self._hide_splash()
-        self._surprising = False
-        self._busy = False
+        with self._state_lock:
+            self._surprising = False
+            self._busy = False
         self.view.set_status("Surprise cancelled — no playback.")
 
     def _hide_splash(self):
@@ -554,20 +828,36 @@ class RaveScreenController(object):
             self.view.set_spinner_visible(False)
         except Exception:  # noqa: BLE001 - window already gone
             pass
-
     # --------------------------------------------------------------- playback
     def _handoff(self, track, live=None):
         if self._closed:
             return False
         is_live = bool(getattr(track, "live", False)) if live is None else bool(live)
+        key = "%s|%s" % (getattr(track, "url", "") or "",
+                         getattr(track, "title", "") or "")
+        now = time.monotonic()
+        # One GUI turn can deliver two OK events; Kodi would clear and restart
+        # the playlist on the second call (P2-14).
+        if (not is_live and key == self._last_play_key
+                and 0.0 <= now - self._last_play_at < 0.75):
+            self.view.set_status("Already playing — press Stop to restart.")
+            return True
+        if not is_live:
+            # Playing a normal item stands the live latch down before the
+            # footer is computed, so ON AIR cannot leak onto the new track.
+            self._clear_live_latch()
         try:
             result = self.playback.play(track)
         except Exception as exc:  # noqa: BLE001 - bad URL / Kodi API failure
             self.view.set_status("Could not start playback — see the log.")
             self._log("playback handoff failed: %s" % exc)
             return False
+        if not is_live:
+            self._last_play_key = key
+            self._last_play_at = now
         self._handed_off = True
         self._playing_live = is_live
+        self._live_started_at = now if is_live else 0.0
         self._call_view("set_live", is_live)
         text = getattr(result, "text", None) or "Now playing: %s" % track.title
         self.view.set_now_playing(text)
@@ -578,6 +868,18 @@ class RaveScreenController(object):
             live=is_live))
         self._trace("play %s live=%s" % (getattr(track, "url", ""), is_live))
         return True
+
+    def _clear_live_latch(self):
+        """Forget live state without issuing a player stop (P1-3)."""
+        live = self._live_ui
+        if live is not None and live.on_air:
+            try:
+                live.clear("STANDBY")
+            except Exception:  # noqa: BLE001 - fake module may be read-only
+                pass
+        self._playing_live = False
+        self._live_started_at = 0.0
+        self._call_view("set_live", False)
 
     def _play_collection(self, entry, shuffle=False):
         if entry is None:
@@ -594,11 +896,15 @@ class RaveScreenController(object):
             return False
         except TaskTimeout:
             self._show_error("SLOW COLLECTION",
-                             "The source took too long to list. Try again.")
+                             "The source took too long to list. Try again.",
+                             retry=lambda: self._play_collection(
+                                 entry, shuffle=shuffle))
             return False
         except Exception as exc:  # noqa: BLE001 - never crash the window
             self._show_error("COLLECTION FAILED",
-                             "Could not read the collection: %s" % exc)
+                             "Could not read the collection: %s" % exc,
+                             retry=lambda: self._play_collection(
+                                 entry, shuffle=shuffle))
             self._log("collection failed for %s: %s" % (entry.key, exc))
             return False
         finally:
@@ -618,6 +924,7 @@ class RaveScreenController(object):
             self.view.set_status("Could not queue the collection — see the log.")
             self._log("play_collection failed: %s" % exc)
             return False
+        self._clear_live_latch()
         self._handed_off = True
         self._playing_live = False
         self._call_view("set_live", False)
@@ -642,10 +949,12 @@ class RaveScreenController(object):
             return False
         except TaskTimeout:
             self._show_error("SOURCE TIMEOUT",
-                             "That source took too long to resolve. Try again.")
+                             "That source took too long to resolve. Try again.",
+                             retry=lambda: self._resolve_and_play(entry))
             return False
         except Exception as exc:  # noqa: BLE001 - quiet failure
-            self._show_error("SOURCE FAILED", "Could not resolve that set: %s" % exc)
+            self._show_error("SOURCE FAILED", "Could not resolve that set: %s" % exc,
+                             retry=lambda: self._resolve_and_play(entry))
             self._log("resolve failed for %s: %s" % (entry.key, exc))
             return False
         finally:
@@ -724,7 +1033,23 @@ class RaveScreenController(object):
             self._library_ui = LibraryScreens(
                 backend=PluginBackend(modules=modules),
                 playback=None,  # the controller keeps the single playback path
-                logger=self._logger)
+                logger=self._logger, queue=self._download_queue,
+                page_size=self._rows_per_page)
+        else:
+            # An injected LibraryScreens still needs the queue (P1-5) and the
+            # controller's Rows-per-page choice (P2-2) if it supports them.
+            if self._download_queue is not None and getattr(
+                    self._library_ui, "queue", None) is None:
+                try:
+                    self._library_ui.queue = self._download_queue
+                except Exception:  # noqa: BLE001 - fake may be read-only
+                    pass
+            setter = getattr(self._library_ui, "set_page_size", None)
+            if callable(setter) and self._page_size_explicit:
+                try:
+                    setter(self._rows_per_page)
+                except Exception:  # noqa: BLE001 - fake may be read-only
+                    pass
         return self._library_ui
 
     def _load_library_screen(self, route, page=1, push=True):
@@ -776,8 +1101,10 @@ class RaveScreenController(object):
         if self._closed:
             return False
         if not isinstance(screen, Screen):
-            self._show_error("SCREEN ERROR",
-                             "%s returned no screen." % label)
+            self._show_error(
+                "SCREEN ERROR", "%s returned no screen." % label,
+                retry=lambda: self._run_library(route, query, page, push,
+                                                function))
             return False
         if push:
             self._push_current()
@@ -799,6 +1126,12 @@ class RaveScreenController(object):
         self._total = max(0, int(getattr(screen, "total", 0) or 0))
         self._rows_per_page = max(1, int(
             getattr(screen, "page_size", DEFAULT_PAGE_SIZE) or DEFAULT_PAGE_SIZE))
+        # Keep the shell-owned rooms on the same page size: no leak where
+        # Latest pages at 25 only because the user visited Favourites (P2-2).
+        try:
+            self.data.rows_per_page = self._rows_per_page
+        except Exception:  # noqa: BLE001 - read-only test double
+            pass
         self._page_has_next = bool(getattr(screen, "has_next", False))
         self._page_rows = rows
         self._view_kind = "list"
@@ -834,10 +1167,24 @@ class RaveScreenController(object):
             return self._run_library_play(entry)
         if action == ACTION_REMOVE:
             result = self._library_handlers().remove(entry)
-            self.view.set_status(result.message)
+            message = result.message
             if result.ok and self._target in (ROUTE_FAVOURITES,
                                               ROUTE_DOWNLOADS):
-                return self._reload_library()
+                reloaded = self._reload_library()
+                # _reload_library repaints and clears the status; put the
+                # confirmation back so the user sees it (P2-3).
+                self.view.set_status(message)
+                return reloaded
+            self.view.set_status(message)
+            return bool(result.ok)
+        if action == ACTION_CANCEL:
+            result = self._library_handlers().cancel(entry)
+            message = result.message
+            if result.ok and self._target == ROUTE_DOWNLOADS:
+                reloaded = self._reload_library()
+                self.view.set_status(message)
+                return reloaded
+            self.view.set_status(message)
             return bool(result.ok)
         if action == ACTION_RETRY:
             return self._retry_library(entry)
@@ -904,10 +1251,14 @@ class RaveScreenController(object):
         elif mode == "dnb_play":
             show_id = str(payload.get("id") or payload.get("target") or "")
             if not show_id:
+                self.view.set_status("That DNB show has no identifier.")
                 return False
             target = Entry(key="library-dnb-%s" % show_id, label=title,
                            kind="dnb_show", source="dnb", target=show_id,
                            **base)
+            # A saved show is a resolver row, not a folder: resolve its stream
+            # and play it (P1-4).  _load_target would paint an empty STANDBY.
+            return self._resolve_and_play(target)
         elif mode == "handoff":
             link = str(payload.get("target") or "")
             path = ""
@@ -918,12 +1269,12 @@ class RaveScreenController(object):
             if not link or not path:
                 self.view.set_status("That link has no matching Kodi add-on.")
                 return False
-            target = Entry(
-                key="library-external-%s" % link, label=title, kind="external",
-                source="handoff", target=link,
-                track=Track(title, str(payload.get("platform") or "add-on"),
-                            link, getattr(entry, "art", "") or "",
-                            source="handoff", path=path), **base)
+            track = Track(title, str(payload.get("platform") or "add-on"),
+                          link, getattr(entry, "art", "") or "",
+                          source="handoff", path=path)
+            # The platform add-on owns the item; hand the plugin path straight
+            # to the one player instead of opening an empty children room.
+            return self._handoff(track)
         else:
             self.view.set_status("That saved row cannot be opened.")
             return False
@@ -980,7 +1331,7 @@ class RaveScreenController(object):
         self._trace("live rows=%d" % len(rows))
         return True
 
-    def _paint_live_rows(self, index=0):
+    def _paint_live_rows(self, index=0, status=None):
         live = self._live_ui
         if live is None:
             return
@@ -990,6 +1341,10 @@ class RaveScreenController(object):
         self._total = len(rows)
         self._render_page(index=max(0, min(int(index or 0), len(rows) - 1))
                           if rows else 0)
+        # _render_page clears the status line; put the action feedback back so
+        # "ON AIR · Kool FM" / "Could not start…" is actually visible (P2-3).
+        if status:
+            self.view.set_status(status)
 
     def _run_live_action(self, entry, action):
         action_type = str(action.get("type") or "")
@@ -997,9 +1352,17 @@ class RaveScreenController(object):
             return self._open_pirate_room(entry)
         live = self._live_radio()
         ok = live.perform(action)
-        self.view.set_status(live.status)
+        # Keep the shell latch in step with the module: a station that stopped
+        # (or failed to start) must not leave `set_live(True)` behind (P1-3).
+        self._playing_live = bool(live.on_air)
+        if not self._playing_live:
+            self._live_started_at = 0.0
+        self._call_view("set_live", self._playing_live)
+        message = live.status
         if self._target == "live":
-            self._paint_live_rows(index=self._current_index())
+            self._paint_live_rows(index=self._current_index(), status=message)
+        else:
+            self.view.set_status(message)
         self._paint_footer(live.footer())
         return bool(ok)
 
@@ -1099,7 +1462,7 @@ class RaveScreenController(object):
         self._call_view("set_footer", footer)
 
     def _footer_for_current(self):
-        if self._live_ui is not None and self._live_ui.on_air:
+        if self._live_on_air():
             return self._live_ui.footer()
         if (self._footer is not None and self._footer.has_media
                 and self._is_playing()):
@@ -1110,29 +1473,94 @@ class RaveScreenController(object):
         return nowplaying.standby(room=getattr(entry, "label", ""),
                                   fact=getattr(entry, "fact", ""))
 
+    def _live_on_air(self):
+        """Both our live run and the live module must agree the station is on."""
+        return bool(self._playing_live and self._live_ui is not None
+                    and self._live_ui.on_air)
+
     def tick(self):
         """Refresh the footer at ~1 Hz; the window's idle loop calls this."""
         if self._closed:
             return
+        # The async Surprise is driven from the GUI thread; it must run before
+        # the footer throttle so a completed pick is never stuck behind it.
+        self._drive_surprise()
         now = time.monotonic()
         if self._footer_at is not None and now - self._footer_at < 0.9:
             return
         snapshot = self._read_player_snapshot()
-        if self._live_ui is not None and self._live_ui.on_air:
-            paused = bool(snapshot and snapshot.get("paused"))
-            if paused != self._live_ui.paused:
-                self._live_ui.set_paused(paused)
-                if self._target == "live":
-                    self._paint_live_rows(index=self._current_index())
-            self._paint_footer(self._live_ui.footer())
+        if self._reconcile_live(snapshot):
             return
         if not snapshot:
             if (self._footer is not None and self._footer.has_media
                     and not self._is_playing()):
                 self._paint_footer()
             return
+        if snapshot.get("starting"):
+            # Kodi is opening the stream (Caching/HasMedia) but not decoding
+            # yet; keep the live state instead of clearing it during buffering.
+            if self._live_ui is not None and self._live_ui.on_air:
+                self._paint_footer(self._live_ui.footer())
+                return
         self._paint_footer(nowplaying.from_player(
             snapshot, live=self._playing_live))
+
+    def _reconcile_live(self, snapshot):
+        """One source of truth: Kodi's player decides whether live is on air.
+
+        Returns True when the live footer was painted and the normal player
+        path must be skipped.
+        """
+        live = self._live_ui
+        if live is None or not live.on_air:
+            if self._playing_live:
+                self._playing_live = False
+                self._call_view("set_live", False)
+            return False
+        if not snapshot:
+            # Kodi reports no media at all.  Give a fresh station a short
+            # start-up grace (Player.play is asynchronous), then stand down so
+            # a stopped/never-started stream cannot leave ON AIR latched.
+            if (self._playing_live
+                    and self._monotonic() - self._live_started_at < 3.0):
+                self._paint_footer(live.footer())
+                return True
+            self._stand_down_live("STANDBY")
+            return True
+        if not self._playing_live:
+            # A normal track/collection started through another path; the live
+            # latch is stale even though the module still remembers a station.
+            self._stand_down_live("STANDBY")
+            return False
+        paused = bool(snapshot.get("paused"))
+        if paused != live.paused:
+            live.set_paused(paused)
+            if self._target == "live":
+                self._paint_live_rows(index=self._current_index())
+        self._call_view("set_live", True)
+        self._paint_footer(live.footer())
+        return True
+
+    def _stand_down_live(self, status="STANDBY"):
+        live = self._live_ui
+        if live is not None:
+            try:
+                live.clear(status)
+            except Exception:  # noqa: BLE001 - a fake module may be read-only
+                try:
+                    live._playing = ""
+                    live._paused = False
+                except Exception:  # noqa: BLE001 - best effort
+                    pass
+        self._playing_live = False
+        self._call_view("set_live", False)
+        if self._target == "live":
+            self._paint_live_rows(index=self._current_index(),
+                                  status=status or "STANDBY")
+        # The render above reuses the previous footer while the fake/real
+        # player still reports playing; stand the footer down explicitly so a
+        # stale ON AIR model cannot survive the reset (P1-3).
+        self._paint_footer(nowplaying.standby())
 
     def _read_player_snapshot(self):
         if self._player_snapshot is not None:
@@ -1145,6 +1573,14 @@ class RaveScreenController(object):
 
             player = xbmc.Player()
             if not player.isPlaying():
+                # A stream that is still opening reports Caching/HasMedia but
+                # not Playing.  Do not treat that buffering gap as "stopped".
+                if (xbmc.getCondVisibility("Player.Caching")
+                        or xbmc.getCondVisibility("Player.HasMedia")):
+                    return {"starting": True, "playing": False,
+                            "paused": False,
+                            "title": xbmc.getInfoLabel("Player.Title"),
+                            "duration": 0, "elapsed": 0}
                 return None
             return {
                 "title": xbmc.getInfoLabel("Player.Title"),
@@ -1192,38 +1628,53 @@ class RaveScreenController(object):
     def _start_loading(self, title, detail):
         self._show_plate("loading", title, detail, "Please wait…")
         self._loading_cancel.clear()
+        self._loading_active = True
+        self._loading_frame = -1
+        self._loading_started = self._monotonic()
+        # The first frame is painted here; later frames are advanced from the
+        # task runner's poll, which runs on the caller's (GUI) thread.  No
+        # control is ever touched from the worker thread (P2-5).
+        self._advance_loading_frame()
+
+    def _advance_loading_frame(self, force=False):
+        if not self._loading_active or self._closed:
+            return
         frames = list(self._frames or [])
         head = getattr(self.view, "set_plate_head", None)
         if not frames or head is None:
             return
-        def spin():
-            index = 0
-            while not self._loading_cancel.is_set() and not self._closed:
-                try:
-                    head(frames[index % len(frames)])
-                except Exception:  # noqa: BLE001 - dead control is fail-soft
-                    return
-                index += 1
-                if self._sleep is not None:
-                    self._sleep(120)
-                else:
-                    try:
-                        import xbmc
-                        xbmc.sleep(120)
-                    except Exception:
-                        return
-        self._loading_thread = threading.Thread(target=spin, name="rave-loading",
-                                                daemon=True)
-        self._loading_thread.start()
+        elapsed = max(0.0, self._monotonic() - self._loading_started)
+        index = frame_index(elapsed, len(frames), FPS)
+        if not force and index == self._loading_frame:
+            return
+        self._loading_frame = index
+        try:
+            head(frames[index % len(frames)])
+        except Exception:  # noqa: BLE001 - dead control is fail-soft
+            self._loading_active = False
+
+    def _on_runner_poll(self):
+        """Task-runner poll hook (caller/GUI thread): animate the load plate."""
+        self._advance_loading_frame()
+
+    def _stop_loading_animation(self):
+        self._loading_active = False
+        self._loading_frame = -1
 
     def _finish_loading(self):
         self._loading_cancel.set()
         self._loading_thread = None
+        self._stop_loading_animation()
+        if self._closed:
+            self._plate = None
+            return
         if self._plate is not None and self._plate.kind == "loading":
             self._clear_plate()
 
     def _show_plate(self, kind, title, detail="", hint="", retry=None):
         self._plate = _Plate(kind, title, detail, hint, retry)
+        if self._closed:
+            return
         setter = getattr(self.view, "set_plate", None)
         if setter is not None:
             setter(kind, title, detail, hint)
@@ -1231,12 +1682,15 @@ class RaveScreenController(object):
 
     def _show_error(self, title, detail, retry=None):
         self._finish_loading()
-        self._show_plate("error", title, detail, "OK retry · BACK back", retry)
+        hint = "OK retry · BACK back" if retry is not None else "BACK back"
+        self._show_plate("error", title, detail, hint, retry)
 
     def _clear_plate(self):
         if self._plate is None:
             return
         self._plate = None
+        if self._closed:
+            return
         clearer = getattr(self.view, "clear_plate", None)
         if clearer is not None:
             clearer()
@@ -1519,12 +1973,14 @@ class RaveScreenController(object):
         actions = []
         payload = getattr(entry, "payload", None)
         if isinstance(payload, dict) and payload.get("action") in (
-                ACTION_REMOVE, ACTION_RETRY, ACTION_OPEN):
+                ACTION_REMOVE, ACTION_RETRY, ACTION_OPEN, ACTION_CANCEL):
             mapped = str(payload.get("action"))
             labels = {
                 ACTION_REMOVE: ("Remove", "DELETE", "Remove this saved row"),
                 ACTION_RETRY: ("Retry", "AGAIN", "Run this room again"),
                 ACTION_OPEN: ("Source link", "OPEN", "Show the source URL"),
+                ACTION_CANCEL: ("Cancel download", "STOP",
+                                "Stop this download"),
             }
             label, fact, plot = labels[mapped]
             actions.append({"action": "library_" + mapped, "label": label,
@@ -1615,6 +2071,10 @@ class RaveScreenController(object):
                 return self._run_live_action(subject, dict(subject.action))
             if action == "refresh":
                 return self._open_live_room(push=False)
+            if action == "rows":
+                return self._cycle_rows_per_page()
+            if action == "stop":
+                return self.on_stop()
             return False
         if action == "open":
             return self._load_target(subject, 1, push=True)
@@ -1666,12 +2126,17 @@ class RaveScreenController(object):
             if getattr(subject, "kind", "") == "library_track":
                 return self._run_library_play(subject)
             return self._run_library_action(subject)
-        if action == "library_remove":
+        if action in ("library_remove", "remove"):
             result = self._library_handlers().remove(subject)
-            self.view.set_status(result.message)
+            message = result.message
             if result.ok:
-                return self._reload_library()
+                reloaded = self._reload_library()
+                self.view.set_status(message)
+                return reloaded
+            self.view.set_status(message)
             return False
+        if action in ("library_cancel", "cancel_download"):
+            return self._run_library_action(subject)
         if action == "library_retry":
             return self._retry_library(subject)
         if action == "library_open":
@@ -1679,6 +2144,14 @@ class RaveScreenController(object):
             self.view.set_status(
                 "Source: %s" % url if url else "Read-only credit — Back returns.")
             return False
+        if action == "rows":
+            return self._cycle_rows_per_page()
+        if action == "stop":
+            return self.on_stop()
+        if action == "favourite" or action == "library_favourite":
+            result = self._library_handlers().favourite(subject)
+            self.view.set_status(result.message)
+            return bool(result.ok)
         if action == "refresh":
             return self._reload_library()
         if action in ("play_all", "shuffle_all"):
@@ -1704,6 +2177,7 @@ class RaveScreenController(object):
             self.view.set_status("Could not queue those tracks — see the log.")
             self._log("library play_all failed: %s" % exc)
             return False
+        self._clear_live_latch()
         self._handed_off = True
         self._playing_live = False
         self._call_view("set_live", False)
@@ -1724,15 +2198,32 @@ class RaveScreenController(object):
         new_rows = sizes[(index + 1) % len(sizes)]
         offset = (max(1, self._page) - 1) * self._rows_per_page + self._current_index()
         self._rows_per_page = new_rows
+        self._page_size_explicit = True
         try:
             self.data.rows_per_page = new_rows
         except Exception:  # noqa: BLE001 - read-only test double
             pass
+        # Library rooms compute their own page size; give them the user's
+        # choice instead of letting their next load overwrite it (P2-2).
+        setter = getattr(self._library_ui, "set_page_size", None)
+        if callable(setter):
+            try:
+                setter(new_rows)
+            except Exception:  # noqa: BLE001 - fake may be read-only
+                pass
         self.view.set_status("Rows per page: %d" % new_rows)
-        if self._target is None:
+        target = self._target
+        if target is None:
             return True
         new_page = int(offset // new_rows) + 1
-        return self._load_target(self._target, new_page, push=False)
+        if target == "live":
+            ok = self._open_live_room(push=False)
+        else:
+            ok = self._load_target(target, new_page, push=False)
+        # The reload repaints and clears the status; keep the user's choice
+        # visible after it (P2-1/P2-3).
+        self.view.set_status("Rows per page: %d" % new_rows)
+        return ok
 
     # ------------------------------------------------------------------ actions
     def _start_download(self, entry):
@@ -1766,10 +2257,12 @@ class RaveScreenController(object):
             ok = self.data.remove_favourite(key)
         except Exception:  # noqa: BLE001 - profile may be read-only
             ok = False
-        self.view.set_status("Removed from favourites" if ok
-                             else "Could not remove that favourite.")
-        if ok and self._target == "favourites":
+        message = ("Removed from favourites" if ok
+                   else "Could not remove that favourite.")
+        self.view.set_status(message)
+        if ok and self._target in ("favourites", ROUTE_FAVOURITES):
             self._reload_current(keep_index=False)
+            self.view.set_status(message)
         return bool(ok)
 
     def _delete_download(self, entry):
@@ -1780,9 +2273,12 @@ class RaveScreenController(object):
             ok = self.data.delete_download(key)
         except Exception:  # noqa: BLE001 - file/profile unavailable
             ok = False
-        self.view.set_status("Download deleted" if ok else "That download was not found.")
-        if ok and self._target == "downloads":
+        message = ("Download deleted" if ok
+                   else "That download was not found.")
+        self.view.set_status(message)
+        if ok and self._target in ("downloads", ROUTE_DOWNLOADS):
             self._reload_current(keep_index=False)
+            self.view.set_status(message)
         return bool(ok)
 
     # ------------------------------------------------------------------ helpers

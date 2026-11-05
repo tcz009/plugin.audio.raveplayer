@@ -55,6 +55,7 @@ ACTION_DOWNLOAD = "download"
 ACTION_FAVOURITE = "favourite"
 ACTION_REMOVE = "remove"
 ACTION_RETRY = "retry"
+ACTION_CANCEL = "cancel"   # stop an active DownloadQueue row
 # Not one of the seven shell actions: About links use it so a remote can still
 # open the project page.  A shell that does not handle it may ignore the row.
 ACTION_OPEN = "open"
@@ -644,9 +645,10 @@ class LibraryScreens:
     """
 
     def __init__(self, backend=None, playback=None, page_size=None,
-                 logger=None, random_module=None):
+                 logger=None, random_module=None, queue=None):
         self.backend = backend if backend is not None else PluginBackend()
         self.playback = playback
+        self.queue = queue
         self._page_size_override = (
             None if page_size is None else normalise_page_size(page_size))
         self._logger = logger or _default_log
@@ -665,6 +667,15 @@ class LibraryScreens:
             resolved = DEFAULT_PAGE_SIZE
         self._page_size_cache = resolved
         return resolved
+
+    def set_page_size(self, size):
+        """Apply the shell's Rows-per-page choice to every library room."""
+        try:
+            self._page_size_override = normalise_page_size(size)
+        except Exception:  # noqa: BLE001 - keep the last valid size
+            return self.page_size()
+        self._page_size_cache = self._page_size_override
+        return self._page_size_override
 
     def _page_size_hint(self):
         """The page size for a loading/back screen without loading the plugin."""
@@ -814,7 +825,13 @@ class LibraryScreens:
         )
 
     def downloads(self, page=1):
-        """Offline copies; missing files stay visible so they can be removed."""
+        """Offline copies plus the live DownloadQueue's active rows.
+
+        The queue is the only source of in-flight progress/cancel; the plugin
+        index is the only source of completed files.  Merging them here means
+        the Downloads room can never again promise progress it does not show
+        (P1-5).
+        """
         size = self.page_size()
         page = _as_page(page)
         try:
@@ -822,8 +839,21 @@ class LibraryScreens:
                        if isinstance(entry, dict)]
         except Exception as exc:  # noqa: BLE001
             return self._error_screen(ROUTE_DOWNLOADS, "", page, size, exc)
-        rows = [row for row in (self._download_row(entry)
-                                for entry in entries) if row is not None]
+        rows = []
+        queue_rows = []
+        if self.queue is not None:
+            try:
+                queue_rows = [row for row in (self.queue.rows() or [])
+                              if isinstance(row, dict)]
+            except Exception as exc:  # noqa: BLE001 - a dead queue is not fatal
+                self._log("download queue read failed: %s" % exc)
+                queue_rows = []
+        for item in queue_rows:
+            row = self._queue_row(item)
+            if row is not None:
+                rows.append(row)
+        rows.extend(row for row in (self._download_row(entry)
+                                    for entry in entries) if row is not None)
         window, page, pages, total = _paged(rows, page, size)
         if not total:
             return self._empty_screen(
@@ -831,7 +861,12 @@ class LibraryScreens:
                 "Refresh downloads", DOWNLOADS_IDLE_SUBTITLE)
         saved = sum(_as_int(entry.get("size")) for entry in entries
                     if entry.get("exists"))
+        active = sum(1 for row in queue_rows
+                     if _text(row.get("status")).lower() in
+                     ("queued", "checking", "downloading", "cancelling"))
         subtitle = "%s files" % _count(total)
+        if active:
+            subtitle = "%d active · %s" % (active, subtitle)
         size_fact = _size_fact(saved)
         if size_fact:
             subtitle += " · %s" % size_fact
@@ -1104,6 +1139,18 @@ class LibraryScreens:
                                 "That favourite was not found.",
                                 refresh=ROUTE_FAVOURITES)
         key = _text(payload.get("download_key"))
+        if key and payload.get("queue"):
+            # A failed/cancelled queue row is not in the plugin's completed
+            # index; clear it from the queue store instead (P1-5).
+            try:
+                ok = bool(self.queue is not None and self.queue.dismiss(key))
+            except Exception as exc:  # noqa: BLE001
+                self._log("download queue dismiss failed: %s" % exc)
+                ok = False
+            return ActionResult(ok, ACTION_REMOVE,
+                                "Download removed" if ok else
+                                "That download is no longer in the queue.",
+                                refresh=ROUTE_DOWNLOADS)
         if key:
             try:
                 ok = bool(self.backend.download_delete(key))
@@ -1344,6 +1391,74 @@ class LibraryScreens:
             payload=dict(base, action=ACTION_REMOVE),
             subtitle=source,
             plot="That link is no longer playable — remove it or save it again.",
+        )
+
+    def cancel(self, row):
+        """Cancel one active DownloadQueue row from the Downloads room."""
+        payload = _payload(row)
+        key = _text(payload.get("download_key") or payload.get("target"))
+        if self.queue is None:
+            return ActionResult(False, ACTION_CANCEL,
+                                "Downloads are not available in this build.")
+        try:
+            ok = bool(self.queue.cancel(key))
+        except Exception as exc:  # noqa: BLE001 - queue failure is a row state
+            self._log("download cancel failed: %s" % exc)
+            ok = False
+        return ActionResult(
+            ok, ACTION_CANCEL,
+            "Cancelling download…" if ok else "That download is no longer running.",
+            payload=dict(payload), refresh=ROUTE_DOWNLOADS)
+
+    def _queue_row(self, entry):
+        """One in-flight/failed DownloadQueue row as a Downloads list row."""
+        key = _text(entry.get("key"))
+        if not key:
+            return None
+        status = _text(entry.get("status"), "queued").lower()
+        title = _text(entry.get("title"), "Download")
+        source = _text(entry.get("source"))
+        detail = _text(entry.get("detail"))
+        icon = self._art("downloads.png")
+        fanart = self._art("fanart-favourites.jpg")
+        if status in ("queued", "checking", "downloading", "cancelling"):
+            percent = max(0, min(100, _as_int(entry.get("percent"))))
+            if status == "downloading" and (_as_int(entry.get("total"))
+                                            or percent):
+                fact = "%d%%" % percent
+            elif status == "downloading":
+                fact = "downloading"
+            elif status == "cancelling":
+                fact = "cancelling"
+            elif status == "checking":
+                fact = "checking"
+            else:
+                fact = "queued"
+            return Row(
+                label=title,
+                kind=KIND_ACTION,
+                fact=_fact(fact),
+                icon=icon,
+                fanart=fanart,
+                code=CODE_DOWNLOADS,
+                payload={"action": ACTION_CANCEL, "download_key": key,
+                         "target": key, "title": title, "queue": True},
+                subtitle=("Downloading" if source else "Download queue"),
+                plot=detail or "Active download — press OK to cancel.",
+            )
+        # A failed/cancelled attempt stays visible until the user clears it.
+        return Row(
+            label=title,
+            kind=KIND_ACTION,
+            fact=_fact(status, "failed"),
+            icon=icon,
+            fanart=fanart,
+            code=CODE_DOWNLOADS,
+            payload={"action": ACTION_REMOVE, "download_key": key,
+                     "target": key, "title": title, "queue": True},
+            subtitle=("Download failed" if status == "failed"
+                      else "Download cancelled"),
+            plot=detail or "That download did not finish — remove it.",
         )
 
     def _download_row(self, entry):

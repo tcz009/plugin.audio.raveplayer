@@ -36,9 +36,13 @@ class DirectTaskRunner(object):
 
 class ThreadTaskRunner(object):
     def __init__(self, sleep=None, clock=None, monitor=None, timeout=15.0,
-                 cancelled=None):
+                 cancelled=None, on_poll=None):
         self.timeout = max(0.0, float(timeout))
         self.cancelled = cancelled
+        # `on_poll` runs on the *caller* thread (the GUI thread for loads) on
+        # every poll, so progress animation never touches a control from the
+        # worker thread.
+        self.on_poll = on_poll
         if sleep is None:
             import xbmc
 
@@ -86,7 +90,16 @@ class ThreadTaskRunner(object):
                 pass
             if self.clock() - started >= self.timeout:
                 raise TaskTimeout("source took longer than %.0fs" % self.timeout)
+            self._poll()
             self.sleep(50)
         if "error" in outcome:
             raise TaskFailed(str(outcome["error"]))
         return outcome.get("value")
+
+    def _poll(self):
+        if self.on_poll is None:
+            return
+        try:
+            self.on_poll()
+        except Exception:  # noqa: BLE001 - a progress tick is advisory
+            pass

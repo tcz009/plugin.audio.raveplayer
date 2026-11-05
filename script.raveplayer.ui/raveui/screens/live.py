@@ -483,6 +483,22 @@ class LiveRadio(object):
         self.status = ("PAUSED · %s" if self._paused else "ON AIR · %s") % name
         return True
 
+    def clear(self, status="STANDBY"):
+        """Stand down after Kodi stopped the stream or another item started.
+
+        This never touches the player: the controller calls it when it has
+        proved (from Kodi's own state) that this station is no longer playing.
+        """
+        self._playing = ""
+        self._paused = False
+        self._now = {}
+        self.status = status or "STANDBY"
+        return True
+
+    def set_stopped(self, status="STANDBY"):
+        """Alias used by the shell for an externally stopped stream."""
+        return self.clear(status)
+
     def perform(self, action):
         """Execute a row action.  ``open`` is left to the controller."""
         if not isinstance(action, dict):

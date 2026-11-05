@@ -11,6 +11,7 @@ import itertools
 import os
 import sys
 import tempfile
+import threading
 import time
 import types
 import unittest
@@ -871,6 +872,13 @@ class WindowAdapterTests(unittest.TestCase):
         self.assertTrue(ctl.closed)
         window.close()
 
+    def test_close_hands_active_downloads_to_the_headless_owner(self):
+        window = ravewindow.RaveScreenWindow("x.xml", "/tmp")
+        queue = mock.Mock()
+        window._queue = queue
+        window.close()
+        queue.spawn_worker.assert_called_once()
+
     def test_click_delegates_to_controller(self):
         window = ravewindow.RaveScreenWindow("x.xml", "/tmp")
         stub = StubController()
@@ -1040,6 +1048,60 @@ class WindowAdapterTests(unittest.TestCase):
         # Window.close() would send TMSG_GUI_PREVIOUS_WINDOW and pop the root
         # list the user is standing on.
         self.assertFalse(fake.closed)
+
+
+class SingleInstanceTests(unittest.TestCase):
+    """P1-6: a second launch reuses/refuses, it never stacks a second window."""
+
+    def test_second_open_screen_reuses_the_live_window(self):
+        factories = []
+        nested = {}
+
+        class FakeWindow(object):
+            def __init__(self):
+                self.closed = False
+                self.initialized = False
+                self.shown = 0
+
+            def show(self):
+                self.shown += 1
+                self.initialized = True
+                if self.shown == 1:
+                    nested["result"] = ravewindow.open_screen(
+                        window_factory=lambda *a, **k: factories.append("second"),
+                        monitor_factory=lambda: types.SimpleNamespace(
+                            abortRequested=lambda: True))
+
+            def close(self):
+                self.closed = True
+
+        fake = FakeWindow()
+
+        def factory(*args, **kwargs):
+            factories.append("first")
+            return fake
+
+        result = ravewindow.open_screen(
+            window_factory=factory,
+            monitor_factory=lambda: types.SimpleNamespace(
+                abortRequested=lambda: True))
+        self.assertIs(result, fake)
+        self.assertIs(nested["result"], fake)
+        self.assertEqual(factories, ["first"])
+
+    def test_instance_lock_refuses_while_another_pid_is_alive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "screen-instance.lock")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("424242")
+            with mock.patch.object(ravewindow, "_pid_alive", return_value=True):
+                self.assertFalse(ravewindow._acquire_instance(path))
+            self.assertTrue(os.path.exists(path))
+            with mock.patch.object(ravewindow, "_pid_alive", return_value=False):
+                self.assertTrue(ravewindow._acquire_instance(path))
+            self.assertEqual(ravewindow._read_pid(path), os.getpid())
+            ravewindow._release_instance(path)
+            self.assertFalse(os.path.exists(path))
 
 
 # ----------------------------------------------------------------------- data
@@ -2125,6 +2187,72 @@ class DownloadQueueTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("not downloadable", message)
         modules.downloads.plan.assert_not_called()
+
+
+    def test_queue_persists_an_interrupted_row_for_the_next_owner(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "download-queue.json")
+            release = threading.Event()
+
+            def blocked(planned, progress=None, cancelled=None):
+                progress(42, 100)
+                release.wait(2.0)
+                return {"ok": False, "reason": "network down"}
+
+            modules = self.modules()
+            modules.downloads.download = mock.Mock(side_effect=blocked)
+            queue = DownloadQueue(modules=modules, store_path=path)
+            queue.start("https://x/1.mp3", "Set", "Archive.org", key="k")
+            self.assertTrue(self.wait(
+                queue, lambda rows: rows and rows[0]["percent"] == 42))
+            next_owner = DownloadQueue(store_path=path)
+            rows = next_owner.rows()
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["key"], "k")
+            self.assertEqual(rows[0]["percent"], 42)
+            # An interrupted transfer is queued for the next owner, never
+            # left claiming to be live in this dead interpreter.
+            self.assertEqual(rows[0]["status"], "queued")
+            release.set()
+            self.assertTrue(self.wait(
+                queue, lambda rows: rows and rows[0]["status"] == "failed"))
+
+    def test_window_queue_defers_transfer_to_the_headless_owner(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "download-queue.json")
+            modules = self.modules()
+            queue = DownloadQueue(modules=modules, store_path=path,
+                                  local_workers=False)
+            queue.start("https://x/1.mp3", "Set", "Archive.org", key="k")
+            time.sleep(0.1)
+            self.assertEqual(modules.downloads.download.call_count, 0)
+            self.assertEqual(queue.rows()[0]["status"], "queued")
+            builtins = [line for _level, line in xbmc._lines]
+            self.assertTrue(any("RunScript(script.raveplayer.ui,downloads)" in line
+                                for line in builtins))
+            self.assertTrue(queue.cancel("k"))
+            self.assertEqual(queue.rows()[0]["status"], "cancelling")
+
+    def test_spawn_worker_only_when_a_transfer_is_active(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "download-queue.json")
+            release = threading.Event()
+
+            def blocked(planned, progress=None, cancelled=None):
+                release.wait(2.0)
+                return {"ok": True, "reason": ""}
+
+            modules = self.modules()
+            modules.downloads.download = mock.Mock(side_effect=blocked)
+            queue = DownloadQueue(modules=modules, store_path=path)
+            self.assertFalse(queue.spawn_worker())
+            queue.start("https://x/1.mp3", "Set", "Archive.org", key="k")
+            self.assertTrue(queue.spawn_worker())
+            builtins = [line for _level, line in xbmc._lines]
+            self.assertTrue(any("RunScript(script.raveplayer.ui,downloads)" in line
+                                for line in builtins))
+            release.set()
+            self.assertTrue(self.wait(queue, lambda rows: not rows))
 
 
 class PlaybackPolicyTests(unittest.TestCase):
