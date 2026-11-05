@@ -138,6 +138,9 @@ class ListItem(object):
         self.label2 = label
 
 
+ACTION_PARENT_DIR = 9
+
+
 class _DialogModule(object):
     pass
 
@@ -147,7 +150,9 @@ class WindowXML(object):
 
     Real Kodi reads the XML from ``script_path/resources/skins/<skin>/720p``;
     this stub only records the constructor arguments and lifecycle so a test can
-    drive the add-on's Python class without a renderer.
+    drive the add-on's Python class without a renderer. Kodi's Python ``Window``
+    API has no ``getId()``; the add-on proves activation with its own onInit
+    flag.
     """
 
     def __init__(self, xml_filename="", script_path="", *args, **kwargs):
