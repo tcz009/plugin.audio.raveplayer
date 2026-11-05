@@ -314,7 +314,7 @@ class ControllerTests(unittest.TestCase):
         data.pick = None
         ctl.start()
         view.index = 2
-        self.assertFalse(ctl.on_click())
+        self.assertFalse(ctl.surprise())
         self.assertEqual(data.picks, 1)
         self.assertEqual(animator.ran, 0)
         self.assertEqual(playback.calls, [])
@@ -326,7 +326,7 @@ class ControllerTests(unittest.TestCase):
         data.random_pick = lambda: (_ for _ in ()).throw(RuntimeError("offline"))
         ctl.start()
         view.index = 2
-        self.assertFalse(ctl.on_click())
+        self.assertFalse(ctl.surprise())
         self.assertEqual(playback.calls, [])
         self.assertFalse(view.spinner_visible)
         self.assertFalse(ctl._busy)
@@ -343,7 +343,7 @@ class ControllerTests(unittest.TestCase):
             animator_factory=lambda **kwargs: BrokenAnimator(**kwargs))
         ctl.start()
         view.index = 2
-        self.assertFalse(ctl.on_click())
+        self.assertFalse(ctl.surprise())
         self.assertEqual(playback.calls, [])
         self.assertFalse(view.spinner_visible)
 

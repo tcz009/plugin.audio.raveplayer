@@ -12,6 +12,8 @@ playback service. Every state transition is explicit:
 
 from dataclasses import dataclass
 
+import threading
+
 from .animation import FPS, MIN_DURATION, SpinnerAnimator
 from .tasks import TaskCancelled, TaskTimeout, ThreadTaskRunner
 
@@ -106,7 +108,15 @@ class RaveScreenController(object):
         if entry.kind == "section":
             return self._open_section(entry)
         if entry.kind == "surprise":
-            return self.surprise()
+            # The GUI thread is inside this Python call; running the 1.2 s
+            # frame loop here blocks repaint and the splash is never drawn.
+            # Hand it to a worker so Kodi can paint the spinner, then return.
+            if self._closed or self._busy or self._handed_off:
+                return False
+            thread = threading.Thread(target=self.surprise, name="rave-surprise",
+                                      daemon=True)
+            thread.start()
+            return True
         if entry.track is not None:
             return self._handoff(entry.track)
         if entry.kind in ("pack", "genre", "show"):
