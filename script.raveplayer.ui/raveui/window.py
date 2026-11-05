@@ -208,10 +208,6 @@ class RaveScreenWindow(xbmcgui.WindowXML):
             xbmc.log("[script.raveplayer.ui] init failed: %s" % exc,
                      level=xbmc.LOGERROR)
             self._view.set_status("Rave Screen could not load Rave Player data.")
-        try:
-        except Exception:
-            pass
-
     def onClick(self, control_id):
         if control_id == CONTROL_LIST and self._controller is not None:
             self._controller.on_click()
