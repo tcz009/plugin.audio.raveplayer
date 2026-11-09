@@ -1,3 +1,8 @@
+Rave Player 3.9.60 — open the app, parity pass
+- Opening the add-on now launches the full-screen app directly; the old directory menu is the fallback (and stays reachable).
+- Internal screen add-on renamed "Rave Player UI" so it is not presented as a separate product.
+- Carries the 3.9.59 conservative cancel safety fixes.
+
 Rave Player 3.9.59 — conservative cancel safety
 - Cancelling a download never deletes a completed download. A cancel stops
   active queued/downloading rows only; a completed same-URL copy stays in

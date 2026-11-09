@@ -11,10 +11,38 @@ import traceback
 from resources.lib import kodi, routes
 
 
+def _maybe_launch_screen(argv):
+    """Opening the add-on should go straight into the full-screen app.
+
+    The classic directory menu remains the fallback (and is reachable from the
+    screen); this only changes what a normal add-on launch does.
+    """
+    args = list(argv or [])
+    params = {}
+    for part in args[2:]:
+        if "=" in part:
+            key, _, value = part.partition("=")
+            params[key] = value
+    mode = params.get("mode")
+    if mode not in (None, "", "root"):
+        return False
+    try:
+        if not bool(xbmc.getCondVisibility(
+                "System.AddonIsEnabled(%s)" % routes.RAVE_SCREEN_ADDON)):
+            return False
+        xbmc.executebuiltin("RunScript(%s)" % routes.RAVE_SCREEN_ADDON)
+        return True
+    except Exception:  # noqa: BLE001 - fall back to the classic menu
+        return False
+
+
 def main(argv=None):
     """Run one plugin invocation; never let an error escape to Kodi."""
     try:
-        routes.dispatch(sys.argv if argv is None else argv)
+        args = sys.argv if argv is None else argv
+        if _maybe_launch_screen(args):
+            return
+        routes.dispatch(args)
     except Exception:  # last-resort guard (dispatch already handles its own)
         kodi.log("fatal: unhandled plugin error\n%s" % traceback.format_exc(), level=40)
 

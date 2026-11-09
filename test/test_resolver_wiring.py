@@ -554,7 +554,7 @@ class SettingsAndManifestTests(unittest.TestCase):
                    for item in plugin.findall("./requires/import")}
         self.assertEqual(imports.get("script.module.raveresolver"),
                          module.get("version"))
-        self.assertEqual(plugin.get("version"), "3.9.59")
+        self.assertEqual(plugin.get("version"), "3.9.60")
 
     def test_resolver_settings_are_in_the_plugin_ui(self):
         root = ET.parse(os.path.join(ROOT, "resources", "settings.xml")).getroot()
