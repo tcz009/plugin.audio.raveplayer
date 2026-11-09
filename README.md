@@ -211,6 +211,9 @@ downloadable.
 - Files are written atomically through `xbmcvfs` to
   `special://userdata/downloads/raveplayer/` as
   `<sanitised-title>-<8hex>.mp3/.m4a`; cancel/failure leaves no partial file.
+  A cancel stops active transfers only: a completed same-URL copy stays in
+  Downloads, and 3.9.59 deliberately does not delete it (removing a completed
+  duplicate from a cancel is deferred; use the Downloads room's delete).
 - Storage guard: 500 MiB per file, 2 GiB total, 256 MiB free-space reserve;
   size and free space are shown before starting.
 - **Favourites → Downloads** lists local files with size/date, plays the local
@@ -265,9 +268,9 @@ A self-hosted **web version** (same sources, runs in Docker) lives at
 
 ## Install from the repository (recommended)
 
-Current release: **`plugin.audio.raveplayer` 3.9.56** with
-**`script.raveplayer.ui` 3.9.56** (the full-screen Rave app; the script requires
-the 3.9.56 plugin) and **`script.module.raveresolver` 1.1.0**.
+Current release: **`plugin.audio.raveplayer` 3.9.59** with
+**`script.raveplayer.ui` 3.9.59** (the full-screen Rave app; the script requires
+the 3.9.59 plugin) and **`script.module.raveresolver` 1.1.0**.
 
 Add the repository once, then Rave Player installs and updates itself.
 
@@ -305,7 +308,7 @@ for the wiring and merge notes, and
 
 Install it from the repository (Add-ons → Install from repository → Rave
 Player Repository → Program add-ons → Rave Resolver) or install
-`script.module.raveresolver-1.1.0.zip` directly. The 3.9.56 plugin declares
+`script.module.raveresolver-1.1.0.zip` directly. The 3.9.59 plugin declares
 the dependency, so Kodi installs the module first.
 
 ## Development

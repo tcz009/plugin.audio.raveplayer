@@ -41,6 +41,10 @@ _PROGRESS_SAVE_INTERVAL = 1.0
 # when both save at once (P1-5b).
 _STORE_LOCK_TIMEOUT = 2.0
 _STORE_LOCK_STALE = 30.0
+# Removal tombstones stop a stale window snapshot from re-adding a row the
+# owner already completed/dismissed.  They only need to outlive the stale
+# window that could still hold the old row.
+_STORE_TOMBSTONE_TTL = 7 * 24 * 60 * 60.0
 
 
 def _write_json_atomic(path, value, description, log):
@@ -205,6 +209,7 @@ class DownloadQueue(object):
         self._lock = threading.Lock()
         self._items = {}
         self._order = []
+        self._removed = {}
         self._store_path = store_path
         # The window defers transfer ownership to the headless script process
         # (local_workers=False) so closing the window can never kill a transfer;
@@ -242,6 +247,11 @@ class DownloadQueue(object):
                 return False, "That source is not downloadable."
         except Exception as exc:  # noqa: BLE001 - optional module
             return False, "Downloads are unavailable (%s)." % exc
+        if not self._local_workers:
+            # A stale window may not have seen the owner start or finish this
+            # key.  Merge the newer store before the active check so a start
+            # cannot clear an in-flight cancel or restart a live transfer.
+            self.refresh()
         row_key = str(key or url)
         with self._lock:
             existing = self._items.get(row_key)
@@ -267,28 +277,26 @@ class DownloadQueue(object):
         return True, "Download started — progress is in Downloads."
 
     def cancel(self, key):
-        """Cancel a row and clean up any duplicate of the same transfer.
+        """Cancel active rows for this job; never delete a completed download.
 
-        A completed copy of the same key/URL used to survive a cancel, so the
-        Downloads room kept showing a finished item after the user cancelled
-        it (3.9.54 device QA P2-3).  Mark every active duplicate and remove the
-        completed index entry/file as well.
+        3.9.59 conservative rule: a user cancel only stops rows that are still
+        active.  A completed copy of the same key/URL is left in place, and a
+        cancel aimed at a completed row does not delete anything.  Removing a
+        completed duplicate on cancel is deferred (known limitation); the
+        Downloads room keeps its explicit delete action.
         """
         key = str(key or "")
+        if not self._local_workers:
+            # Never act on a ghost row the owner already completed/removed:
+            # merges the newer store and the owner's removal tombstones first.
+            self.refresh()
         cancelled_keys = []
         url = ""
         with self._lock:
             row = self._items.get(key)
-            if row is None:
-                url = ""
-            else:
+            if row is not None:
                 url = str(row.get("url") or "")
-            if row is None or row.get("status") not in ACTIVE:
-                # The visible row may already be gone while a duplicate of the
-                # same transfer is still queued; clean that up below.
-                active = False
-            else:
-                active = True
+            active = bool(row is not None and row.get("status") in ACTIVE)
             for candidate, item in self._items.items():
                 if item.get("status") not in ACTIVE:
                     continue
@@ -305,68 +313,33 @@ class DownloadQueue(object):
             self._request_cancel(candidate)
         self._save_now()
         self._safe_update()
-        # Cancelling a *completed* row is an explicit delete of that transfer:
-        # the screen key and plugin key differ, so URL matching is needed.  But
-        # cancelling an active duplicate must never remove a different job's
-        # completed copy that happens to share the URL.
-        if active or url:
-            self._delete_completed(key, url, by_url=not active)
         # The owner drains queued/cancelling rows that have no worker; the
         # window must leave the sidecar for that owner.
         if self._local_workers:
             self._pump()
         return active
 
-    def _delete_completed(self, key, url, by_url=False):
-        """Delete the completed index row owned by this cancellation.
-
-        Deletion is by job identity.  Only an explicit user cancel may also
-        match by URL, because the plugin's completion key (sha1(url)) differs
-        from the screen queue key (parent:md5(url)); auto/late cancellation
-        must never remove another job's finished file.
-
-        This is best-effort: the queue must still cancel when the plugin index
-        is unavailable.
-        """
-        try:
-            modules = self.modules
-        except Exception:  # noqa: BLE001 - plugin unavailable is best-effort
-            return 0
-        if modules is None:
-            return 0
-        try:
-            rows = modules.downloads.list_downloads()
-        except Exception:  # noqa: BLE001 - plugin index is optional here
-            return 0
-        removed = 0
-        for item in rows or []:
-            if not isinstance(item, dict):
-                continue
-            candidate_key = str(item.get("key") or "")
-            # Identity first; URL only for an explicit user cancel.  Two jobs
-            # may share one URL, so auto/late cancellation must never delete
-            # the other job's successfully completed file.
-            if candidate_key != key and not (
-                    by_url and url and str(item.get("url") or "") == url):
-                continue
-            try:
-                if modules.downloads.delete(candidate_key):
-                    removed += 1
-            except Exception as exc:  # noqa: BLE001 - file/index unavailable
-                self._log("could not delete completed download %s: %s"
-                          % (candidate_key, exc))
-        return removed
-
     def dismiss(self, key):
         key = str(key or "")
         with self._lock:
-            row = self._items.pop(key, None)
-            if row is not None and key in self._order:
-                self._order.remove(key)
+            row = self._drop_row(key)
         if row is not None:
             self._clear_cancel(key)
             self._save_now()
         return row is not None
+
+    def _drop_row(self, key):
+        """Remove a local row and tombstone it for the cross-process merge.
+
+        Caller holds ``self._lock``.  The tombstone stops a stale window
+        snapshot from re-adding a row the owner already completed/dismissed.
+        """
+        row = self._items.pop(key, None)
+        if key in self._order:
+            self._order.remove(key)
+        if row is not None:
+            self._removed[str(key)] = time.time()
+        return row
 
     def rows(self):
         if not self._local_workers and self._store_path:
@@ -458,21 +431,35 @@ class DownloadQueue(object):
         self._worker_lock_path = ""
 
     def refresh(self):
-        """Merge rows written by another process without clobbering progress."""
+        """Merge rows written by another process without clobbering progress.
+
+        A completed/dismissed owner row is not present on disk; its tombstone
+        tells this process to drop the stale local copy instead of showing a
+        ghost row.
+        """
         if not self._store_path:
             return
-        rows = self._read_store()
+        rows, removed = self._read_store_package()
         with self._lock:
+            for key, stamp in removed.items():
+                if stamp > self._removed.get(key, -1.0):
+                    self._removed[key] = stamp
+                current = self._items.get(key)
+                if current is not None and stamp > float(
+                        current.get("updated") or 0):
+                    self._drop_row(key)
             for row in rows:
                 key = str(row.get("key") or "")
                 if not key:
+                    continue
+                stamp = float(row.get("updated") or 0)
+                if self._removed.get(key, -1.0) > stamp:
                     continue
                 current = self._items.get(key)
                 if current is not None:
                     # Only a newer disk snapshot may replace local state, so a
                     # slightly older read cannot rewind a live progress row.
-                    if float(row.get("updated") or 0) <= float(
-                            current.get("updated") or 0):
+                    if stamp <= float(current.get("updated") or 0):
                         continue
                 elif key not in self._order:
                     self._order.append(key)
@@ -601,15 +588,12 @@ class DownloadQueue(object):
                                    and current.get("cancel"))
             if late_cancel or self._cancel_requested(key):
                 # Cancel landed in the same instant the transfer finished.
-                # The file is still unwanted: remove it rather than leaving a
-                # completed duplicate in Downloads (3.9.54 device QA P2-3).
-                self._delete_completed(key, url)
+                # 3.9.59: leave the completed copy in place; a cancel never
+                # deletes a completed download.
                 self._finish(key, "cancelled", "cancelled by user")
                 return
             with self._lock:
-                self._items.pop(key, None)
-                if key in self._order:
-                    self._order.remove(key)
+                self._drop_row(key)
             self._clear_cancel(key)
             self._cancel_duplicates(key, url)
             self._save_now()
@@ -676,15 +660,19 @@ class DownloadQueue(object):
             row["updated"] = time.time()
         if status == "cancelled":
             self._cancel_duplicates(key, url)
-            self._delete_completed(key, url)
         self._log("download %s: %s (%s)" % (key, status, detail))
         # Durability order: persist the terminal row before dropping the
         # sidecar, otherwise a crash between the two resurrects the transfer.
-        self._save_now()
+        # Only a real successful write may clear it.
         try:
-            self._clear_cancel(key)
-        except Exception:  # noqa: BLE001 - sidecar is best effort
-            pass
+            saved = bool(self._save_now())
+        except Exception:  # noqa: BLE001 - store is best effort
+            saved = False
+        if saved:
+            try:
+                self._clear_cancel(key)
+            except Exception:  # noqa: BLE001 - sidecar is best effort
+                pass
         self._safe_update()
 
     def _safe_update(self):
@@ -697,13 +685,20 @@ class DownloadQueue(object):
 
     # ------------------------------------------------------------ persistence
     def _load_store(self, restart=True):
-        for row in self._read_store(restart=restart):
+        rows, removed = self._read_store_package(restart=restart)
+        for key, stamp in removed.items():
+            if stamp > self._removed.get(key, -1.0):
+                self._removed[key] = stamp
+        for row in rows:
             key = str(row.get("key") or "")
             if not key or key in self._items:
                 continue
             if self._cancel_requested(key):
                 row["status"] = "cancelled"
                 row["cancel"] = True
+                # Make the persisted terminal row newer than the window's
+                # stale ``cancelling`` snapshot so a later refresh retries.
+                row["updated"] = time.time()
             if key not in self._order:
                 self._order.append(key)
             self._items[key] = row
@@ -714,9 +709,8 @@ class DownloadQueue(object):
             # flags.  The window must leave the sidecar for the owner.  If the
             # store write fails, keep the sidecar: it is the only durable
             # record that the row was cancelled.
-            saved = True
             try:
-                self._save_now()
+                saved = bool(self._save_now())
             except Exception:  # noqa: BLE001 - store is best effort
                 saved = False
             if saved:
@@ -727,17 +721,32 @@ class DownloadQueue(object):
                 except Exception:  # noqa: BLE001 - best effort
                     pass
 
-    def _read_store(self, restart=False):
+    def _read_store_package(self, restart=False):
+        """Read queue rows plus removal tombstones from one store file.
+
+        3.9.58 and older stores are a bare row list.  3.9.59 writes
+        ``{"rows": [...], "removed": {key: updated}}`` so a stale window can
+        tell "the owner removed this row" apart from "I have not seen this row
+        yet" -- both look identical in a bare snapshot.
+        """
         path = self._store_path
         if not path:
-            return []
+            return [], {}
         try:
             with open(path, "r", encoding="utf-8") as handle:
                 package = json.load(handle)
         except (OSError, ValueError, TypeError):
-            return []
+            return [], {}
+        if isinstance(package, dict):
+            raw_rows = package.get("rows")
+            raw_removed = package.get("removed")
+        elif isinstance(package, list):
+            raw_rows = package
+            raw_removed = None
+        else:
+            return [], {}
         rows = []
-        for raw in package if isinstance(package, list) else []:
+        for raw in raw_rows if isinstance(raw_rows, list) else []:
             if not isinstance(raw, dict):
                 continue
             key = str(raw.get("key") or "")
@@ -768,7 +777,17 @@ class DownloadQueue(object):
                 "cancel": bool(raw.get("cancel")),
                 "updated": float(raw.get("updated") or 0),
             })
-        return rows
+        removed = {}
+        if isinstance(raw_removed, dict):
+            for key, stamp in raw_removed.items():
+                try:
+                    removed[str(key)] = float(stamp or 0)
+                except (TypeError, ValueError):
+                    continue
+        return rows, removed
+
+    def _read_store(self, restart=False):
+        return self._read_store_package(restart=restart)[0]
 
     def _cancel_store_path(self):
         return self._store_path + ".cancel" if self._store_path else ""
@@ -814,27 +833,77 @@ class DownloadQueue(object):
 
     def _save_now(self):
         self._last_save = time.monotonic()
-        self._write_store()
+        return self._write_store()
 
     def _save_throttled(self):
         now = time.monotonic()
         if now - self._last_save < _PROGRESS_SAVE_INTERVAL:
-            return
+            return True
         self._last_save = now
-        self._write_store()
+        return self._write_store()
 
     def _write_store(self):
+        """Merge this snapshot into the on-disk store and persist it.
+
+        The window and the headless owner both write the same file.  A plain
+        last-writer-wins snapshot lets a stale window resurrect an owner row
+        that already completed (or overwrite newer progress), so per-row
+        ``updated`` decides: a newer disk row wins over the local copy, and a
+        removal tombstone newer than either side drops the row.  Local
+        cancel/status changes carry a fresh ``updated`` and therefore win.
+        """
         path = self._store_path
         if not path:
-            return
+            return True
         with self._lock:
-            rows = [dict(self._items[key]) for key in self._order
-                    if key in self._items]
+            local_rows = [dict(self._items[key]) for key in self._order
+                          if key in self._items]
+            local_removed = dict(self._removed)
         # Per-writer unique temp + atomic rename; the lock serialises the two
         # owner processes so one snapshot never clobbers another's temp file.
         with _StoreLock(path):
-            _write_json_atomic(path, rows, "download queue save failed",
-                               self._log)
+            disk_rows, disk_removed = self._read_store_package()
+            rows, removed = self._merge_store(
+                local_rows, local_removed, disk_rows, disk_removed)
+            self._removed = removed
+            package = {"rows": rows, "removed": removed}
+            return _write_json_atomic(path, package,
+                                      "download queue save failed", self._log)
+
+    def _merge_store(self, local_rows, local_removed, disk_rows, disk_removed):
+        """Merge local and on-disk snapshots; newer per-row ``updated`` wins."""
+        removed = dict(local_removed)
+        for key, stamp in disk_removed.items():
+            if stamp > removed.get(key, -1.0):
+                removed[key] = stamp
+        merged = {}
+        order = []
+        for row in local_rows:
+            key = str(row.get("key") or "")
+            if not key:
+                continue
+            stamp = float(row.get("updated") or 0)
+            if removed.get(key, -1.0) > stamp:
+                continue
+            merged[key] = row
+            order.append(key)
+        for row in disk_rows:
+            key = str(row.get("key") or "")
+            if not key:
+                continue
+            stamp = float(row.get("updated") or 0)
+            if removed.get(key, -1.0) > stamp:
+                continue
+            current = merged.get(key)
+            if current is None:
+                merged[key] = row
+                order.append(key)
+            elif stamp > float(current.get("updated") or 0):
+                merged[key] = row
+        cutoff = time.time() - _STORE_TOMBSTONE_TTL
+        persisted = {key: stamp for key, stamp in removed.items()
+                     if stamp >= cutoff}
+        return [merged[key] for key in order], persisted
 
     def _log(self, message):
         if self._logger is None:

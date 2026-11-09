@@ -1612,11 +1612,11 @@ class ManifestAndSkinTests(unittest.TestCase):
     def test_script_manifest_is_kodi_19_22_and_depends_on_the_plugin(self):
         root = ET.parse(os.path.join(SCREEN, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.raveplayer.ui")
-        self.assertEqual(root.get("version"), "3.9.58")
+        self.assertEqual(root.get("version"), "3.9.59")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
-        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.58")
+        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.59")
         extension = root.find("./extension[@point='xbmc.python.script']")
         self.assertIsNotNone(extension)
         self.assertEqual(extension.get("library"), "default.py")
@@ -2331,7 +2331,7 @@ class DownloadQueueTests(unittest.TestCase):
             self.assertTrue(queue.cancel("k"))
             self.assertEqual(queue.rows()[0]["status"], "cancelling")
 
-    def test_cancel_removes_a_completed_duplicate_of_the_same_key(self):
+    def test_cancel_leaves_a_completed_copy_alone(self):
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, "download-queue.json")
             modules = self.modules()
@@ -2341,7 +2341,7 @@ class DownloadQueueTests(unittest.TestCase):
                                   local_workers=False)
             queue.start("https://x/1.mp3", "Set", "Archive.org", key="k")
             self.assertTrue(queue.cancel("k"))
-            modules.downloads.delete.assert_called_once_with("k")
+            modules.downloads.delete.assert_not_called()
             self.assertEqual(queue.rows()[0]["status"], "cancelling")
 
     def test_cancel_marks_every_duplicate_row_for_the_same_url(self):
@@ -2359,7 +2359,7 @@ class DownloadQueueTests(unittest.TestCase):
             self.assertTrue(rows["a"]["cancel"])
             self.assertTrue(rows["b"]["cancel"])
 
-    def test_a_cancel_that_lands_as_the_file_finishes_leaves_no_completed_row(self):
+    def test_a_cancel_that_lands_as_the_file_finishes_keeps_the_completed_copy(self):
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, "download-queue.json")
             modules = self.modules()
@@ -2382,7 +2382,7 @@ class DownloadQueueTests(unittest.TestCase):
             self.assertTrue(self.wait(
                 queue, lambda rows: rows and
                 rows[0]["status"] == "cancelled"))
-            modules.downloads.delete.assert_called_with("k")
+            modules.downloads.delete.assert_not_called()
             self.assertNotEqual(queue.rows()[0]["status"], "downloading")
 
     def test_window_queue_shows_the_owners_downloading_status(self):
@@ -2486,14 +2486,19 @@ class DownloadQueueTests(unittest.TestCase):
                     except (OSError, ValueError) as exc:
                         errors.append(exc)
                         continue
-                    if not isinstance(value, list):
-                        errors.append(AssertionError("not a list: %r" % value))
+                    if isinstance(value, dict):
+                        rows = value.get("rows")
+                    else:
+                        rows = value
+                    if not isinstance(rows, list):
+                        errors.append(AssertionError(
+                            "not a row list: %r" % (value,)))
                         continue
-                    for row in value:
+                    for row in rows:
                         if not isinstance(row, dict) or not row.get("key"):
                             errors.append(AssertionError(
                                 "partial row snapshot: %r" % (row,)))
-                    snapshots.append(len(value))
+                    snapshots.append(len(rows))
                     time.sleep(0.0005)
 
             writer_a = threading.Thread(target=write, args=(first, "a", 80))
@@ -2510,9 +2515,10 @@ class DownloadQueueTests(unittest.TestCase):
             self.assertTrue(snapshots)
             with open(path, encoding="utf-8") as handle:
                 final = json_module.load(handle)
-            self.assertIsInstance(final, list)
+            final_rows = final.get("rows") if isinstance(final, dict) else final
+            self.assertIsInstance(final_rows, list)
             self.assertTrue(all(isinstance(row, dict) and row.get("key")
-                                for row in final))
+                                for row in final_rows))
 
 
 class PlaybackPolicyTests(unittest.TestCase):

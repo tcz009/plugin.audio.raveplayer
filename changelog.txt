@@ -1,3 +1,21 @@
+Rave Player 3.9.59 — conservative cancel safety
+- Cancelling a download never deletes a completed download. A cancel stops
+  active queued/downloading rows only; a completed same-URL copy stays in
+  Downloads, and cancelling a completed row does not delete it. Removing a
+  completed duplicate on cancel is deferred (known limitation); use the
+  Downloads room's explicit delete.
+- The cancel sidecar is cleared only after the queue store write actually
+  succeeds, on both the worker finish path and the owner's restart load.
+- A stale window snapshot can no longer overwrite newer owner progress or
+  resurrect a completed/dismissed row: store writes merge per-row `updated`
+  timestamps and persist short-lived removal tombstones. Local cancel/status
+  changes carry a newer `updated` and win.
+- Window start/cancel refresh the owner's store first, so a stale window does
+  not clear an in-flight cancel. Owner drain and queued-cancel retry are
+  retained.
+- Versions: plugin 3.9.59, screen 3.9.59 (requires plugin 3.9.59); resolver
+  1.1.0. Code only: no device run, no push and no tag.
+
 Rave Player 3.9.58 — cancel safety follow-up
 - Explicit URL matching is now used only when cancelling a *completed* row;
   cancelling an active duplicate deletes by job identity only, so a different
