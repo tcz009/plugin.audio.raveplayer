@@ -34,8 +34,14 @@ jobs:
           imports = {item.get("addon"): item.get("version")
                      for item in screen.findall("./requires/import")}
           assert imports.get("plugin.audio.raveplayer") == plugin.get("version")
+          resolver = ET.parse("script.module.raveresolver/addon.xml").getroot()
+          assert resolver.get("id") == "script.module.raveresolver"
+          module = resolver.find("./extension[@point='xbmc.python.module']")
+          assert module is not None
+          assert module.get("library") == "resources/lib"
           print("addon.xml ok, plugin", plugin.get("version"),
-                "screen", screen.get("version"))
+                "screen", screen.get("version"),
+                "resolver", resolver.get("version"))
           PY
 
       - name: Build installable zip

@@ -62,12 +62,15 @@ The 3.9.x release flow is: bump `addon.xml` + `changelog.txt`; rebuild the
 artifacts; commit the regenerated `repo/`; then tag. The current release is
 **3.9.51** (`plugin.audio.raveplayer` 3.9.51 + `script.raveplayer.ui` 3.9.50),
 prepared on `feat/app-integration`; the exact commands and rollback are in
-`docs/RELEASE-3.9.51.md`.
+`docs/RELEASE-3.9.51.md`. The resolver-module branch additionally publishes
+`script.module.raveresolver` 1.0.0; `scripts/build.sh` and
+`scripts/build-repo.sh` include it, but the plugin does not depend on it until
+the 3.9.52 integration pass (`docs/KODI-RESOLVER.md`).
 
 ```sh
 # 1. version bump already in addon.xml/changelog.txt
-./scripts/build.sh          # dist/plugin.audio.raveplayer-<version>.zip
-./scripts/build-repo.sh     # repo/addons.xml(.md5) + versioned repo zip
+./scripts/build.sh          # dist/plugin..., dist/script.raveplayer.ui..., dist/script.module.raveresolver...
+./scripts/build-repo.sh     # repo/addons.xml(.md5) + versioned repo zips
 ./scripts/check-repo-artifacts.sh   # must pass before committing
 
 # 2. commit source + generated repo/, push main

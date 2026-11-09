@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings>
+    <category id="service" label="Resolver service (fallback)">
+        <setting id="resolver_service_url" type="text" label="NAS resolver URL (e.g. http://nas:8080)" default=""/>
+        <setting id="resolver_service_token" type="text" label="Service token" default="" option="hidden"/>
+        <setting id="resolver_enable_mega" type="bool" label="Enable Mega links (in-process adapter or service)" default="false"/>
+        <setting id="resolver_service_timeout" type="number" label="Service timeout (seconds)" default="25"/>
+    </category>
+    <category id="network" label="Network and cache">
+        <setting id="resolver_http_timeout" type="number" label="Provider HTTP timeout (seconds)" default="20"/>
+        <setting id="resolver_cache_dir" type="folder" label="Cache folder (blank = Kodi temp)" default=""/>
+        <setting id="resolver_cache_ttl" type="number" label="Resolved URL cache (seconds, 0 = off)" default="7200"/>
+    </category>
+</settings>

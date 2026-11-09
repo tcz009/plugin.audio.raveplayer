@@ -254,7 +254,10 @@ means a dead source can't take the whole add-on down with it.
 ## Requirements
 
 - Kodi 20 (Nexus) through Kodi 22 (Piers)
-- Nothing else. No module dependencies, no external binaries.
+- `script.module.raveresolver` 1.0.0 for direct, Mediafire, Drive and provider
+  page playback (bundled in the repository; wired into the plugin in the
+  3.9.52 integration pass). No external binaries or third-party Python
+  packages.
 
 A self-hosted **web version** (same sources, runs in Docker) lives at
 <https://github.com/tcz009/raveplayer-web>.
@@ -282,6 +285,21 @@ After that, updates arrive through the repository — Kodi re-checks
 
 1. Download `plugin.audio.raveplayer-<version>.zip` from the releases page.
 2. Kodi → Add-ons → Install from zip file.
+
+## Resolver module (new, 1.0.0)
+
+The repository also publishes **`script.module.raveresolver` 1.0.0**, an
+installable `xbmc.python.module` add-on. It resolves provider page links to
+playable audio in-process (direct, Mediafire, Google Drive), parses Mega URLs
+and can fall back to an optional NAS `/api/resolve` service for Mega,
+Podomatic pages and future sources. The module is present but the plugin does
+not depend on it yet; the 3.9.52 integration contract, snippets and settings
+are in [`docs/KODI-RESOLVER.md`](docs/KODI-RESOLVER.md).
+
+Install it from the repository (Add-ons → Install from repository → Rave
+Player Repository → Program add-ons → Rave Resolver) or install
+`script.module.raveresolver-1.0.0.zip` directly. Installing it does not change
+playback until the plugin declares the dependency.
 
 ## Development
 

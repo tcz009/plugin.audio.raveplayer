@@ -1,0 +1,20 @@
+Rave Resolver 1.0.0
+- First installable resolver module for Rave Player (Kodi 20-22).
+- In-process adapters: direct audio allowlist, Mediafire file pages (signed
+  URL extraction, 2-hour cache, HTTP 429 backoff), Google Drive file ids
+  (virus-scan confirm form, Range probe, 2-hour cache).
+- Podomatic and Mega adapter seams: direct Podomatic CDN files resolve
+  in-process; Mega URLs are fully parsed. Mega/Podomatic page resolution uses
+  a supplied native adapter or the optional NAS /api/resolve service.
+- Optional NAS /api/resolve fallback with configurable base URL and Bearer
+  token. Service responses are validated as public http(s) URLs before use.
+- Security: loopback/private/link-local/metadata addresses refused before any
+  request; redirects re-validated hop by hop; service token and signed URLs
+  never logged; cache keys are SHA-256 hashes.
+- Settings: resolver_service_url, resolver_service_token,
+  resolver_enable_mega, timeouts, cache folder and cache TTL.
+- Tests: offline Kodi-stub suite covering adapter selection, allowlists,
+  private rejection, Mediafire/Drive parsing, Mega URL parsing and service
+  fallback; no network in the tests.
+- Additive only: plugin.audio.raveplayer routes are not wired in this release;
+  see docs/KODI-RESOLVER.md for the integration contract.

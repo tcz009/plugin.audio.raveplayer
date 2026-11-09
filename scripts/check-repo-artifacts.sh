@@ -9,8 +9,10 @@ set -eu
 cd "$(dirname "$0")/.."
 VERSION=$(python3 -c "import xml.etree.ElementTree as E;print(E.parse('addon.xml').getroot().get('version'))")
 SCREEN_VERSION=$(python3 -c "import xml.etree.ElementTree as E;print(E.parse('script.raveplayer.ui/addon.xml').getroot().get('version'))")
+MODULE_VERSION=$(python3 -c "import xml.etree.ElementTree as E;print(E.parse('script.module.raveresolver/addon.xml').getroot().get('version'))")
 PLUGIN_ZIP="repo/plugin.audio.raveplayer/plugin.audio.raveplayer-${VERSION}.zip"
 SCREEN_ZIP="repo/script.raveplayer.ui/script.raveplayer.ui-${SCREEN_VERSION}.zip"
+MODULE_ZIP="repo/script.module.raveresolver/script.module.raveresolver-${MODULE_VERSION}.zip"
 
 if [ -n "$(git status --porcelain -- repo/addons.xml repo/addons.xml.md5)" ]; then
   echo "ERROR: repo/addons.xml or repo/addons.xml.md5 is modified/untracked." >&2
@@ -19,7 +21,7 @@ if [ -n "$(git status --porcelain -- repo/addons.xml repo/addons.xml.md5)" ]; th
   exit 1
 fi
 
-for ZIP in "$PLUGIN_ZIP" "$SCREEN_ZIP"; do
+for ZIP in "$PLUGIN_ZIP" "$SCREEN_ZIP" "$MODULE_ZIP"; do
   if ! git ls-files --error-unmatch "$ZIP" >/dev/null 2>&1; then
     echo "ERROR: ${ZIP} is not tracked by git." >&2
     echo "       Run ./scripts/build-repo.sh and commit the regenerated repo/." >&2
@@ -31,4 +33,4 @@ for ZIP in "$PLUGIN_ZIP" "$SCREEN_ZIP"; do
   fi
 done
 
-echo "repo/ artifacts are current and committed for plugin ${VERSION}, screen ${SCREEN_VERSION}"
+echo "repo/ artifacts are current and committed for plugin ${VERSION}, screen ${SCREEN_VERSION}, resolver ${MODULE_VERSION}"
