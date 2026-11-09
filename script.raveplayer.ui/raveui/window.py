@@ -879,11 +879,15 @@ def _acquire_instance(path):
             return True
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError:
-            # Some live owner (including another interpreter in this same Kodi
-            # process) holds the lock.
+        except OSError as exc:
+            # EACCES/EAGAIN mean a live owner (including another interpreter
+            # in this same Kodi process) holds the lock.  Anything else means
+            # flock is unsupported on this profile/filesystem, so use the
+            # PID/heartbeat fallback rather than refusing to open forever.
             os.close(descriptor)
-            return False
+            if getattr(exc, "errno", None) in (errno.EACCES, errno.EAGAIN):
+                return False
+            return _acquire_instance_exclusive(path)
         pid = _read_pid(path)
         try:
             age = time.time() - os.path.getmtime(path)

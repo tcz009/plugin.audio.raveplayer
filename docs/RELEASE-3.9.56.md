@@ -153,12 +153,12 @@ machine (Python 3.9.6). No device, network, ADB or Shield access was used.
 
 | Check | Result |
 |---|---|
-| Full suite (run 1) | **1166 tests, OK** in 21.8 s |
+| Full suite (run 1) | **1166 tests, OK** in 22.4 s |
 | Full suite (run 2) | **1166 tests, OK** in 21.8 s |
 | `./scripts/build-repo.sh` | plugin 3.9.56, screen 3.9.56, resolver 1.1.0, repository 1.0.0 |
 | `./scripts/check-repo-artifacts.sh` | pass after committing the regenerated `repo/` |
-| Plugin zip | `dist/plugin.audio.raveplayer-3.9.56.zip`, 9,097,250 B, SHA-256 `2e93b7be3ef1fa0b771a06e4a367cc2a41dbebfff7dad139610d262b7c095c39` |
-| Screen zip | `dist/script.raveplayer.ui-3.9.56.zip`, 5,432,878 B, SHA-256 `fbcf10d7e985dc89a59e6bee03721bb133dbae8f2ae28214ebf5c41d0e140782` |
+| Plugin zip | `dist/plugin.audio.raveplayer-3.9.56.zip`, 9,097,250 B, SHA-256 `4f174e4e2b6dc27b6521cea35b31a5e56353b3cfa06e143aa7c0ccdafc6dd7d2` |
+| Screen zip | `dist/script.raveplayer.ui-3.9.56.zip`, 5,432,991 B, SHA-256 `0021366ffdabd07f209c33c478709ebdf1ac39173076fef53461e6a3f4c4086a` |
 | Resolver zip | 1.1.0, 310,713 B (regenerated timestamp only) |
 | Repository zip | 1.0.0, 853,389 B (regenerated timestamp only) |
 | `repo/addons.xml` md5 | `f49d755120937bace46200817886ef3b` matches `repo/addons.xml.md5` |
