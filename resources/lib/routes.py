@@ -473,6 +473,25 @@ def _web_client():
         return None
 
 
+def _web_art(value):
+    """Map web row art to local add-on art when possible.
+
+    The web serves ``/static/art/<name>.png`` behind the session; Kodi has no
+    cookie for that path, so a remote URL is a magenta placeholder.  The same
+    icons ship in the add-on's resources/art, so use those bytes.
+    """
+    text = str(value or "").replace("\\", "/")
+    marker = "/static/art/"
+    if marker not in text:
+        return text
+    name = text.split(marker, 1)[1].split("?", 1)[0].split("#", 1)[0]
+    name = name.rsplit("/", 1)[-1]
+    if not name or name.startswith("."):
+        return ""
+    local = os.path.join(kodi.ADDON_PATH, "resources", "art", name)
+    return local if os.path.isfile(local) else text
+
+
 def web_source_page(source, page=1):
     """Return one web source page as plain Kodi-facing dictionaries.
 
@@ -494,7 +513,11 @@ def web_source_page(source, page=1):
                  % (source, _page_number({"page": page}), type(exc).__name__),
                  level=30)
         return None
-    rows = [row.as_kodi() for row in page_data.rows]
+    rows = []
+    for row in page_data.rows:
+        item = row.as_kodi()
+        item["art"] = _web_art(item.get("art"))
+        rows.append(item)
     doc = {
         "source": source,
         "title": page_data.title or config["label"],

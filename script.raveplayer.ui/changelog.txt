@@ -1,3 +1,6 @@
+Rave Player 3.9.68 — web row artwork
+- Web-source rows now use the local add-on icons instead of session-gated /static/art URLs, so 20bensons/UK Raves/EZ/DejaVu rows no longer show magenta placeholders.
+
 Rave Player 3.9.67 — web-only sources
 - Adds the web app's server-side sources to Classic lists and the full-screen app:
   20bensons.com, UK Raves Downloads and EZ Garage Sets in Tape Packs, the DejaVu
