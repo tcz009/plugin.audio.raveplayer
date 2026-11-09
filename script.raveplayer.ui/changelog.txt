@@ -1,3 +1,20 @@
+# Rave Player Screen 3.9.51 — performance pass
+
+- **Stale-while-revalidate paint.** The last good page for each room/folder is
+  stored under the add-on profile and painted immediately, then refreshed on a
+  background thread; the list repaints only if the rows changed. A subtle
+  `UPDATING · showing saved list` status is shown and Back is never blocked.
+- **Lazy plugin imports.** `pluginbridge` now imports only `plugin.kodi` up
+  front (needed to bind the plugin's add-on context) and loads every data
+  module on first use. Home paints without importing Latest, Legacy, Toronto,
+  radio, feeds or downloads.
+- **Idle prefetch.** Once Home has painted and the user has not acted, a
+  bounded, cancellable thread warms Latest and the RaveTapePacks index into the
+  paint cache.
+- **Instant Back.** The close path fires `ActivateWindow(Home)` once, waits up
+  to 200 ms and retries once only if Kodi refused, instead of twelve 200 ms
+  polls.
+
 # Rave Player 3.9.50
 
 - **App integration (3.9.51 shell pass).** Search, Favourites, Downloads and

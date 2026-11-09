@@ -32,6 +32,12 @@ XML_FILE = "script-raveplayer-ui.xml"
 ART_ROOT = os.path.join(ADDON_PATH, "resources", "art", "rave-screen")
 HERO_FALLBACK = os.path.join(ART_ROOT, "hero-fallback-640x360.jpg")
 WINDOW_ID = 15047
+# Script start, for the one "first paint" timing line the perf pass records.
+BOOT_AT = time.monotonic()
+HOME_WINDOW_ID = 10000
+HOME_WAIT_MS = 200
+HOME_FALLBACK_MS = 300
+HOME_POLL_MS = 25
 INSTANCE_LOCK_TTL = 10 * 60
 
 # One live screen per Kodi process, and one marker file per profile so a second
@@ -509,7 +515,7 @@ class RaveScreenWindow(xbmcgui.WindowXML):
                 self._view, data, PlaybackService(),
                 sleep=xbmc.sleep, clock=time.monotonic,
                 frames=data.spinner_frames(), logger=_Log(),
-                download_queue=queue)
+                download_queue=queue, boot_at=BOOT_AT)
             self._controller.start()
             # Kodi focuses defaultcontrol=50 while the list is still empty (the
             # controller imports the plugin and binds 11 rows during onInit).
@@ -576,6 +582,7 @@ class RaveScreenWindow(xbmcgui.WindowXML):
     def close(self):
         if self._closed:
             return
+        started = time.monotonic()
         self._closed = True
         shutdown = getattr(self._controller, "shutdown", None)
         if shutdown is not None:
@@ -594,24 +601,66 @@ class RaveScreenWindow(xbmcgui.WindowXML):
                          "%s" % exc, level=xbmc.LOGWARNING)
         # Closing a script window returns to whatever spawned it (the plugin
         # root launcher), which on Kodi 22 can immediately relaunch the app.
-        # Clear the modal state, bring Home to the front, then close from under
-        # it so one Back really leaves the add-on.
+        # Clear the modal state, bring Home to the front once, and close from
+        # under it so one Back really leaves the add-on.
+        #
+        # 3.9.52: the old loop fired ActivateWindow(Home) twelve times with a
+        # 200 ms sleep between attempts, so Back could take up to 2.4 s even
+        # when the first activation worked.  Fire once, give Kodi one frame
+        # (~200 ms) to switch, and only retry when the switch was refused.
         try:
             xbmc.executebuiltin("Dialog.Close(all,true)")
         except Exception:
             pass
-        for _ in range(12):
-            try:
-                xbmc.executebuiltin("ActivateWindow(Home)")
-                if xbmcgui.getCurrentWindowId() == 10000:
-                    break
-            except Exception:
-                pass
-            xbmc.sleep(200)
+        try:
+            xbmc.executebuiltin("ActivateWindow(Home)")
+        except Exception:
+            pass
+        current = _current_window_id()
+        if current is not None:
+            if not _wait_for_home(current, HOME_WAIT_MS):
+                # A modal transition or a busy GUI can refuse the first
+                # activation; one bounded fallback is enough.  Never poll it.
+                try:
+                    xbmc.executebuiltin("ActivateWindow(Home)")
+                except Exception:
+                    pass
+                _wait_for_home(current, HOME_FALLBACK_MS)
+        try:
+            xbmc.log("[script.raveplayer.ui] back-home %.0f ms" % (
+                (time.monotonic() - started) * 1000.0), level=xbmc.LOGINFO)
+        except Exception:
+            pass
         try:
             super().close()
         except Exception:
             pass
+
+
+
+def _current_window_id():
+    """Kodi's current window id, or ``None`` when the API is unavailable."""
+    getter = getattr(xbmcgui, "getCurrentWindowId", None)
+    if not callable(getter):
+        return None
+    try:
+        return int(getter())
+    except Exception:  # noqa: BLE001 - window may be closing
+        return None
+
+
+def _wait_for_home(initial, milliseconds):
+    """Wait up to ``milliseconds`` for Home, starting from ``initial``."""
+    if initial == HOME_WINDOW_ID:
+        return True
+    import time as _time
+
+    deadline = _time.monotonic() + max(0, milliseconds) / 1000.0
+    while _time.monotonic() < deadline:
+        xbmc.sleep(HOME_POLL_MS)
+        if _current_window_id() == HOME_WINDOW_ID:
+            return True
+    return False
 
 
 def _notify(message):

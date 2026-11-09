@@ -184,3 +184,8 @@ class WindowXML(object):
 
     def onClick(self, control_id):
         pass
+
+
+def getCurrentWindowId():
+    """Default to Home so window-close tests never poll."""
+    return 10000

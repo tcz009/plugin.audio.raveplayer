@@ -255,6 +255,10 @@ class RaveData(object):
         # The controller assigns the shared Surprise pack cache; a Latest load
         # seeds it so the picker can answer from cache when Archive hiccups.
         self.surprise_cache = None
+        # Art is resolved once per room paint: fifty rows share a handful of
+        # sticker names, and each miss is a filesystem stat on the Shield.
+        self._art_cache = {}
+        self._neutral_hero_cache = None
 
     @property
     def modules(self):
@@ -274,12 +278,18 @@ class RaveData(object):
 
     # ------------------------------------------------------------------ art
     def _art(self, name):
-        path = os.path.join(self.root, "resources", "art", name)
-        if os.path.isfile(path):
-            return path
-        fallback = os.path.join(self._script_root, "resources", "art",
+        key = str(name or "")
+        cached = self._art_cache.get(key)
+        if cached is not None:
+            return cached
+        path = os.path.join(self.root, "resources", "art", key)
+        if not os.path.isfile(path):
+            path = os.path.join(self._script_root, "resources", "art",
                                 "rave-screen", "hero-fallback-640x360.jpg")
-        return fallback if os.path.isfile(fallback) else ""
+            if not os.path.isfile(path):
+                path = ""
+        self._art_cache[key] = path
+        return path
 
     def _neutral_hero(self):
         """A plain screen-bed hero for rows whose room is the visual context.
@@ -288,12 +298,16 @@ class RaveData(object):
         JungleTapes show painted "TAPE PACKS" over the show; child rows use
         the unlabelled bed instead, with the selected row's own title/meta.
         """
+        if self._neutral_hero_cache is not None:
+            return self._neutral_hero_cache
         for name in ("screen-bed-1920x1080.jpg", "screen-bed-1280x720.jpg"):
             path = os.path.join(self._script_root, "resources", "art",
                                 "rave-screen", name)
             if os.path.isfile(path):
+                self._neutral_hero_cache = path
                 return path
-        return self._art("fanart-screen.jpg")
+        self._neutral_hero_cache = self._art("fanart-screen.jpg")
+        return self._neutral_hero_cache
 
     def _safe_url(self, url):
         text = _text(url)

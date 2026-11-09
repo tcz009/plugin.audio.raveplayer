@@ -5,6 +5,7 @@ Everything the add-on shows is described by the SECTIONS tables below, so
 adding a source is a one-line change rather than another 40-line scraper.
 """
 
+import functools
 import os
 import re
 import sys
@@ -337,6 +338,7 @@ def _filter(key):
     return next((entry for entry in _filters() if entry["id"] == key), None)
 
 
+@functools.lru_cache(maxsize=256)
 def art(name):
     return os.path.join(kodi.ADDON_PATH, "resources", "art", name)
 

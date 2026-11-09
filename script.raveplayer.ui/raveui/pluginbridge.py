@@ -31,6 +31,7 @@ never writes settings or cache keys of its own.
 import importlib
 import os
 import sys
+import threading
 import types
 
 PLUGIN_ID = "plugin.audio.raveplayer"
@@ -42,6 +43,7 @@ MODULE_NAMES = (
 )
 
 _CACHE = {}
+_IMPORT_LOCK = threading.Lock()
 
 
 class PluginUnavailable(RuntimeError):
@@ -126,8 +128,47 @@ def _install_alias(alias, root):
     sys.modules[alias] = package
 
 
+class _PluginNamespace(object):
+    """Lazy view over the plugin's ``resources/lib`` modules.
+
+    3.9.52: the shell used to import all twenty data modules during window
+    init (about a third of a second on the Shield), even though painting Home
+    needs none of them.  Only ``kodi`` is imported eagerly, because its add-on
+    context must be repaired *before* any data module caches a constant such
+    as ``ui.DEFAULT_FANART``; every other module is imported on first
+    attribute access and kept on the namespace.
+    """
+
+    def __init__(self, root, addon, alias, loaded):
+        self.root = root
+        self.addon = addon
+        self._alias = alias
+        self._loaded = loaded
+
+    def _module(self, name):
+        module = self._loaded.get(name)
+        if module is not None:
+            return module
+        with _IMPORT_LOCK:
+            module = self._loaded.get(name)
+            if module is None:
+                module = importlib.import_module(
+                    "%s.resources.lib.%s" % (self._alias, name))
+                self._loaded[name] = module
+        return module
+
+    def __getattr__(self, name):
+        if name.startswith("_") or name not in MODULE_NAMES:
+            raise AttributeError(name)
+        return self._module(name)
+
+    def __dir__(self):
+        return sorted(set(list(self.__dict__) + list(MODULE_NAMES) +
+                          ["root", "addon"]))
+
+
 def load_plugin(addon_factory=None):
-    """Import the plugin data modules once and return a namespace.
+    """Return a lazy namespace over the plugin data modules.
 
     Raises :class:`PluginUnavailable` when the plugin is missing so callers can
     show a useful status line instead of a traceback.
@@ -138,27 +179,20 @@ def load_plugin(addon_factory=None):
     if cached is not None:
         return cached
     _install_alias(PLUGIN_ALIAS, root)
-    modules = {}
-    name = MODULE_NAMES[0]
     try:
         # Import the plugin's ``kodi`` wrapper first and repair its add-on
-        # context *before* the data modules load. Those modules import ``kodi``
+        # context *before* any data module loads. Those modules import ``kodi``
         # while executing (``from . import kodi``) and some cache module-level
         # copies of its constants, e.g. ``ui.DEFAULT_FANART = kodi.FANART``.
         # Binding afterwards leaves those copies pointing at the script add-on.
         kodi_module = importlib.import_module(
             "%s.resources.lib.kodi" % PLUGIN_ALIAS)
         _bind_addon_context(kodi_module, addon, root)
-        modules["kodi"] = kodi_module
-        for name in MODULE_NAMES:
-            if name == "kodi":
-                continue
-            modules[name] = importlib.import_module(
-                "%s.resources.lib.%s" % (PLUGIN_ALIAS, name))
     except Exception as exc:  # noqa: BLE001 - report one stable error type
         _clear_alias(PLUGIN_ALIAS)
-        raise PluginUnavailable("could not import plugin %s: %s" % (name, exc))
-    namespace = types.SimpleNamespace(root=root, addon=addon, **modules)
+        raise PluginUnavailable("could not import plugin kodi: %s" % exc)
+    namespace = _PluginNamespace(root, addon, PLUGIN_ALIAS,
+                                 {"kodi": kodi_module})
     _CACHE[root] = namespace
     return namespace
 

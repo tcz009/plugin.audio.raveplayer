@@ -23,6 +23,7 @@ The controller never opens a modal dialog, never calls ``xbmcgui`` and never
 raises into Kodi: every failure becomes a quiet status line or a plate.
 """
 
+import hashlib
 import inspect
 import threading
 import time
@@ -39,13 +40,41 @@ from .screens.library import (
     PluginBackend, ROUTE_ABOUT, ROUTE_DOWNLOADS, ROUTE_FAVOURITES,
     ROUTE_SEARCH, ROUTES as LIBRARY_ROUTES, Screen, TITLES,
 )
-from .screens.live import LiveRadio
+from .paintcache import (PaintCache, decode_library_screen, decode_page,
+                         encode_library_screen, encode_page, library_signature,
+                         signature)
+from .screens.live import LiveRadio, Station, load_stations
 from .surprise_pick import PackCache, PlayOnce, from_plugin
-from .tasks import TaskCancelled, TaskTimeout, ThreadTaskRunner
+from .tasks import (BackgroundTask, ImmediateTask, TaskCancelled, TaskTimeout,
+                    ThreadTaskRunner)
+
+
+def _live_signature(rows):
+    """Stable fingerprint of the live rows the controller painted."""
+    payload = []
+    for row in rows or []:
+        try:
+            payload.append(dict(row))
+        except (TypeError, ValueError):
+            payload.append(str(row))
+    return hashlib.blake2b(
+        repr(payload).encode("utf-8", "replace"), digest_size=16).hexdigest()
+
 
 HOME_TITLE = "RAVE SCREEN"
 HOME_SUBTITLE = "11 rooms · OK opens · long-press OK for actions"
 KEY_LIMIT = 48
+
+# Stale-while-revalidate status lines (perf/3.9.52).  The status slot is the
+# screen's quiet one-line footer above the key hints: never a dialog, never a
+# plate, never anything that steals focus from Back.
+PAINT_UPDATING = "UPDATING · showing saved list"
+PAINT_CURRENT = "SAVED LIST · up to date"
+PAINT_OFFLINE = "OFFLINE · showing saved list"
+PAINT_EMPTY = "SOURCE EMPTY · showing saved list"
+# A refresh is a background convenience; a source that takes longer than this
+# is abandoned (the cached page stays and the row can be retried normally).
+REFRESH_TIMEOUT_SECONDS = 45.0
 
 KEY_GROUPS = (
     ("A B C D E F G H I".split(), "LETTERS"),
@@ -100,7 +129,8 @@ class RaveScreenController(object):
                  frames=None, logger=None, download_queue=None,
                  library=None, live=None, surprise_picker=None,
                  surprise_cache=None, surprise_sleep=None,
-                 player_snapshot=None):
+                 player_snapshot=None, paint_cache=None,
+                 background_task_factory=None, boot_at=None):
         self.view = view
         self.data = data
         self.playback = playback
@@ -144,6 +174,23 @@ class RaveScreenController(object):
         self._loading_cancel = threading.Event()
         self._loading_thread = None
         self._download_queue = download_queue
+        self._boot_at = boot_at
+        # Stale-while-revalidate: the last painted page is read from disk on
+        # open (milliseconds) while a background task refreshes it.  A test or
+        # a bench can inject its own cache/factory; both default to the real
+        # device implementations.
+        self._paint_cache = (paint_cache if paint_cache is not None
+                             else PaintCache(versions=self._paint_versions()))
+        self._background_task_factory = (background_task_factory
+                                         or BackgroundTask)
+        self._refresh = None
+        self._refresh_seq = 0
+        # Idle prefetch: after the first paint, warm Latest and the
+        # RaveTapePacks index in the background so the first tap is cached.
+        # It is strictly best-effort and stops the moment the user acts.
+        self._prefetch_cancel = threading.Event()
+        self._prefetch_thread = None
+        self._user_active = False
         # Surprise runs are identified by a monotonically increasing token.  A
         # worker from an old run can never paint or play, even if it outlives
         # its timeout, because every UI/player callback checks the token.
@@ -197,6 +244,10 @@ class RaveScreenController(object):
         self.view.set_status("")
         self._paint_footer()
         self._trace("home rows=%d" % len(rows))
+        if self._boot_at:
+            self._trace("first paint %.0f ms" % (
+                (time.monotonic() - self._boot_at) * 1000.0))
+        self._start_prefetch()
         return rows
 
     @property
@@ -246,6 +297,8 @@ class RaveScreenController(object):
     def shutdown(self):
         """Mark closed without touching the window (called by the adapter)."""
         self._closed = True
+        self._prefetch_cancel.set()
+        self._cancel_refresh()
         self._surprise_cancel.set()
         self._loading_cancel.set()
 
@@ -270,6 +323,8 @@ class RaveScreenController(object):
         return entry
 
     def on_horizontal(self, delta):
+        self._user_active = True
+        self._prefetch_cancel.set()
         """Left/right in the in-window keyboard; returns True when handled."""
         if self._view_kind != "keyboard" or self._keyboard is None:
             return False
@@ -295,6 +350,8 @@ class RaveScreenController(object):
 
     # ------------------------------------------------------------------ click
     def on_click(self):
+        self._user_active = True
+        self._prefetch_cancel.set()
         if self._closed:
             return False
         if self._plate is not None:
@@ -356,8 +413,13 @@ class RaveScreenController(object):
 
     def on_back(self):
         """Pop a level; return True when the caller must close the window."""
+        self._user_active = True
+        self._prefetch_cancel.set()
         if self._closed:
             return True
+        # Back during a background refresh is already done with the painted
+        # page: drop the refresh, never wait for it.
+        self._cancel_refresh()
         # A running Surprise is a gesture, not a navigation level: Back cancels
         # the pick and keeps the window open.
         if self._surprising:
@@ -406,6 +468,8 @@ class RaveScreenController(object):
         self.view.close()
 
     def on_context(self):
+        self._user_active = True
+        self._prefetch_cancel.set()
         """Long-press OK / remote context menu: in-window actions for the row."""
         if self._closed or self._busy or self._plate is not None:
             return False
@@ -1018,7 +1082,290 @@ class RaveScreenController(object):
         return self._handoff(track)
 
     # --------------------------------------------------------------- loading
+    # ------------------------------------------------------------- prefetch
+    def _start_prefetch(self):
+        """Warm Latest + the RaveTapePacks index once the home paint is done."""
+        if self._prefetch_thread is not None:
+            return
+        try:
+            thread = threading.Thread(target=self._prefetch_worker,
+                                      name="rave-prefetch", daemon=True)
+        except Exception:  # noqa: BLE001 - no thread means no prefetch
+            return
+        self._prefetch_thread = thread
+        thread.start()
+
+    def _prefetch_worker(self):
+        # Let Home settle first: a user who immediately taps a room must not
+        # compete with a speculative fetch for the network or the CPU.
+        if self._prefetch_cancel.wait(2.0):
+            return
+        targets = ["latest",
+                   Entry("rtp-index-events", "By Event", "prefetch", "",
+                         "rtp_index", "ravetapepacks", "events")]
+        for target in targets:
+            if (self._prefetch_cancel.is_set() or self._closed
+                    or self._user_active or self._busy
+                    or self._refresh is not None):
+                return
+            try:
+                page = self._load_page(target, 1)
+            except Exception:  # noqa: BLE001 - speculative only
+                continue
+            if getattr(page, "rows", None):
+                self._store_page(target, 1, page)
+                self._trace("prefetch %r rows=%d" % (
+                    target, len(page.rows)))
+
+    # ------------------------------------------------ stale-while-revalidate
+    def _paint_versions(self):
+        """Version key for the paint cache: an upgrade must never repaint old rows."""
+        screen = ""
+        try:
+            screen = self.data.screen_version()
+        except Exception:  # noqa: BLE001 - optional manifest
+            pass
+        plugin = ""
+        try:
+            from .pluginbridge import plugin_addon
+
+            plugin = str(plugin_addon().getAddonInfo("version") or "")
+        except Exception:  # noqa: BLE001 - plugin may be missing
+            pass
+        return "%s/%s" % (screen, plugin)
+
+    def _cached_page(self, target, page):
+        try:
+            payload = self._paint_cache.load(
+                "page", target, page, self._rows_per_page)
+        except Exception:  # noqa: BLE001 - a paint cache is always optional
+            return None
+        page_obj = decode_page(payload)
+        if page_obj is None or not page_obj.rows:
+            return None
+        return page_obj
+
+    def _store_page(self, target, page, page_obj):
+        if page_obj is None or not getattr(page_obj, "rows", None):
+            return
+        encoded = encode_page(page_obj)
+        if encoded is None:
+            return
+        try:
+            self._paint_cache.store("page", target, page,
+                                    self._rows_per_page, encoded)
+        except Exception:  # noqa: BLE001 - never break a load for a cache write
+            pass
+
+    def _cached_screen(self, route, query, page):
+        try:
+            payload = self._paint_cache.load(
+                "library", "%s|%s" % (route, query), page, self._rows_per_page)
+        except Exception:  # noqa: BLE001
+            return None
+        screen = decode_library_screen(payload)
+        if screen is None or not getattr(screen, "rows", None):
+            return None
+        return screen
+
+    def _store_screen(self, route, query, page, screen):
+        if screen is None or not getattr(screen, "rows", None):
+            return
+        if not getattr(screen, "is_ready", False):
+            return
+        encoded = encode_library_screen(screen)
+        if encoded is None:
+            return
+        try:
+            self._paint_cache.store(
+                "library", "%s|%s" % (route, query), page,
+                self._rows_per_page, encoded)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _cached_live(self):
+        try:
+            payload = self._paint_cache.load("live", "live", 1, 1)
+        except Exception:  # noqa: BLE001
+            return None
+        if not isinstance(payload, dict):
+            return None
+        stations = []
+        for item in payload.get("stations") or []:
+            if not isinstance(item, dict):
+                return None
+            try:
+                stations.append(Station(
+                    token=str(item.get("token") or ""),
+                    name=str(item.get("name") or ""),
+                    tagline=str(item.get("tagline") or ""),
+                    url=str(item.get("url") or ""),
+                    art=str(item.get("art") or ""),
+                    code=str(item.get("code") or "RP-31"),
+                    country=str(item.get("country") or "GB"),
+                    codec=str(item.get("codec") or ""),
+                    bitrate=int(item.get("bitrate") or 0),
+                ))
+            except (TypeError, ValueError):
+                return None
+        return stations or None
+
+    def _store_live(self, stations):
+        if not stations:
+            return
+        items = []
+        for station in stations:
+            items.append({
+                "token": station.token,
+                "name": station.name,
+                "tagline": station.tagline,
+                "url": station.url,
+                "art": station.art,
+                "code": station.code,
+                "country": station.country,
+                "codec": station.codec,
+                "bitrate": int(station.bitrate or 0),
+            })
+        try:
+            self._paint_cache.store("live", "live", 1, 1, {"stations": items})
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _cancel_refresh(self):
+        """Forget a pending refresh; its late result is ignored."""
+        if self._refresh is not None:
+            self._refresh = None
+            self._refresh_seq += 1
+
+    def _start_refresh(self, loader, apply, matches):
+        """Run ``loader`` on a daemon thread and apply its result in ``tick``."""
+        self._cancel_refresh()
+        token = self._refresh_seq
+        try:
+            task = self._background_task_factory(loader)
+            start = getattr(task, "start", None)
+            if callable(start):
+                start()
+        except Exception as exc:  # noqa: BLE001 - cache paint still stands
+            self._log("refresh could not start: %s" % exc)
+            return False
+        self._refresh = {
+            "token": token,
+            "task": task,
+            "started": time.monotonic(),
+            "apply": apply,
+            "matches": matches,
+        }
+        return True
+
+    def _poll_refresh(self):
+        """Called from ``tick``: repaint only when the refreshed rows changed."""
+        task = self._refresh
+        if task is None:
+            return
+        if time.monotonic() - task["started"] > REFRESH_TIMEOUT_SECONDS:
+            self._refresh = None
+            self._refresh_seq += 1
+            if self._matches(task):
+                self.view.set_status(PAINT_OFFLINE)
+            return
+        status, value = task["task"].poll()
+        if status == "running":
+            return
+        self._refresh = None
+        if status == "error":
+            self._log("refresh failed: %s" % value)
+            if self._matches(task):
+                self.view.set_status(PAINT_OFFLINE)
+            return
+        try:
+            task["apply"](value)
+        except Exception as exc:  # noqa: BLE001 - cached rows must remain usable
+            self._log("refresh apply failed: %s" % exc)
+            if self._matches(task):
+                self.view.set_status(PAINT_OFFLINE)
+
+    @staticmethod
+    def _matches(task):
+        try:
+            return bool(task["matches"]())
+        except Exception:  # noqa: BLE001 - a paint match is advisory
+            return False
+
+    def _apply_refreshed_page(self, target, page, base_sig, page_obj):
+        self._store_page(target, page, page_obj)
+        if self._closed or self._target != target or self._page != page:
+            return
+        if self._view_kind != "list":
+            return
+        if not getattr(page_obj, "rows", None):
+            self.view.set_status(PAINT_EMPTY)
+            return
+        try:
+            changed = signature(page_obj) != base_sig
+        except Exception:  # noqa: BLE001 - repaint rather than risk stale
+            changed = True
+        if not changed:
+            self.view.set_status(PAINT_CURRENT)
+            return
+        index = self._current_index()
+        index = max(0, min(index, len(page_obj.rows) - 1))
+        self._apply_page(target, page_obj)
+        self._render_page(index=index)
+        self._trace("refresh repaint %r page=%s rows=%d" % (
+            target, page, len(page_obj.rows)))
+
+    def _apply_refreshed_screen(self, route, query, page, base_sig, screen):
+        self._store_screen(route, query, page, screen)
+        if self._closed or self._view_kind != "list":
+            return
+        if self._target != (SearchTarget(query)
+                            if route == ROUTE_SEARCH and query else route):
+            return
+        if not getattr(screen, "is_ready", False):
+            return
+        if not getattr(screen, "rows", None):
+            self.view.set_status(PAINT_EMPTY)
+            return
+        try:
+            changed = library_signature(screen) != base_sig
+        except Exception:  # noqa: BLE001
+            changed = True
+        if not changed:
+            self.view.set_status(PAINT_CURRENT)
+            return
+        index = self._current_index()
+        self._paint_library_screen(screen, route, query)
+        self._select_index(index)
+
+    def _apply_refreshed_live(self, base_sig, stations):
+        self._store_live(stations)
+        live = self._live_ui
+        if self._closed or live is None or self._target != "live":
+            return
+        if not stations:
+            self.view.set_status(PAINT_EMPTY)
+            return
+        live._stations = list(stations)
+        rows = [self._adopt_row(row) for row in live.rows()]
+        try:
+            changed = _live_signature(rows) != base_sig
+        except Exception:  # noqa: BLE001
+            changed = True
+        if not changed:
+            self.view.set_status(PAINT_CURRENT)
+            return
+        index = max(0, min(self._current_index(), len(rows) - 1)) if rows else 0
+        self._rows = rows
+        self._page_rows = rows
+        self._total = len(rows)
+        self._render_page(index=index)
+        self._trace("refresh repaint live rows=%d" % len(rows))
+
     def _load_target(self, target, page=1, push=True):
+        self._user_active = True
+        self._prefetch_cancel.set()
+        started = time.monotonic()
         if self._closed or self._busy:
             return False
         if isinstance(target, SearchTarget):
@@ -1028,6 +1375,27 @@ class RaveScreenController(object):
                 return self._open_live_room(push=push)
             if target in LIBRARY_ROUTES:
                 return self._load_library_screen(target, page, push=push)
+        self._cancel_refresh()
+        cached = self._cached_page(target, page)
+        if cached is not None:
+            # Stale-while-revalidate: the saved page paints now; the source
+            # refresh runs off the GUI thread and repaints only if it changed.
+            if push:
+                self._push_current()
+            self._apply_page(target, cached)
+            self._render_page(index=None)
+            self.view.set_status(PAINT_UPDATING)
+            base_sig = signature(cached)
+            self._start_refresh(
+                lambda: self._load_page(target, page),
+                lambda refreshed: self._apply_refreshed_page(
+                    target, page, base_sig, refreshed),
+                lambda: (self._target == target and self._page == page
+                         and self._view_kind == "list" and not self._closed))
+            self._trace("paint cache %r page=%s rows=%d in %.0f ms" % (
+                target, page, len(cached.rows),
+                (time.monotonic() - started) * 1000.0))
+            return True
         self._busy = True
         label = self._label_for(target)
         self._start_loading("PLEASE WAIT", "Loading %s…" % label)
@@ -1060,12 +1428,14 @@ class RaveScreenController(object):
                              retry=lambda: self._load_target(target, page, push))
             self._trace("empty %r page=%s" % (target, page))
             return False
+        self._store_page(target, page, result)
         if push:
             self._push_current()
         self._apply_page(target, result)
         self._render_page(index=None)
-        self._trace("loaded %r page=%s/%s rows=%s total=%s" %
-                    (target, self._page, self._pages, len(self._rows), self._total))
+        self._trace("loaded %r page=%s/%s rows=%s total=%s in %.0f ms" %
+                    (target, self._page, self._pages, len(self._rows),
+                     self._total, (time.monotonic() - started) * 1000.0))
         return True
 
     # ------------------------------------------------- module-owned rooms
@@ -1120,8 +1490,29 @@ class RaveScreenController(object):
 
     def _run_library(self, route, query, page, push, function):
         """Paint a library loading plate, run its handler, then adopt the Screen."""
+        started = time.monotonic()
         if self._closed or self._busy:
             return False
+        self._cancel_refresh()
+        cached = self._cached_screen(route, query, page)
+        if cached is not None:
+            if push:
+                self._push_current()
+            self._paint_library_screen(cached, route, query)
+            self.view.set_status(PAINT_UPDATING)
+            base_sig = library_signature(cached)
+            self._start_refresh(
+                function,
+                lambda refreshed: self._apply_refreshed_screen(
+                    route, query, page, base_sig, refreshed),
+                lambda: (self._view_kind == "list" and not self._closed
+                         and self._target == (SearchTarget(query)
+                                              if route == ROUTE_SEARCH and query
+                                              else route)))
+            self._trace("paint cache library %s page=%s rows=%d in %.0f ms" % (
+                route, page, len(cached.rows),
+                (time.monotonic() - started) * 1000.0))
+            return True
         self._busy = True
         label = TITLES.get(route, route or "library").title()
         self._start_loading("PLEASE WAIT", "Loading %s…" % label)
@@ -1153,6 +1544,7 @@ class RaveScreenController(object):
                 retry=lambda: self._run_library(route, query, page, push,
                                                 function))
             return False
+        self._store_screen(route, query, page, screen)
         if push:
             self._push_current()
         self._paint_library_screen(screen, route, query)
@@ -1357,9 +1749,40 @@ class RaveScreenController(object):
             return False
 
     def _open_live_room(self, push=True):
+        started = time.monotonic()
         if self._closed or self._busy:
             return False
+        self._cancel_refresh()
         live = self._live_radio()
+        cached = self._cached_live()
+        if cached is not None:
+            # Paint the last station list at once; resolve the live URLs and
+            # names again in the background (a changed stream repaints itself).
+            live._stations = list(cached)
+            if push:
+                self._push_current()
+            self._target = "live"
+            self._title = "LIVE RADIO"
+            self._subtitle = "Kool FM · Rinse FM · Centreforce · pirate"
+            rows = [self._adopt_row(row) for row in live.rows()]
+            self._page = 1
+            self._pages = 1
+            self._total = len(rows)
+            self._page_has_next = False
+            self._page_rows = rows
+            self._view_kind = "list"
+            self._render_page(index=0)
+            self.view.set_status(PAINT_UPDATING)
+            base_sig = _live_signature(rows)
+            self._start_refresh(
+                lambda: load_stations(self.data.modules),
+                lambda stations: self._apply_refreshed_live(base_sig, stations),
+                lambda: (self._target == "live" and not self._closed
+                         and self._view_kind == "list"))
+            self._trace("paint cache live rows=%d in %.0f ms" % (
+                len(rows), (time.monotonic() - started) * 1000.0))
+            self._paint_footer(live.footer())
+            return True
         if push:
             self._push_current()
         self._target = "live"
@@ -1373,6 +1796,7 @@ class RaveScreenController(object):
         self._page_rows = rows
         self._view_kind = "list"
         self._render_page(index=0)
+        self._store_live(live.stations)
         self.view.set_status(live.status or "STANDBY")
         self._paint_footer(live.footer())
         self._trace("live rows=%d" % len(rows))
@@ -1529,6 +1953,9 @@ class RaveScreenController(object):
         """Refresh the footer at ~1 Hz; the window's idle loop calls this."""
         if self._closed:
             return
+        # A completed stale-page refresh is applied on the GUI thread before
+        # anything cosmetic, so a changed room is never held behind the footer.
+        self._poll_refresh()
         # The async Surprise is driven from the GUI thread; it must run before
         # the footer throttle so a completed pick is never stuck behind it.
         self._drive_surprise()

@@ -1,3 +1,20 @@
+Rave Player 3.9.52 — performance pass
+- Stale-while-revalidate paint: the app shell saves the last successful page
+  per room on disk (versioned by screen/plugin version and page size) and
+  paints it the moment a room opens, then refreshes the source on a background
+  thread and repaints only when the rows changed. Applies to Latest, Toronto,
+  JungleTapes, RaveTapePacks (index/category/post), Live Radio, Search,
+  Favourites/Downloads/About and every paged folder. A quiet UPDATING line is
+  shown; Back never waits for the refresh.
+- Lazy imports: the screen imports plugin.kodi eagerly and every other plugin
+  module on first use, so opening the window no longer pays for all twenty
+  data modules. After the first paint an idle, cancellable prefetch warms
+  Latest and the RaveTapePacks index.
+- Instant Back: leaving the app fires ActivateWindow(Home) once and closes
+  after at most ~200 ms, retrying only when Kodi refused the switch. Replaces
+  the twelve 200 ms attempts that could hold Back for up to 2.4 s.
+- Screen-test profile disables the paint cache unless a test provides one.
+
 Rave Player 3.9.51
 - Full-screen app: script.raveplayer.ui is now the primary shell. The plugin
   root is the app launcher plus one "Classic lists" fallback row; the old root

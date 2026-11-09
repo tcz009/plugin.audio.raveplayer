@@ -34,7 +34,8 @@ import xbmcplugin  # noqa: E402
 
 from raveui import pluginbridge  # noqa: E402
 from raveui.animation import SpinnerAnimator, frame_index  # noqa: E402
-from raveui.controller import RaveScreenController  # noqa: E402
+from raveui.controller import (PAINT_CURRENT, PAINT_OFFLINE,  # noqa: E402
+                               PAINT_UPDATING, RaveScreenController)
 from raveui.data import (Entry, Page, RaveData, SearchTarget, Track,  # noqa: E402
                          ROOM_ORDER)
 from raveui.downloadqueue import DownloadQueue  # noqa: E402
@@ -1572,7 +1573,7 @@ class ManifestAndSkinTests(unittest.TestCase):
     def test_script_manifest_is_kodi_19_22_and_depends_on_the_plugin(self):
         root = ET.parse(os.path.join(SCREEN, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.raveplayer.ui")
-        self.assertEqual(root.get("version"), "3.9.50")
+        self.assertEqual(root.get("version"), "3.9.51")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
@@ -2530,6 +2531,212 @@ class TaskRunnerTests(unittest.TestCase):
                                   timeout=1.0)
         with self.assertRaises(TaskFailed):
             runner.run(lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+
+
+class _ControllableTask(object):
+    """BackgroundTask double: stays running until the test releases it."""
+
+    def __init__(self, function):
+        self.function = function
+        self.done = False
+        self.value = None
+        self.error = None
+
+    def start(self):
+        return self
+
+    def finish(self):
+        if self.done:
+            return
+        try:
+            self.value = self.function()
+        except Exception as exc:  # noqa: BLE001 - surfaced by poll
+            self.error = exc
+        self.done = True
+
+    def poll(self):
+        if not self.done:
+            return ("running", None)
+        if self.error is not None:
+            return ("error", self.error)
+        return ("done", self.value)
+
+
+class StaleWhileRevalidateTests(unittest.TestCase):
+    """3.9.52: paint the saved page, refresh off-thread, repaint on change."""
+
+    def setUp(self):
+        from raveui.paintcache import PaintCache
+
+        self.tmp = tempfile.mkdtemp(prefix="rave-paint-test-")
+        self.cache = PaintCache(directory=self.tmp, versions="test/3.9.52")
+        self.view = FakeView()
+        self.ctl, _, self.data, _ = controller(
+            view=self.view, paint_cache=self.cache,
+            background_task_factory=_ControllableTask)
+        self.ctl.start()
+        # The idle prefetch must never race these deterministic tests.
+        self.ctl._prefetch_cancel.set()
+
+    def tearDown(self):
+        import shutil
+
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _seed(self, rows, page=1):
+        from raveui.paintcache import encode_page
+        from raveui.data import Page
+
+        page_obj = Page(rows=list(rows), total=len(rows), page=page, pages=1,
+                        rows_per_page=50)
+        self.assertTrue(self.cache.store(
+            "page", "latest", page, 50, encode_page(page_obj)))
+
+    def test_cache_hit_paints_before_any_source_call(self):
+        saved = Entry("saved-1", "Saved pack", "Internet Archive", "",
+                      "pack", "latest", "saved-1")
+        self._seed([saved])
+        before = len(self.data.loaded)
+        self.assertTrue(self.ctl._load_target("latest", 1))
+        self.assertEqual(len(self.data.loaded), before)  # nothing blocked
+        self.assertEqual(self.view.rows[0].label, "Saved pack")
+        self.assertEqual(self.view.status, PAINT_UPDATING)
+        self.assertIsNotNone(self.ctl._refresh)
+
+    def test_refresh_repaints_only_when_the_rows_changed(self):
+        saved = Entry("saved-1", "Saved pack", "Internet Archive", "",
+                      "pack", "latest", "saved-1")
+        self._seed([saved])
+        self.ctl._load_target("latest", 1)
+        task = self.ctl._refresh["task"]
+        task.finish()
+        self.ctl.tick()
+        self.assertEqual(self.view.rows[0].label, "Dreamscape 19")
+        self.assertIn("refresh repaint", " ".join(
+            str(line) for line in xbmc._lines))
+
+    def test_unchanged_refresh_does_not_repaint(self):
+        rows = list(self.data.section_rows)
+        self._seed(rows)
+        self.ctl._load_target("latest", 1)
+        self.ctl._refresh["task"].finish()
+        self.ctl.tick()
+        self.assertEqual(self.view.status, PAINT_CURRENT)
+
+    def test_refresh_failure_keeps_the_saved_page(self):
+        saved = Entry("saved-1", "Saved pack", "Internet Archive", "",
+                      "pack", "latest", "saved-1")
+        self._seed([saved])
+        self.ctl._load_target("latest", 1)
+        task = self.ctl._refresh["task"]
+        task.error = RuntimeError("offline")
+        task.done = True
+        self.ctl.tick()
+        self.assertEqual(self.view.rows[0].label, "Saved pack")
+        self.assertEqual(self.view.status, PAINT_OFFLINE)
+
+    def test_back_during_refresh_never_waits_or_repaints(self):
+        saved = Entry("saved-1", "Saved pack", "Internet Archive", "",
+                      "pack", "latest", "saved-1")
+        self._seed([saved])
+        self.ctl._load_target("latest", 1)
+        task = self.ctl._refresh["task"]
+        self.assertFalse(self.ctl.on_back())
+        self.assertIsNone(self.ctl._refresh)
+        task.finish()
+        self.ctl.tick()
+        self.assertNotEqual(self.view.rows[0].label, "Dreamscape 19")
+
+
+class PaintCacheDiskTests(unittest.TestCase):
+    def setUp(self):
+        from raveui.paintcache import PaintCache
+
+        self.tmp = tempfile.mkdtemp(prefix="rave-paint-disk-")
+        self.cache = PaintCache(directory=self.tmp, versions="screen/3.9.52 plugin/3.9.51")
+
+    def tearDown(self):
+        import shutil
+
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_page_round_trip_keeps_rows_and_tracks(self):
+        from raveui.paintcache import decode_page, encode_page
+        from raveui.data import Page
+
+        page = Page(rows=[Entry("a", "A", "sub", "", "track", "latest",
+                                "https://example.test/a.mp3",
+                                Track("A", "Pack", "https://example.test/a.mp3",
+                                      art="/tmp/a.jpg"))],
+                    total=1, page=2, pages=3, rows_per_page=50, has_next=True)
+        self.assertTrue(self.cache.store("page", "latest", 2, 50,
+                                         encode_page(page)))
+        loaded = decode_page(self.cache.load("page", "latest", 2, 50))
+        self.assertEqual(loaded.page, 2)
+        self.assertEqual(loaded.rows[0].label, "A")
+        self.assertEqual(loaded.rows[0].track.url, "https://example.test/a.mp3")
+        self.assertTrue(loaded.has_next)
+
+    def test_a_version_bump_invalidates_old_paint_pages(self):
+        from raveui.paintcache import PaintCache, encode_page
+        from raveui.data import Page
+
+        page = Page(rows=[Entry("a", "A", "", "", "pack", "latest", "a")],
+                    total=1, page=1, pages=1, rows_per_page=50)
+        self.cache.store("page", "latest", 1, 50, encode_page(page))
+        newer = PaintCache(directory=self.tmp,
+                           versions="screen/3.9.53 plugin/3.9.51")
+        self.assertIsNone(newer.load("page", "latest", 1, 50))
+
+    def test_corrupt_entry_is_a_miss_not_a_crash(self):
+        from raveui.paintcache import encode_page
+        from raveui.data import Page
+
+        page = Page(rows=[Entry("a", "A", "", "", "pack", "latest", "a")],
+                    total=1, page=1, pages=1, rows_per_page=50)
+        self.cache.store("page", "latest", 1, 50, encode_page(page))
+        path = self.cache._path(self.cache.key("page", "latest", 1, 50))
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write("{broken")
+        self.assertIsNone(self.cache.load("page", "latest", 1, 50))
+
+
+class LazyPluginImportTests(unittest.TestCase):
+    def tearDown(self):
+        pluginbridge.reset_cache()
+
+    def test_data_modules_are_not_imported_until_first_use(self):
+        pluginbridge.reset_cache()
+        modules = pluginbridge.load_plugin()
+        self.assertNotIn("raveplayer_plugin.resources.lib.latest", sys.modules)
+        self.assertNotIn("raveplayer_plugin.resources.lib.legacy", sys.modules)
+        self.assertTrue(hasattr(modules.latest, "recent_packs"))
+        self.assertIn("raveplayer_plugin.resources.lib.latest", sys.modules)
+        self.assertNotIn("raveplayer_plugin.resources.lib.legacy", sys.modules)
+
+
+class InstantBackTests(unittest.TestCase):
+    def test_close_fires_home_once_when_kodi_switches(self):
+        window = ravewindow.RaveScreenWindow("x.xml", "/tmp")
+        calls = []
+        with mock.patch.object(ravewindow.xbmc, "executebuiltin",
+                               side_effect=lambda cmd: calls.append(cmd)), \
+             mock.patch.object(ravewindow.xbmcgui, "getCurrentWindowId",
+                               return_value=ravewindow.HOME_WINDOW_ID):
+            window.close()
+        self.assertEqual(calls.count("ActivateWindow(Home)"), 1)
+        self.assertTrue(window.closed)
+
+    def test_close_retries_once_only_when_home_was_refused(self):
+        window = ravewindow.RaveScreenWindow("x.xml", "/tmp")
+        calls = []
+        with mock.patch.object(ravewindow.xbmc, "executebuiltin",
+                               side_effect=lambda cmd: calls.append(cmd)), \
+             mock.patch.object(ravewindow.xbmcgui, "getCurrentWindowId",
+                               return_value=13000):
+            window.close()
+        self.assertEqual(calls.count("ActivateWindow(Home)"), 2)
+        self.assertTrue(window.closed)
 
 
 if __name__ == "__main__":

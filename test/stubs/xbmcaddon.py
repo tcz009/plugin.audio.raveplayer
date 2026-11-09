@@ -16,6 +16,9 @@ PROFILE = os.path.join(tempfile.gettempdir(), "raveplayer-test-profile")
 # what the temp-cache matrix exercises.
 _TEST_CACHE = tempfile.mkdtemp(prefix="raveplayer-test-cache-")
 os.environ.setdefault("RAVEPLAYER_CACHE_DIR", _TEST_CACHE)
+# The screen paint cache is opt-in inside the suite: tests that exercise the
+# stale-while-revalidate path build their own cache in a temp directory.
+os.environ.setdefault("RAVEPLAYER_DISABLE_PAINT_CACHE", "1")
 atexit.register(shutil.rmtree, _TEST_CACHE, True)
 
 

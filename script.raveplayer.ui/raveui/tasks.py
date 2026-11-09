@@ -113,3 +113,56 @@ class ThreadTaskRunner(object):
             callback()
         except Exception:  # noqa: BLE001 - a progress tick is advisory
             pass
+
+
+class BackgroundTask(object):
+    """A daemon-thread task whose result is collected from the GUI thread.
+
+    Unlike :class:`ThreadTaskRunner` this never pumps or waits: the caller
+    starts it and polls :meth:`poll` from its own loop.  That is what the
+    stale-while-revalidate refresh needs — the cached page keeps receiving
+    key events while a source call runs off to the side.
+    """
+
+    def __init__(self, function, name="rave-screen-refresh"):
+        self._outcome = {}
+        self._thread = threading.Thread(target=self._run, args=(function,),
+                                        name=name)
+        self._thread.daemon = True
+
+    def _run(self, function):
+        try:
+            self._outcome["value"] = function()
+        except Exception as exc:  # noqa: BLE001 - re-raised on the GUI thread
+            self._outcome["error"] = exc
+
+    def start(self):
+        self._thread.start()
+        return self
+
+    def poll(self):
+        """Return ``("running", None)``, ``("done", value)`` or ``("error", exc)``."""
+        if self._thread.is_alive():
+            return ("running", None)
+        if "error" in self._outcome:
+            return ("error", self._outcome["error"])
+        return ("done", self._outcome.get("value"))
+
+
+class ImmediateTask(object):
+    """A :class:`BackgroundTask` double for tests: runs inline, then reports."""
+
+    def __init__(self, function, name="rave-screen-refresh"):
+        self._outcome = {}
+        try:
+            self._outcome["value"] = function()
+        except Exception as exc:  # noqa: BLE001 - surfaced by poll
+            self._outcome["error"] = exc
+
+    def start(self):
+        return self
+
+    def poll(self):
+        if "error" in self._outcome:
+            return ("error", self._outcome["error"])
+        return ("done", self._outcome.get("value"))

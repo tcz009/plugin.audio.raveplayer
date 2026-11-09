@@ -10,6 +10,7 @@ SoundCloud is deliberately not part of the Kodi build: it is a web-version-only
 source and there is no SoundCloud content or hand-off row here.
 """
 
+import functools
 import urllib.parse
 
 import xbmc
@@ -60,6 +61,7 @@ def _split(value):
         return None
 
 
+@functools.lru_cache(maxsize=512)
 def platform_kind(value):
     """Return ``mixcloud``/``youtube``/``soundcloud`` for a platform URL, else ''.
 
