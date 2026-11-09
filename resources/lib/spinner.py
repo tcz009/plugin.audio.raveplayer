@@ -35,6 +35,7 @@ CONTROL_SIZE = 103
 CONTROL_REMAINING = 104
 CONTROL_HINT = 105
 CONTROL_PROGRESS = 106
+CONTROL_CANCEL = 107
 TUNING_THRESHOLD = 0.4
 TUNING_TIMEOUT = 25.0
 SURPRISE_XML = "raveplayer-surprise.xml"
@@ -159,7 +160,7 @@ class SpinnerWindow(object):
             self._label(CONTROL_PERCENT, "%d%%" % percent)
             self._label(CONTROL_SIZE, "%s of %s" % (format_bytes(done), format_bytes(total)))
             self._label(CONTROL_REMAINING, format_remaining(done, total, elapsed))
-            self._label(CONTROL_HINT, "Back / Stop to cancel")
+            self._label(CONTROL_HINT, "OK / Back / Stop to cancel")
             progress = self._control(CONTROL_PROGRESS)
             if progress is not None:
                 try:
@@ -187,7 +188,7 @@ class SpinnerWindow(object):
             self._label(CONTROL_PERCENT, "")
             self._label(CONTROL_SIZE, "")
             self._label(CONTROL_REMAINING, "Tuning in…")
-            self._label(CONTROL_HINT, "Back to cancel")
+            self._label(CONTROL_HINT, "OK / Back to cancel")
             progress = self._control(CONTROL_PROGRESS)
             if progress is not None:
                 try:
@@ -206,7 +207,21 @@ class SpinnerWindow(object):
             return True
         if self.window is not None and getattr(self.window, "_rave_cancelled", False):
             return True
+        try:
+            if self.window is not None and str(
+                    self.window.getProperty("rave_cancel") or "") == "1":
+                self.cancelled = True
+                return True
+        except Exception:  # noqa: BLE001 - stub / window already gone
+            pass
         return False
+
+    def cancel(self, reason=""):
+        """Mark the transfer cancelled (OK button, Back/Stop or the owner)."""
+        self.cancelled = True
+        if reason:
+            kodi.log("spinner: %s" % reason, level=xbmc.LOGINFO)
+        return True
 
     def close(self):
         if self.window is not None:
@@ -426,16 +441,36 @@ def _build_window_class():
             self._rave_cancelled = False
             base.__init__(self, *args, **kwargs)
 
+        def _cancel(self):
+            # Mark only; the owner (download loop / reveal) closes the window.
+            # Closing inside an action can tear down the plugin interpreter.
+            self._rave_cancelled = True
+
+        def onControl(self, control):
+            try:
+                control_id = control.getId()
+            except Exception:
+                control_id = None
+            if control_id == CONTROL_CANCEL:
+                self._cancel()
+                return
+            handler = getattr(base, "onControl", None)
+            if handler is not None:
+                try:
+                    handler(self, control)
+                except Exception:
+                    pass
+
         def onAction(self, action):
             try:
                 code = action.getId()
             except Exception:
                 code = None
             if code in (getattr(xbmcgui, "ACTION_NAV_BACK", 92),
-                        getattr(xbmcgui, "ACTION_STOP", 13)):
-                # Mark cancel; the owner (download loop / reveal) closes the
-                # window. Closing inside onAction can tear down the plugin.
-                self._rave_cancelled = True
+                        getattr(xbmcgui, "ACTION_STOP", 13),
+                        getattr(xbmcgui, "ACTION_PREVIOUS_MENU", 10),
+                        getattr(xbmcgui, "ACTION_PARENT_DIR", 9)):
+                self._cancel()
                 return
             try:
                 base.onAction(self, action)

@@ -1,3 +1,37 @@
+Rave Player 3.9.56 — remaining Kodi P2s (device QA + advisor)
+- Downloads hero: queue and completed download rows now use the neutral
+  screen bed instead of fanart-favourites.jpg, so opening Downloads no longer
+  paints the FAVOURITES poster. Favourites and About keep their own hero art.
+- External stop: the footer tick observes the shared Kodi player and clears the
+  app's "Now playing"/status line when an active player disappears (JSON-RPC
+  Player.Stop, another add-on, or the end of the queue). A short grace period
+  keeps an asynchronous Player.play from being mistaken for a stop.
+- Cancel: DownloadQueue.cancel now marks every duplicate row for the same URL,
+  removes a completed index entry/file for the same key, and a cancel that
+  lands as the transfer finishes deletes that completed copy instead of leaving
+  a duplicate in Downloads. The plugin download overlay now exposes a real
+  CANCEL button (id 107) and handles Back/Stop/Previous-menu as cancel, closing
+  when the download loop returns.
+- Single instance: the screen marker keeps an OS flock for its lifetime, so a
+  stale lock left by an unclean exit self-heals immediately even when it holds
+  Kodi's own (still-alive) PID. The no-fcntl fallback uses the same-PID
+  heartbeat instead of waiting out the 10-minute TTL.
+- Paint cache: read-time 30-day age check, a 64 MiB total-byte cap plus
+  oldest-first pruning, and encode/decode guards so a malformed entry or a
+  malformed Page can never abort a room load.
+- Paging: page-2 refresh restores the absolute content offset instead of
+  clamping the nav-inclusive row index, and the refresh matcher follows the
+  page actually painted when a source clamps an out-of-range page. Cache keys
+  now include a navigation token (home/room/entry/folder/list + page).
+- Destructive favourites/downloads actions invalidate the affected cached
+  screen before the reload, so the removed row cannot flash back from the
+  paint cache.
+- Prefetch cancels on D-pad focus movement and Stop, not only click/Back.
+- Versions: plugin 3.9.56, screen 3.9.56 (requires plugin 3.9.56); resolver
+  module stays 1.1.0. Code only: no device run, no push and no tag.
+- Out of scope in this patch: plugin-fallback SWR, resident UI, and the Live
+  Radio 6.3 s first-open path.
+
 Rave Player 3.9.55 — advisor pre-release fixes
 - Live Radio stale-while-revalidate: the row signature is built from stable
   fields (label/target/stream/art/fact) instead of str(_EntryLike), so an

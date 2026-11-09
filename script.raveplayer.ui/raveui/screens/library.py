@@ -1420,7 +1420,10 @@ class LibraryScreens:
         source = _text(entry.get("source"))
         detail = _text(entry.get("detail"))
         icon = self._art("downloads.png")
-        fanart = self._art("fanart-favourites.jpg")
+        # Download rows are their own room: the neutral screen bed.  They used
+        # to borrow fanart-favourites.jpg, which made Downloads paint the
+        # FAVOURITES hero (3.9.54 device QA P2-1).
+        fanart = self._downloads_hero()
         if status in ("queued", "checking", "downloading", "cancelling"):
             percent = max(0, min(100, _as_int(entry.get("percent"))))
             if status == "downloading" and (_as_int(entry.get("total"))
@@ -1468,7 +1471,7 @@ class LibraryScreens:
         source = _text(entry.get("source"))
         exists = bool(entry.get("exists"))
         icon = self._art("downloads.png")
-        fanart = self._art("fanart-favourites.jpg")
+        fanart = self._downloads_hero()
         if exists and path:
             payload = {
                 "action": ACTION_PLAY,
@@ -1582,6 +1585,20 @@ class LibraryScreens:
             "local": item.local,
             "source": item.source,
         }
+
+    def _downloads_hero(self):
+        """The unlabelled screen bed used by the Downloads room.
+
+        A Downloads row must never carry another room's branded fanart: the
+        Favourites fanart says FAVOURITES on the poster, so reusing it made the
+        Downloads room look like Favourites (3.9.54 device QA P2-1).
+        """
+        for name in ("screen-bed-1920x1080.jpg", "screen-bed-1280x720.jpg",
+                     "fanart-screen.jpg"):
+            path = self._art(name)
+            if path:
+                return path
+        return ""
 
     def _art(self, name):
         try:

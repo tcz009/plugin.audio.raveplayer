@@ -71,8 +71,19 @@
             <height>28</height>
             <align>center</align>
             <font>font10</font>
-            <label>Back / Stop to cancel</label>
+            <label>OK / Back / Stop to cancel</label>
+        </control>
+        <control type="button" id="107">
+            <description>Cancel download</description>
+            <posx>540</posx>
+            <posy>606</posy>
+            <width>200</width>
+            <height>36</height>
+            <align>center</align>
+            <font>font12</font>
+            <label>CANCEL</label>
+            <onclick>SetProperty(rave_cancel,1)</onclick>
         </control>
     </controls>
-    <defaultcontrol>106</defaultcontrol>
+    <defaultcontrol>107</defaultcontrol>
 </window>

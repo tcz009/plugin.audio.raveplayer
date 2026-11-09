@@ -1,3 +1,21 @@
+Rave Player 3.9.56 — remaining Kodi P2s (device QA + advisor)
+- Downloads: its rows use the neutral screen bed; the FAVOURITES hero no
+  longer appears when the Downloads room opens.
+- Now playing: an external Player.Stop clears the stale app status line and
+  the now-playing property via the 1 Hz player observation.
+- Downloads cancel: duplicate rows for one URL are cancelled together; a
+  completed copy under the same key is deleted; the plugin download overlay
+  has a CANCEL button and Back/Stop cancel the transfer.
+- Instance lock: an OS flock heals a stale same-PID marker immediately.
+- Paint cache: read-time age check, 64 MiB byte cap/prune, and fail-soft
+  encode/decode so malformed cache entries never abort a room.
+- Page 2 refresh keeps focus off the nav row; clamped pages refresh with the
+  painted page; cache keys carry a navigation token.
+- Remove favourite / delete download invalidate the cached screen first.
+- Prefetch stops on D-pad focus movement.
+- Screen 3.9.56 requires plugin 3.9.56; resolver module stays 1.1.0. Code
+  only: no device run, no push and no tag.
+
 Rave Player 3.9.55 — advisor pre-release fixes
 - Live Radio: stable row signatures (label/target/stream/art/fact) mean an
   unchanged refresh shows "SAVED LIST · up to date" and does not repaint.

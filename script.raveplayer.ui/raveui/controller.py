@@ -235,6 +235,13 @@ class RaveScreenController(object):
         self._last_play_key = None
         self._last_play_at = 0.0
         self._live_started_at = 0.0
+        # External-stop detection: Kodi can stop the player from JSON-RPC or
+        # another add-on, so the footer tick polls the player and clears the
+        # playback status line when an active player disappears (3.9.54 device
+        # QA P2-2).  A short grace covers Player.play's asynchronous start.
+        self._player_seen_active = False
+        self._player_active_at = 0.0
+        self._playback_status_active = False
         # One implementation per concern.  The screen modules own the four
         # library rooms, Live Radio and the Surprise policy; the shell only
         # adapts their rows and actions and keeps the navigation stack.
@@ -333,6 +340,11 @@ class RaveScreenController(object):
 
     # ------------------------------------------------------------------ focus
     def on_focus(self):
+        # D-pad focus movement is a user action: stop the speculative
+        # prefetch immediately, not only when a row is clicked or Back is
+        # pressed (advisor P2-19).
+        self._user_active = True
+        self._prefetch_cancel.set()
         if self._closed:
             return None
         if self._view_kind == "keyboard" and self._keyboard is not None:
@@ -531,6 +543,8 @@ class RaveScreenController(object):
 
     def on_stop(self):
         """Remote Stop: the only explicit way this app stops audio."""
+        self._user_active = True
+        self._prefetch_cancel.set()
         if self._closed:
             return False
         live = self._live_ui
@@ -546,6 +560,9 @@ class RaveScreenController(object):
             except Exception:  # noqa: BLE001 - player unavailable
                 stopped = False
         self._last_play_key = None
+        self._playback_status_active = False
+        self._player_seen_active = False
+        self._call_view("set_now_playing", "")
         # Also clear a stale live latch: a normal stop must leave the live
         # footer/row honestly idle (P1-3).
         if live is not None and live.on_air:
@@ -969,6 +986,32 @@ class RaveScreenController(object):
         except Exception:  # noqa: BLE001 - window already gone
             pass
     # --------------------------------------------------------------- playback
+    def _mark_playback_started(self):
+        """Remember that the app owns the current player status line.
+
+        The player is shared with Kodi, so an external ``Player.Stop`` produces
+        no callback here.  The footer tick uses this flag plus an active-player
+        observation to clear the stale "Now playing" status.
+        """
+        self._player_seen_active = True
+        self._player_active_at = time.monotonic()
+        self._playback_status_active = True
+
+    def _clear_playback_status(self):
+        """Clear a status line this controller set for a now-stopped player."""
+        self._last_play_key = None
+        self._handed_off = False
+        self._playback_status_active = False
+        self._player_seen_active = False
+        try:
+            self.view.set_now_playing("")
+        except Exception:  # noqa: BLE001 - optional view port
+            pass
+        try:
+            self.view.set_status("")
+        except Exception:  # noqa: BLE001 - optional view port
+            pass
+
     def _handoff(self, track, live=None):
         if self._closed:
             return False
@@ -1002,6 +1045,7 @@ class RaveScreenController(object):
         text = getattr(result, "text", None) or "Now playing: %s" % track.title
         self.view.set_now_playing(text)
         self.view.set_status("%s · Back leaves audio playing" % text)
+        self._mark_playback_started()
         self._paint_footer(nowplaying.playing(
             getattr(track, "title", "") or "Untitled",
             artist=getattr(track, "pack", "") or "",
@@ -1071,6 +1115,7 @@ class RaveScreenController(object):
         text = getattr(result, "text", None) or "Queued %d tracks" % len(tracks)
         self.view.set_now_playing(text)
         self.view.set_status("%s · Back leaves audio playing" % text)
+        self._mark_playback_started()
         first = getattr(tracks[0], "title", "") or "Untitled"
         self._paint_footer(nowplaying.playing(
             first, album="%d tracks" % len(tracks)))
@@ -1163,36 +1208,70 @@ class RaveScreenController(object):
             pass
         return "%s/%s" % (screen, plugin)
 
+    @staticmethod
+    def _cache_nav(target, page):
+        """Navigation/layout token for a cache key (folder vs list vs page)."""
+        if target is None or target == "":
+            kind = "home"
+        elif isinstance(target, SearchTarget):
+            kind = "search"
+        elif isinstance(target, str):
+            kind = "list"
+        elif isinstance(target, Entry):
+            kind = "entry:%s:%s" % (target.kind, target.source)
+        else:
+            kind = "obj:%s" % type(target).__name__
+        return "%s:p%d" % (kind, max(1, int(page or 1)))
+
     def _cached_page(self, target, page):
         try:
             payload = self._paint_cache.load(
-                "page", target, page, self._rows_per_page)
+                "page", target, page, self._rows_per_page,
+                nav=self._cache_nav(target, page))
         except Exception:  # noqa: BLE001 - a paint cache is always optional
             return None
-        page_obj = decode_page(payload)
+        try:
+            page_obj = decode_page(payload)
+        except Exception:  # noqa: BLE001 - malformed entry is a miss
+            return None
         if page_obj is None or not page_obj.rows:
             return None
         return page_obj
 
     def _store_page(self, target, page, page_obj):
+        """Best-effort write: a bad row shape must never break a room load."""
         if page_obj is None or not getattr(page_obj, "rows", None):
             return
-        encoded = encode_page(page_obj)
-        if encoded is None:
-            return
         try:
-            self._paint_cache.store("page", target, page,
-                                    self._rows_per_page, encoded)
-        except Exception:  # noqa: BLE001 - never break a load for a cache write
-            pass
+            actual = max(1, int(getattr(page_obj, "page", page) or page))
+            encoded = encode_page(page_obj)
+            if encoded is None:
+                return
+            if actual != int(page):
+                # Never leave a clamped page's rows under the requested-key
+                # page number: a later open would paint page 1 as page 3 and
+                # its refresh would be discarded (advisor P2-5/P2-9).
+                self._paint_cache.delete(
+                    "page", target, page, self._rows_per_page,
+                    nav=self._cache_nav(target, page))
+            self._paint_cache.store(
+                "page", target, actual, self._rows_per_page, encoded,
+                nav=self._cache_nav(target, actual))
+        except Exception as exc:  # noqa: BLE001 - cache is never load-bearing
+            self._log("page cache write skipped: %s" % exc)
 
     def _cached_screen(self, route, query, page):
         try:
             payload = self._paint_cache.load(
-                "library", "%s|%s" % (route, query), page, self._rows_per_page)
+                "library", "%s|%s" % (route, query), page,
+                self._rows_per_page,
+                nav="library:%s:%s:p%d" % (route, query, page))
         except Exception:  # noqa: BLE001
             return None
-        screen = decode_library_screen(payload)
+        try:
+            screen = decode_library_screen(payload)
+        except Exception:  # noqa: BLE001 - malformed entry is a miss
+            return None
         if screen is None or not getattr(screen, "rows", None):
             return None
         return screen
@@ -1202,19 +1281,26 @@ class RaveScreenController(object):
             return
         if not getattr(screen, "is_ready", False):
             return
-        encoded = encode_library_screen(screen)
-        if encoded is None:
-            return
+        target = "%s|%s" % (route, query)
         try:
+            actual = max(1, int(getattr(screen, "page", page) or page))
+            encoded = encode_library_screen(screen)
+            if encoded is None:
+                return
+            if actual != int(page):
+                self._paint_cache.delete(
+                    "library", target, page, self._rows_per_page,
+                    nav="library:%s:%s:p%d" % (route, query, page))
             self._paint_cache.store(
-                "library", "%s|%s" % (route, query), page,
-                self._rows_per_page, encoded)
-        except Exception:  # noqa: BLE001
-            pass
+                "library", target, actual, self._rows_per_page, encoded,
+                nav="library:%s:%s:p%d" % (route, query, actual))
+        except Exception as exc:  # noqa: BLE001 - cache is never load-bearing
+            self._log("screen cache write skipped: %s" % exc)
 
     def _cached_live(self):
         try:
-            payload = self._paint_cache.load("live", "live", 1, 1)
+            payload = self._paint_cache.load("live", "live", 1, 1,
+                                             nav="live:p1")
         except Exception:  # noqa: BLE001
             return None
         if not isinstance(payload, dict):
@@ -1256,7 +1342,8 @@ class RaveScreenController(object):
                 "bitrate": int(station.bitrate or 0),
             })
         try:
-            self._paint_cache.store("live", "live", 1, 1, {"stations": items})
+            self._paint_cache.store("live", "live", 1, 1,
+                                    {"stations": items}, nav="live:p1")
         except Exception:  # noqa: BLE001
             pass
 
@@ -1321,9 +1408,9 @@ class RaveScreenController(object):
         except Exception:  # noqa: BLE001 - a paint match is advisory
             return False
 
-    def _apply_refreshed_page(self, target, page, base_sig, page_obj):
-        self._store_page(target, page, page_obj)
-        if self._closed or self._target != target or self._page != page:
+    def _apply_refreshed_page(self, target, painted_page, base_sig, page_obj):
+        self._store_page(target, painted_page, page_obj)
+        if self._closed or self._target != target or self._page != painted_page:
             return
         if self._view_kind != "list":
             return
@@ -1337,19 +1424,26 @@ class RaveScreenController(object):
         if not changed:
             self.view.set_status(PAINT_CURRENT)
             return
-        index = self._current_index()
-        index = max(0, min(index, len(page_obj.rows) - 1))
+        # Restore the absolute content offset, not the on-screen row index:
+        # page 2+ has a PREVIOUS PAGE nav row at index 0, so clamping that
+        # index to len(rows)-1 can land on the nav row or one row early
+        # (advisor P2-4).
+        offset = self._content_offset()
         self._apply_page(target, page_obj)
-        self._render_page(index=index)
+        self._render_page(index=None)
+        self._restore_offset(offset)
         self._trace("refresh repaint %r page=%s rows=%d" % (
-            target, page, len(page_obj.rows)))
+            target, self._page, len(page_obj.rows)))
 
-    def _apply_refreshed_screen(self, route, query, page, base_sig, screen):
-        self._store_screen(route, query, page, screen)
+    def _apply_refreshed_screen(self, route, query, painted_page, base_sig,
+                                screen):
+        self._store_screen(route, query, painted_page, screen)
         if self._closed or self._view_kind != "list":
             return
         if self._target != (SearchTarget(query)
                             if route == ROUTE_SEARCH and query else route):
+            return
+        if self._page != painted_page:
             return
         if not getattr(screen, "is_ready", False):
             # The saved rows stay on screen (SWR), but a non-ready refresh is
@@ -1370,9 +1464,9 @@ class RaveScreenController(object):
         if not changed:
             self.view.set_status(PAINT_CURRENT)
             return
-        index = self._current_index()
+        offset = self._content_offset()
         self._paint_library_screen(screen, route, query)
-        self._select_index(index)
+        self._restore_offset(offset)
 
     def _apply_refreshed_live(self, base_sig, stations):
         self._store_live(stations)
@@ -1420,13 +1514,20 @@ class RaveScreenController(object):
                 self._push_current()
             self._apply_page(target, cached)
             self._render_page(index=None)
+            # The source may clamp an out-of-range page; the refresh belongs
+            # to the page actually painted, not the requested integer.
+            painted_page = self._page
             self.view.set_status(PAINT_UPDATING)
-            base_sig = signature(cached)
+            try:
+                base_sig = signature(cached)
+            except Exception:  # noqa: BLE001 - repaint rather than risk stale
+                base_sig = ""
             self._start_refresh(
                 lambda: self._load_page(target, page),
                 lambda refreshed: self._apply_refreshed_page(
-                    target, page, base_sig, refreshed),
-                lambda: (self._target == target and self._page == page
+                    target, painted_page, base_sig, refreshed),
+                lambda: (self._target == target
+                         and self._page == painted_page
                          and self._view_kind == "list" and not self._closed))
             self._trace("paint cache %r page=%s rows=%d in %.0f ms" % (
                 target, page, len(cached.rows),
@@ -1535,13 +1636,18 @@ class RaveScreenController(object):
             if push:
                 self._push_current()
             self._paint_library_screen(cached, route, query)
+            painted_page = self._page
             self.view.set_status(PAINT_UPDATING)
-            base_sig = library_signature(cached)
+            try:
+                base_sig = library_signature(cached)
+            except Exception:  # noqa: BLE001 - repaint rather than risk stale
+                base_sig = ""
             self._start_refresh(
                 function,
                 lambda refreshed: self._apply_refreshed_screen(
-                    route, query, page, base_sig, refreshed),
+                    route, query, painted_page, base_sig, refreshed),
                 lambda: (self._view_kind == "list" and not self._closed
+                         and self._page == painted_page
                          and self._target == (SearchTarget(query)
                                               if route == ROUTE_SEARCH and query
                                               else route)))
@@ -1618,6 +1724,28 @@ class RaveScreenController(object):
             self.view.set_status(screen.subtitle or "")
         self._paint_footer()
 
+    def _invalidate_library_cache(self, route=None, query="", page=None):
+        """Drop one cached library page before a destructive reload.
+
+        A remove/delete reload used to paint the old cached screen first, so
+        the row the user just removed briefly reappeared until the background
+        refresh finished (advisor P2-3).
+        """
+        route = self._target if route is None else route
+        if isinstance(route, SearchTarget):
+            query = route.query
+            route = ROUTE_SEARCH
+        if route not in LIBRARY_ROUTES:
+            return False
+        page = self._page if page is None else page
+        try:
+            return bool(self._paint_cache.delete(
+                "library", "%s|%s" % (route, query), page,
+                self._rows_per_page,
+                nav="library:%s:%s:p%d" % (route, query, page)))
+        except Exception:  # noqa: BLE001 - cache invalidation is best effort
+            return False
+
     def _reload_library(self):
         screen = self._library_screen
         if screen is None:
@@ -1645,6 +1773,7 @@ class RaveScreenController(object):
             message = result.message
             if result.ok and self._target in (ROUTE_FAVOURITES,
                                               ROUTE_DOWNLOADS):
+                self._invalidate_library_cache()
                 reloaded = self._reload_library()
                 # _reload_library repaints and clears the status; put the
                 # confirmation back so the user sees it (P2-3).
@@ -1656,6 +1785,7 @@ class RaveScreenController(object):
             result = self._library_handlers().cancel(entry)
             message = result.message
             if result.ok and self._target == ROUTE_DOWNLOADS:
+                self._invalidate_library_cache()
                 reloaded = self._reload_library()
                 self.view.set_status(message)
                 return reloaded
@@ -1865,6 +1995,8 @@ class RaveScreenController(object):
         if not self._playing_live:
             self._live_started_at = 0.0
         self._call_view("set_live", self._playing_live)
+        if self._playing_live:
+            self._mark_playback_started()
         message = live.status
         if self._target == "live":
             self._paint_live_rows(index=self._current_index(), status=message)
@@ -1999,6 +2131,19 @@ class RaveScreenController(object):
         if self._footer_at is not None and now - self._footer_at < 0.9:
             return
         snapshot = self._read_player_snapshot()
+        # Observe the shared player across ticks.  When an app-owned status
+        # line is on screen and the player disappears (JSON-RPC stop, another
+        # add-on, or the end of the queue), clear it here: no Kodi callback is
+        # delivered for an external stop (3.9.54 device QA P2-2).
+        if snapshot:
+            self._player_seen_active = True
+            self._player_active_at = now
+        elif (self._player_seen_active and self._playback_status_active
+              and now - self._player_active_at >= 2.5
+              and not self._is_playing()):
+            self._clear_playback_status()
+            if self._footer is not None and self._footer.has_media:
+                self._paint_footer(nowplaying.standby())
         if self._reconcile_live(snapshot):
             return
         if not snapshot:
@@ -2693,6 +2838,7 @@ class RaveScreenController(object):
             result = self._library_handlers().remove(subject)
             message = result.message
             if result.ok:
+                self._invalidate_library_cache()
                 reloaded = self._reload_library()
                 self.view.set_status(message)
                 return reloaded
@@ -2747,6 +2893,7 @@ class RaveScreenController(object):
         message = getattr(result, "message", "") or "Queued %d tracks" % len(tracks)
         self.view.set_now_playing(message)
         self.view.set_status("%s · Back leaves audio playing" % message)
+        self._mark_playback_started()
         self._paint_footer(nowplaying.playing(
             getattr(tracks[0], "title", "") or "Untitled",
             album="%d tracks" % len(tracks)))
@@ -2832,6 +2979,7 @@ class RaveScreenController(object):
                    else "Could not remove that favourite.")
         self.view.set_status(message)
         if ok and self._target in ("favourites", ROUTE_FAVOURITES):
+            self._invalidate_library_cache()
             self._reload_current(keep_index=False)
             self.view.set_status(message)
         return bool(ok)
@@ -2848,6 +2996,7 @@ class RaveScreenController(object):
                    else "That download was not found.")
         self.view.set_status(message)
         if ok and self._target in ("downloads", ROUTE_DOWNLOADS):
+            self._invalidate_library_cache()
             self._reload_current(keep_index=False)
             self.view.set_status(message)
         return bool(ok)

@@ -247,6 +247,26 @@ def make_track(url="https://stream.test/1.mp3", title="Tune", **extra):
     return Row(label=title, kind=KIND_TRACK, fact="track", payload=payload)
 
 
+class FakeQueue(object):
+    """Minimal DownloadQueue double for the Downloads room."""
+
+    def __init__(self):
+        self.rows_value = []
+        self.cancelled = []
+        self.dismissed = []
+
+    def rows(self):
+        return [dict(row) for row in self.rows_value]
+
+    def cancel(self, key):
+        self.cancelled.append(key)
+        return True
+
+    def dismiss(self, key):
+        self.dismissed.append(key)
+        return True
+
+
 class LibraryTestCase(unittest.TestCase):
     def setUp(self):
         self.backend = FakeBackend()
@@ -471,6 +491,8 @@ class FavouritesTests(LibraryTestCase):
         self.assertEqual(stale.fact, "stale")
         for row in screen.rows:
             self.assertEqual(row.code, "RP-34")
+            self.assertEqual(row.fanart, "/art/fanart-favourites.jpg")
+            self.assertNotIn("screen-bed", row.fanart)
 
     def test_pagination_covers_every_entry_once(self):
         self.backend.favourite_rows = [
@@ -574,6 +596,22 @@ class DownloadsTests(LibraryTestCase):
     def setUp(self):
         LibraryTestCase.setUp(self)
         self.backend.download_rows = make_download_entries()
+
+    def test_downloads_hero_is_the_neutral_bed_not_favourites_art(self):
+        # 3.9.54 device QA P2-1: Downloads painted the FAVOURITES hero.
+        screen = self.screens.downloads(1)
+        expected = "/art/screen-bed-1920x1080.jpg"
+        for row in screen.rows:
+            self.assertEqual(row.fanart, expected)
+            self.assertEqual(row.hero, expected)
+            self.assertNotIn("favourites", row.fanart)
+        queue = FakeQueue()
+        screens = LibraryScreens(self.backend, queue=queue)
+        queue.rows_value = [{
+            "key": "q1", "title": "Active", "status": "downloading",
+            "percent": 10, "source": "Archive.org"}]
+        active = screens.downloads(1).rows[0]
+        self.assertEqual(active.fanart, expected)
 
     def test_existing_and_missing_files_map_to_track_and_action_rows(self):
         screen = self.screens.downloads(1)
@@ -732,6 +770,7 @@ class AboutTests(LibraryTestCase):
             self.assertEqual(row.kind, KIND_ACTION)
             self.assertEqual(row.code, "RP-36")
             self.assertEqual(row.payload["action"], ACTION_OPEN)
+            self.assertEqual(row.fanart, "/art/fanart-about.jpg")
         self.assertEqual(screen.rows[0].payload["url"], PROJECT_URL)
         self.assertEqual(screen.rows[-1].payload["url"], "https://archive.org")
         self.assertIn("3.9.51", screen.subtitle)

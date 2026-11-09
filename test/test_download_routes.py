@@ -122,6 +122,40 @@ class DownloadRouteTests(unittest.TestCase):
         self.assertIn("Size:", message)
         self.assertIn("Free space:", message)
 
+    def test_download_start_cancels_when_the_overlay_reports_cancel(self):
+        plan = {"allowed": True, "reason": "", "size": 1024,
+                "free": 1024 * 1024 * 1024, "existing": False}
+        calls = []
+
+        class CancellingSpinner(object):
+            def open(self):
+                calls.append("open")
+                return True
+
+            def update(self, done, total, elapsed=None, filename=""):
+                pass
+
+            def iscanceled(self):
+                return True
+
+            def close(self):
+                calls.append("close")
+
+        def fake_download(plan_row, progress=None, cancelled=None):
+            self.assertTrue(cancelled())
+            return {"ok": False, "reason": "cancelled"}
+
+        with mock.patch.object(routes.kodi, "setting_bool", return_value=True), \
+                mock.patch.object(routes.spinner, "SpinnerWindow", CancellingSpinner), \
+                mock.patch.object(routes.downloads, "plan", return_value=plan), \
+                mock.patch.object(routes.downloads, "download", side_effect=fake_download), \
+                mock.patch.object(routes.kodi, "notify") as notify:
+            routes.download_start(1, {"url": "https://archive.org/a.mp3",
+                                      "title": "Set", "source": "Archive.org"})
+        self.assertEqual(calls, ["open", "close"])
+        messages = " ".join(str(arg) for arg in notify.call_args[0])
+        self.assertIn("cancelled", messages)
+
     def test_download_start_uses_spinner_when_enabled(self):
         plan = {"allowed": True, "reason": "", "size": 1024,
                 "free": 1024 * 1024 * 1024, "existing": False}

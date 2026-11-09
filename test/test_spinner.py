@@ -73,7 +73,14 @@ class SpinnerTests(unittest.TestCase):
     def test_skin_xml_exists(self):
         path = os.path.join(ROOT, spinner.SKIN_DIR, spinner.WINDOW_XML)
         self.assertTrue(os.path.exists(path), path)
-        self.assertIn("Spinning Rave Player head", open(path, encoding="utf-8").read())
+        with open(path, encoding="utf-8") as handle:
+            xml = handle.read()
+        self.assertIn("Spinning Rave Player head", xml)
+        # 3.9.54 device QA P2-3: the plugin-path download overlay exposes a
+        # real, focusable Cancel control as well as Back/Stop handling.
+        self.assertIn('id="107"', xml)
+        self.assertIn("CANCEL", xml)
+        self.assertIn("<defaultcontrol>107</defaultcontrol>", xml)
 
     def test_frame_math_wraps_at_fps(self):
         self.assertEqual(spinner.frame_index(0), 0)
@@ -119,6 +126,39 @@ class SpinnerTests(unittest.TestCase):
             self.assertFalse(overlay.iscanceled())
             FakeWindow.created[0]._rave_cancelled = True
             self.assertTrue(overlay.iscanceled())
+
+    def test_owner_cancel_is_sticky(self):
+        with mock.patch.object(spinner, "_WINDOW_CLASS", FakeWindow):
+            overlay = spinner.SpinnerWindow(addon_path=ROOT)
+            overlay.open()
+            self.assertTrue(overlay.cancel("test"))
+            self.assertTrue(overlay.iscanceled())
+
+    def test_back_stop_and_cancel_control_all_cancel_the_window(self):
+        window_class = spinner._WINDOW_CLASS
+        if window_class is None:
+            self.skipTest("no WindowXML stub")
+        action_codes = [getattr(__import__("xbmcgui"), name)
+                        for name in ("ACTION_NAV_BACK", "ACTION_STOP",
+                                     "ACTION_PREVIOUS_MENU", "ACTION_PARENT_DIR")
+                        if hasattr(__import__("xbmcgui"), name)]
+        for code in action_codes:
+            window = window_class(spinner.WINDOW_XML, ROOT)
+
+            class Action(object):
+                def getId(self):
+                    return code
+
+            window.onAction(Action())
+            self.assertTrue(window._rave_cancelled, code)
+
+        class Control(object):
+            def getId(self):
+                return spinner.CONTROL_CANCEL
+
+        window = window_class(spinner.WINDOW_XML, ROOT)
+        window.onControl(Control())
+        self.assertTrue(window._rave_cancelled)
 
 
 if __name__ == "__main__":
@@ -197,7 +237,7 @@ class TuningSpinnerTests(unittest.TestCase):
         self.assertEqual(fake.controls[spinner.CONTROL_FILENAME].label,
                          "Kool FM — Tuning in…")
         self.assertEqual(fake.controls[spinner.CONTROL_REMAINING].label, "Tuning in…")
-        self.assertEqual(fake.controls[spinner.CONTROL_HINT].label, "Back to cancel")
+        self.assertEqual(fake.controls[spinner.CONTROL_HINT].label, "OK / Back to cancel")
 
 
 def time_sleep(seconds):

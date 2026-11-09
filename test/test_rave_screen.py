@@ -1149,6 +1149,44 @@ class SingleInstanceTests(unittest.TestCase):
             ravewindow._release_instance(path)
             self.assertFalse(os.path.exists(path))
 
+    def test_same_pid_stale_lock_self_heals_immediately(self):
+        # Scripts run in Kodi's own process, so an unclean exit leaves Kodi's
+        # live PID in the marker.  The OS lock, not the PID, decides liveness.
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "screen-instance.lock")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(str(os.getpid()))
+            old = time.time() - ravewindow.INSTANCE_LOCK_TTL
+            os.utime(path, (old, old))
+            self.assertTrue(ravewindow._acquire_instance(path))
+            self.assertEqual(ravewindow._read_pid(path), os.getpid())
+            ravewindow._release_instance(path)
+            self.assertFalse(os.path.exists(path))
+
+    def test_a_live_same_process_lock_still_refuses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "screen-instance.lock")
+            self.assertTrue(ravewindow._acquire_instance(path))
+            try:
+                self.assertFalse(ravewindow._acquire_instance(path))
+                self.assertEqual(ravewindow._read_pid(path), os.getpid())
+            finally:
+                ravewindow._release_instance(path)
+            self.assertFalse(os.path.exists(path))
+
+    def test_no_fcntl_fallback_heals_a_stale_same_pid_marker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "screen-instance.lock")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(str(os.getpid()))
+            old = time.time() - ravewindow.INSTANCE_HEARTBEAT_TTL - 1
+            os.utime(path, (old, old))
+            with mock.patch.object(ravewindow, "fcntl", None):
+                self.assertTrue(ravewindow._acquire_instance(path))
+            self.assertEqual(ravewindow._read_pid(path), os.getpid())
+            ravewindow._release_instance(path)
+            self.assertFalse(os.path.exists(path))
+
 
 # ----------------------------------------------------------------------- data
 class FakeRandom(object):
@@ -1574,11 +1612,11 @@ class ManifestAndSkinTests(unittest.TestCase):
     def test_script_manifest_is_kodi_19_22_and_depends_on_the_plugin(self):
         root = ET.parse(os.path.join(SCREEN, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.raveplayer.ui")
-        self.assertEqual(root.get("version"), "3.9.55")
+        self.assertEqual(root.get("version"), "3.9.56")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
-        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.55")
+        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.56")
         extension = root.find("./extension[@point='xbmc.python.script']")
         self.assertIsNotNone(extension)
         self.assertEqual(extension.get("library"), "default.py")
@@ -2191,6 +2229,8 @@ class DownloadQueueTests(unittest.TestCase):
             plan=mock.Mock(return_value=plan),
             download=mock.Mock(side_effect=lambda planned, progress=None,
                                cancelled=None: self._finish(progress, result)),
+            list_downloads=mock.Mock(return_value=[]),
+            delete=mock.Mock(return_value=True),
         )
         return types.SimpleNamespace(downloads=downloads)
 
@@ -2290,6 +2330,60 @@ class DownloadQueueTests(unittest.TestCase):
                                 for line in builtins))
             self.assertTrue(queue.cancel("k"))
             self.assertEqual(queue.rows()[0]["status"], "cancelling")
+
+    def test_cancel_removes_a_completed_duplicate_of_the_same_key(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "download-queue.json")
+            modules = self.modules()
+            modules.downloads.list_downloads.return_value = [
+                {"key": "k", "url": "https://x/1.mp3", "title": "Old copy"}]
+            queue = DownloadQueue(modules=modules, store_path=path,
+                                  local_workers=False)
+            queue.start("https://x/1.mp3", "Set", "Archive.org", key="k")
+            self.assertTrue(queue.cancel("k"))
+            modules.downloads.delete.assert_called_once_with("k")
+            self.assertEqual(queue.rows()[0]["status"], "cancelling")
+
+    def test_cancel_marks_every_duplicate_row_for_the_same_url(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "download-queue.json")
+            modules = self.modules()
+            queue = DownloadQueue(modules=modules, store_path=path,
+                                  local_workers=False)
+            queue.start("https://x/1.mp3", "One", "Archive.org", key="a")
+            queue.start("https://x/1.mp3", "Two", "Archive.org", key="b")
+            self.assertTrue(queue.cancel("a"))
+            rows = {row["key"]: row for row in queue.rows()}
+            self.assertEqual(rows["a"]["status"], "cancelling")
+            self.assertEqual(rows["b"]["status"], "cancelling")
+            self.assertTrue(rows["a"]["cancel"])
+            self.assertTrue(rows["b"]["cancel"])
+
+    def test_a_cancel_that_lands_as_the_file_finishes_leaves_no_completed_row(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "download-queue.json")
+            modules = self.modules()
+            started = threading.Event()
+            release = threading.Event()
+
+            def slow_finish(planned, progress=None, cancelled=None):
+                started.set()
+                release.wait(2.0)
+                return {"ok": True, "reason": ""}
+
+            modules.downloads.download = mock.Mock(side_effect=slow_finish)
+            modules.downloads.list_downloads.return_value = [
+                {"key": "k", "url": "https://x/1.mp3"}]
+            queue = DownloadQueue(modules=modules, store_path=path)
+            queue.start("https://x/1.mp3", "Set", "Archive.org", key="k")
+            self.assertTrue(started.wait(2.0))
+            self.assertTrue(queue.cancel("k"))
+            release.set()
+            self.assertTrue(self.wait(
+                queue, lambda rows: rows and
+                rows[0]["status"] == "cancelled"))
+            modules.downloads.delete.assert_called_with("k")
+            self.assertNotEqual(queue.rows()[0]["status"], "downloading")
 
     def test_window_queue_shows_the_owners_downloading_status(self):
         import json as json_module
@@ -2592,7 +2686,8 @@ class StaleWhileRevalidateTests(unittest.TestCase):
         page_obj = Page(rows=list(rows), total=len(rows), page=page, pages=1,
                         rows_per_page=50)
         self.assertTrue(self.cache.store(
-            "page", "latest", page, 50, encode_page(page_obj)))
+            "page", "latest", page, 50, encode_page(page_obj),
+            nav="list:p%d" % page))
 
     def test_cache_hit_paints_before_any_source_call(self):
         saved = Entry("saved-1", "Saved pack", "Internet Archive", "",
@@ -2625,6 +2720,30 @@ class StaleWhileRevalidateTests(unittest.TestCase):
         self.ctl.tick()
         self.assertEqual(self.view.status, PAINT_CURRENT)
 
+    def test_malformed_page_encode_never_breaks_a_room_load(self):
+        from raveui.data import Page
+
+        bad = Page(rows=[Entry("a", "A", "", "", "pack", "latest", "a")],
+                   total="oops", page=1, pages=1, rows_per_page=50)
+        self.ctl._store_page("latest", 1, bad)       # must not raise
+        self.assertIsNone(self.ctl._cached_page("latest", 1))
+        self.assertTrue(self.ctl._load_target("latest", 1))
+        self.assertEqual(self.view.rows[0].label, "Dreamscape 19")
+
+    def test_malformed_cache_value_is_a_miss_not_a_room_abort(self):
+        import json
+        import time
+
+        path = self.cache._path(self.cache.key("page", "latest", 1, 50))
+        payload = {"v": 1, "ts": time.time(),
+                   "value": {"rows": [{"key": "a", "label": "A"}],
+                             "total": "oops"}}
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+        self.assertIsNone(self.ctl._cached_page("latest", 1))
+        self.assertTrue(self.ctl._load_target("latest", 1))
+        self.assertEqual(self.view.rows[0].label, "Dreamscape 19")
+
     def test_refresh_failure_keeps_the_saved_page(self):
         saved = Entry("saved-1", "Saved pack", "Internet Archive", "",
                       "pack", "latest", "saved-1")
@@ -2654,7 +2773,8 @@ class StaleWhileRevalidateTests(unittest.TestCase):
 
         self.assertTrue(self.cache.store(
             "library", "%s|" % screen.route, 1, 50,
-            encode_library_screen(screen)))
+            encode_library_screen(screen),
+            nav="library:%s::p1" % screen.route))
 
     def _refreshed_library(self, screen):
         self._seed_screen(self.library.favourites())  # ready saved screen
@@ -2663,6 +2783,26 @@ class StaleWhileRevalidateTests(unittest.TestCase):
         self.assertEqual(self.view.status, PAINT_UPDATING)
         self.ctl._refresh["task"].finish()
         self.ctl.tick()
+
+    def test_destructive_remove_invalidates_the_cached_screen_first(self):
+        # 3.9.56 advisor P2-3: a removed favourite must not reappear from the
+        # paint cache while the background refresh runs.
+        self._seed_screen(self.library.favourites())
+        self.assertTrue(self.ctl._load_target("favourites", 1))
+        self.assertEqual(self.view.rows[0].label, "Saved Set")
+        empty = LibraryScreen(
+            route="favourites", title="FAVOURITES", subtitle="0 saved",
+            rows=(), state="empty", page=1, pages=1, total=0)
+        self.library.remove = lambda row: ActionResult(
+            True, "remove", "Removed")
+        self.library.favourites = lambda page=1: empty
+        subject = self.view.rows[0]
+        self.ctl._library_context("library_remove", subject)
+        self.assertIsNone(self.cache.load(
+            "library", "favourites|", 1, 50,
+            nav="library:favourites::p1"))
+        self.assertNotIn("Saved Set", [row.label for row in self.view.rows])
+        self.assertEqual(self.view.status, "Removed")
 
     def test_empty_library_refresh_shows_a_terminal_status(self):
         # Without the 3.9.55 fix the stale rows stayed correct but the status
@@ -2681,6 +2821,213 @@ class StaleWhileRevalidateTests(unittest.TestCase):
         self._refreshed_library(failed)
         self.assertEqual(self.view.status, PAINT_OFFLINE)
         self.assertEqual(self.view.rows[0].label, "Saved Set")
+
+
+class ExternalStopStatusTests(unittest.TestCase):
+    """3.9.54 device QA P2-2: an external Player.Stop must clear the status."""
+
+    def setUp(self):
+        self.state = {"snapshot": None}
+        self.ctl, self.view, _, self.playback = controller(
+            player_snapshot=lambda: self.state["snapshot"])
+        self.ctl.start()
+        self.ctl._prefetch_cancel.set()
+        self.ctl._handoff(Track("Andy C", "RTP", "https://example.test/a.mp3"))
+
+    def _tick(self, snapshot, age=0.0):
+        self.state["snapshot"] = snapshot
+        if age:
+            self.ctl._player_active_at -= age
+        self.ctl._footer_at = None
+        self.ctl.tick()
+
+    def test_active_player_keeps_the_status_line(self):
+        self._tick({"playing": True, "title": "Andy C", "elapsed": 1,
+                    "duration": 10, "paused": False})
+        self.assertIn("Now playing", self.view.status)
+        self.assertTrue(self.view.now_playing)
+
+    def test_external_stop_clears_the_now_playing_status(self):
+        self._tick({"playing": True, "title": "Andy C", "elapsed": 1,
+                    "duration": 10, "paused": False})
+        self.playback.playing = False       # JSON-RPC / external stop
+        self._tick(None, age=5.0)
+        self.assertEqual(self.view.status, "")
+        self.assertEqual(self.view.now_playing, "")
+        self.assertFalse(self.ctl._playback_status_active)
+        self.assertTrue(self.view.footer.idle)
+
+    def test_a_pending_start_is_not_mistaken_for_a_stop(self):
+        self._tick(None)                    # Player.play has not started yet
+        self.assertIn("Back leaves audio playing", self.view.status)
+        self.assertTrue(self.view.now_playing)
+
+    def test_in_app_stop_keeps_its_feedback(self):
+        self.playback.playing = False
+        self.ctl.on_stop()
+        self.assertEqual(self.view.status, "Stopped.")
+        self.assertEqual(self.view.now_playing, "")
+
+
+class PaginatedRefreshTests(unittest.TestCase):
+    """3.9.56: page-2 nav rows and clamped pages keep focus and refresh."""
+
+    class PagingData(FakeData):
+        def __init__(self, rows_by_page):
+            FakeData.__init__(self)
+            self.rows_by_page = rows_by_page
+            self.calls = []
+
+        def load(self, target, page, rows):
+            self.calls.append((target, page, rows))
+            wanted = min(max(1, int(page)), len(self.rows_by_page))
+            entries = self.rows_by_page[wanted - 1]
+            return Page(rows=list(entries), total=sum(
+                len(item) for item in self.rows_by_page),
+                page=wanted, pages=len(self.rows_by_page),
+                rows_per_page=rows,
+                has_next=wanted < len(self.rows_by_page))
+
+    def setUp(self):
+        from raveui.paintcache import PaintCache
+
+        self.tmp = tempfile.mkdtemp(prefix="rave-page-refresh-")
+        self.cache = PaintCache(directory=self.tmp, versions="test/3.9.56")
+        self.view = FakeView()
+
+    def tearDown(self):
+        import shutil
+
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    @staticmethod
+    def _entries(prefix, count):
+        return [Entry("%s-%d" % (prefix, index), "%s %d" % (prefix, index),
+                      "", "", "pack", "latest", "%s-%d" % (prefix, index))
+                for index in range(count)]
+
+    def test_page_2_refresh_keeps_focus_on_content_not_the_nav_row(self):
+        first = self._entries("first", 50)
+        second = self._entries("second", 50)
+        data = self.PagingData([first, second])
+        ctl, view, _, _ = controller(
+            view=self.view, data=data, paint_cache=self.cache,
+            background_task_factory=_ControllableTask)
+        ctl.start()
+        ctl._prefetch_cancel.set()
+        # A full page-2 cache, then focus content row 20 (on-screen index 21
+        # because PREVIOUS PAGE occupies 0).
+        ctl._store_page("latest", 2, Page(
+            rows=list(second), total=100, page=2, pages=2, rows_per_page=50,
+            has_next=False))
+        self.assertTrue(ctl._load_target("latest", 2))
+        ctl._select_index(21)
+        self.assertEqual(ctl._current_index(), 21)
+        # The source shrank to 10 rows on the same page.
+        data.rows_by_page = [first, self._entries("short", 10)]
+        ctl._refresh["task"].finish()
+        ctl.tick()
+        rows = view.rows
+        self.assertEqual(len(rows), 11)       # PREVIOUS PAGE + 10 content
+        self.assertEqual(view.index, 10)      # last content row, not nav
+        self.assertEqual(rows[view.index].key, "short-9")
+
+    def test_library_page_2_refresh_keeps_focus_on_content(self):
+        class PagingLibrary(FakeLibrary):
+            def __init__(self):
+                FakeLibrary.__init__(self)
+                self.pages = {
+                    2: [self._library_row("long-%d" % index)
+                        for index in range(50)]}
+
+            @staticmethod
+            def _library_row(label):
+                return LibraryRow(
+                    label=label, kind="track", fact="x",
+                    icon="x.png", fanart="x.jpg", code="RP-34",
+                    payload={"action": "play", "url": "/x.mp3",
+                             "title": label})
+
+            def favourites(self, page=1):
+                rows = self.pages.get(page, [])
+                return LibraryScreen(
+                    route="favourites", title="FAVOURITES",
+                    subtitle="100 saved", rows=tuple(rows), state="ready",
+                    page=page, pages=2, total=100, page_size=50,
+                    code="RP-34")
+
+        library = PagingLibrary()
+        ctl, view, _, _ = controller(
+            view=self.view, library=library, paint_cache=self.cache,
+            background_task_factory=_ControllableTask)
+        ctl.start()
+        ctl._prefetch_cancel.set()
+        ctl._store_screen("favourites", "", 2, library.favourites(2))
+        self.assertTrue(ctl._load_target("favourites", 2))
+        ctl._select_index(21)
+        self.assertEqual(ctl._current_index(), 21)
+        library.pages[2] = [library._library_row("short-%d" % index)
+                            for index in range(10)]
+        ctl._refresh["task"].finish()
+        ctl.tick()
+        self.assertEqual(len(view.rows), 11)
+        self.assertEqual(view.index, 10)
+        self.assertEqual(view.rows[view.index].label, "short-9")
+
+    def test_refresh_is_not_dropped_when_requested_page_was_clamped(self):
+        from raveui.paintcache import encode_page
+
+        saved = Page(rows=self._entries("saved", 3), total=3, page=1,
+                     pages=1, rows_per_page=50, has_next=False)
+        # Simulate a 3.9.55 entry stored under the requested page 3 while the
+        # value actually painted page 1.
+        self.assertTrue(self.cache.store(
+            "page", "latest", 3, 50, encode_page(saved),
+            nav="list:p3"))
+        refreshed = self._entries("fresh", 3)
+        data = self.PagingData([refreshed])
+        ctl, view, _, _ = controller(
+            view=self.view, data=data, paint_cache=self.cache,
+            background_task_factory=_ControllableTask)
+        ctl.start()
+        ctl._prefetch_cancel.set()
+        self.assertTrue(ctl._load_target("latest", 3))
+        self.assertEqual(ctl._page, 1)        # clamped by the painted page
+        ctl._refresh["task"].finish()
+        ctl.tick()
+        # The matcher follows the painted page, so the valid result applies.
+        self.assertEqual([row.label for row in view.rows],
+                         ["fresh 0", "fresh 1", "fresh 2"])
+        self.assertEqual(ctl._page, 1)
+
+
+class PrefetchCancelTests(unittest.TestCase):
+    """3.9.56: D-pad focus movement stops the idle prefetch."""
+
+    def test_focus_cancels_the_prefetch_event(self):
+        ctl, view, data, _ = controller()
+        ctl.start()
+        try:
+            self.assertFalse(ctl._prefetch_cancel.is_set())
+            ctl.on_focus()
+            self.assertTrue(ctl._user_active)
+            self.assertTrue(ctl._prefetch_cancel.is_set())
+        finally:
+            ctl.shutdown()
+
+    def test_focus_prevents_any_speculative_page_load(self):
+        ctl, view, data, _ = controller()
+        calls = []
+        ctl._load_page = lambda target, page: calls.append((target, page))
+        ctl.start()
+        try:
+            ctl.on_focus()
+            thread = ctl._prefetch_thread
+            if thread is not None:
+                thread.join(1.0)
+            self.assertEqual(calls, [])
+        finally:
+            ctl.shutdown()
 
 
 class PaintCacheDiskTests(unittest.TestCase):
@@ -2712,6 +3059,20 @@ class PaintCacheDiskTests(unittest.TestCase):
         self.assertEqual(loaded.rows[0].track.url, "https://example.test/a.mp3")
         self.assertTrue(loaded.has_next)
 
+    def test_nav_token_separates_a_folder_page_2_from_a_list_page_2(self):
+        from raveui.data import Entry
+
+        folder = Entry("latest", "Latest", "", "", "folder", "latest",
+                       "latest")
+        folder_key = self.cache.key("page", folder, 2, 50,
+                                   nav="entry:folder:latest:p2")
+        list_key = self.cache.key("page", "latest", 2, 50,
+                                 nav="list:p2")
+        self.assertNotEqual(folder_key, list_key)
+        other_page = self.cache.key("page", "latest", 2, 50,
+                                   nav="list:p3")
+        self.assertNotEqual(list_key, other_page)
+
     def test_a_version_bump_invalidates_old_paint_pages(self):
         from raveui.paintcache import PaintCache, encode_page
         from raveui.data import Page
@@ -2734,6 +3095,46 @@ class PaintCacheDiskTests(unittest.TestCase):
         with open(path, "w", encoding="utf-8") as handle:
             handle.write("{broken")
         self.assertIsNone(self.cache.load("page", "latest", 1, 50))
+
+    def test_an_old_entry_is_a_miss_even_without_a_prune_write(self):
+        import json
+        import time
+
+        from raveui.paintcache import MAX_AGE_SECONDS, encode_page
+        from raveui.data import Page
+
+        page = Page(rows=[Entry("a", "A", "", "", "pack", "latest", "a")],
+                    total=1, page=1, pages=1, rows_per_page=50)
+        self.cache.store("page", "latest", 1, 50, encode_page(page))
+        path = self.cache._path(self.cache.key("page", "latest", 1, 50))
+        with open(path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+        payload["ts"] = time.time() - MAX_AGE_SECONDS - 1
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+        self.assertIsNone(self.cache.load("page", "latest", 1, 50))
+        self.assertFalse(os.path.exists(path))
+
+    def test_prune_enforces_a_total_byte_cap_oldest_first(self):
+        import time
+
+        for index in range(6):
+            self.cache.store("page", "target-%d" % index, 1, 50,
+                             {"blob": "x" * 2000})
+            path = self.cache._path(
+                self.cache.key("page", "target-%d" % index, 1, 50))
+            stamp = time.time() - (100 - index)
+            os.utime(path, (stamp, stamp))
+        self.cache.prune(max_entries=100, max_bytes=5000)
+        names = [name for name in os.listdir(self.tmp)
+                 if name.startswith("screen-paint-")]
+        total = sum(os.path.getsize(os.path.join(self.tmp, name))
+                    for name in names)
+        self.assertLessEqual(total, 5000)
+        self.assertTrue(names)
+        # The oldest entries went first.
+        self.assertIsNone(self.cache.load("page", "target-0", 1, 50))
+        self.assertIsNotNone(self.cache.load("page", "target-5", 1, 50))
 
 
 class LiveSignatureTests(unittest.TestCase):

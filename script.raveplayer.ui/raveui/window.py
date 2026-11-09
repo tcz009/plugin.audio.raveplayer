@@ -19,6 +19,11 @@ import tempfile
 import threading
 import time
 
+try:  # POSIX (Android/Linux/macOS); Kodi on Windows uses the O_EXCL fallback.
+    import fcntl
+except ImportError:  # pragma: no cover - platform dependent
+    fcntl = None
+
 import xbmc
 import xbmcgui
 
@@ -40,12 +45,20 @@ HOME_FALLBACK_MS = 300
 HOME_RETRY_MS = 300
 HOME_POLL_MS = 25
 INSTANCE_LOCK_TTL = 10 * 60
+# Fallback only (no fcntl): the window touches the marker every ~100 ms, so a
+# same-PID marker older than this has no live owner.  With fcntl the OS lock is
+# authoritative and stale locks are healed instantly.
+INSTANCE_HEARTBEAT_TTL = 3.0
 
 # One live screen per Kodi process, and one marker file per profile so a second
 # RunScript/Addons.ExecuteAddon cannot stack a second window/controller on top
 # of the first (P1-6).
 _ACTIVE_WINDOW = None
 _INSTANCE_GUARD = threading.Lock()
+# The live screen keeps this descriptor open for its whole life.  flock is
+# released by the OS when that interpreter dies, even if it never ran its
+# finally block, which is what makes a same-PID stale marker self-heal.
+_INSTANCE_LOCK_FD = None
 
 # Control IDs are the WINDOWXML-CONTROL-MAP.md contract. The list is 50:
 # Kodi's WindowXML window list lives on 50-59 and addItems()/getCurrentListPosition()
@@ -791,13 +804,32 @@ def _pid_alive(pid):
         return False
 
 
-def _acquire_instance(path):
-    """Atomically claim the one-window marker.  False means one is running."""
-    if not path:
-        return True
+def _close_instance_fd(descriptor):
+    """Unlock and close one instance-marker descriptor."""
+    if descriptor is None:
+        return
+    if fcntl is not None:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        except OSError:
+            pass
+    try:
+        os.close(descriptor)
+    except OSError:
+        pass
+
+
+def _acquire_instance_exclusive(path):
+    """Fallback marker for platforms without ``fcntl``.
+
+    The PID alone cannot distinguish a live same-PID screen from an
+    interpreter that died uncleanly, so the heartbeat mtime is the tie-breaker
+    for our own PID.
+    """
     for _ in range(2):
         try:
-            descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                                 0o600)
             try:
                 os.write(descriptor, str(os.getpid()).encode("utf-8"))
             finally:
@@ -808,8 +840,12 @@ def _acquire_instance(path):
             try:
                 age = time.time() - os.path.getmtime(path)
             except OSError:
-                age = 0
-            if age > INSTANCE_LOCK_TTL or not _pid_alive(pid):
+                age = 0.0
+            if pid == os.getpid():
+                stale = age > INSTANCE_HEARTBEAT_TTL
+            else:
+                stale = age > INSTANCE_LOCK_TTL or not _pid_alive(pid)
+            if stale:
                 try:
                     os.remove(path)
                 except OSError:
@@ -819,6 +855,52 @@ def _acquire_instance(path):
         except OSError:
             # A read-only profile must not make the screen unopenable.
             return True
+    return False
+
+
+def _acquire_instance(path):
+    """Atomically claim the one-window marker.  False means one is running.
+
+    POSIX keeps an exclusive ``flock`` on the marker for the window's whole
+    life.  The kernel drops that lock when the owning interpreter dies, so a
+    stale marker left by an unclean exit -- even one that still contains Kodi's
+    own PID -- is healed immediately instead of waiting out the 10-minute TTL
+    (3.9.54 device QA P2-4).
+    """
+    global _INSTANCE_LOCK_FD
+    if not path:
+        return True
+    if fcntl is None:
+        return _acquire_instance_exclusive(path)
+    for _ in range(2):
+        try:
+            descriptor = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)
+        except OSError:
+            return True
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            # Some live owner (including another interpreter in this same Kodi
+            # process) holds the lock.
+            os.close(descriptor)
+            return False
+        pid = _read_pid(path)
+        try:
+            age = time.time() - os.path.getmtime(path)
+        except OSError:
+            age = 0.0
+        if (pid and pid != os.getpid() and _pid_alive(pid)
+                and age <= INSTANCE_LOCK_TTL):
+            # A live process from an older/pre-flock build: honour its PID.
+            _close_instance_fd(descriptor)
+            return False
+        try:
+            os.ftruncate(descriptor, 0)
+            os.write(descriptor, str(os.getpid()).encode("utf-8"))
+        except OSError:
+            pass
+        _INSTANCE_LOCK_FD = descriptor
+        return True
     return False
 
 
@@ -832,13 +914,17 @@ def _touch_instance(path):
 
 
 def _release_instance(path):
+    global _INSTANCE_LOCK_FD
     if not path:
         return
+    descriptor = _INSTANCE_LOCK_FD
+    _INSTANCE_LOCK_FD = None
     try:
         if _read_pid(path) == os.getpid():
             os.remove(path)
     except OSError:
         pass
+    _close_instance_fd(descriptor)
 
 
 def _focus_existing():

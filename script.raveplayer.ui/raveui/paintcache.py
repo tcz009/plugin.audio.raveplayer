@@ -36,6 +36,7 @@ from .data import Entry, Page, Track
 SCHEMA = 1
 CACHE_DIR_ENV = "RAVEPLAYER_SCREEN_CACHE_DIR"
 MAX_ENTRY_BYTES = 4 * 1024 * 1024
+MAX_TOTAL_BYTES = 64 * 1024 * 1024
 MAX_AGE_SECONDS = 30 * 24 * 60 * 60
 MAX_ENTRIES = 240
 PRUNE_EVERY = 16
@@ -88,9 +89,17 @@ def target_key(target):
     return "obj:" + type(target).__name__ + ":" + str(target)
 
 
-def cache_key(kind, target, page, rows, versions=""):
-    raw = "%s|%s|%s|%s|%s|%s" % (
-        SCHEMA, versions, kind, target_key(target), page, rows)
+def cache_key(kind, target, page, rows, versions="", nav=""):
+    """Versioned key for one painted page.
+
+    ``nav`` carries the navigation/layout token (home/room/entry/folder/list,
+    page number).  The page integer alone is not enough: a folder page 2 and a
+    list page 2 can otherwise share a key when their target descriptors
+    coincide, and a clamped page could be painted under the requested number
+    (advisor P2-5/P2-9).
+    """
+    raw = "%s|%s|%s|%s|%s|%s|%s" % (
+        SCHEMA, versions, kind, target_key(target), page, rows, nav)
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
     return "screen-paint-%s-%s" % (SCHEMA, digest)
 
@@ -361,17 +370,17 @@ class PaintCache(object):
     def enabled(self):
         return bool(self.directory)
 
-    def key(self, kind, target, page, rows):
-        return cache_key(kind, target, page, rows, self.versions)
+    def key(self, kind, target, page, rows, nav=""):
+        return cache_key(kind, target, page, rows, self.versions, nav)
 
     def _path(self, key):
         return os.path.join(self.directory, key + ".json")
 
-    def load(self, kind, target, page, rows):
+    def load(self, kind, target, page, rows, nav=""):
         """Return the cached payload, or ``None`` on any miss/error."""
         if not self.enabled:
             return None
-        path = self._path(self.key(kind, target, page, rows))
+        path = self._path(self.key(kind, target, page, rows, nav))
         try:
             if os.path.getsize(path) > MAX_ENTRY_BYTES:
                 self._remove(path)
@@ -387,13 +396,34 @@ class PaintCache(object):
         if not isinstance(payload, dict) or payload.get("v") != SCHEMA:
             self._remove(path)
             return None
+        # Read-time age check: pruning only runs every 16 writes, so an
+        # untouched month-old entry must not survive a paint just because no
+        # write has happened since (advisor P2-16).
+        try:
+            stored = float(payload.get("ts"))
+        except (TypeError, ValueError):
+            self._remove(path)
+            return None
+        if time.time() - stored > MAX_AGE_SECONDS:
+            self._remove(path)
+            return None
         value = payload.get("value")
         return value if isinstance(value, dict) else None
 
-    def store(self, kind, target, page, rows, value):
+    def delete(self, kind, target, page, rows, nav=""):
+        """Remove one entry (destructive actions use this before a reload)."""
+        if not self.enabled:
+            return False
+        path = self._path(self.key(kind, target, page, rows, nav))
+        if not os.path.exists(path):
+            return False
+        self._remove(path)
+        return True
+
+    def store(self, kind, target, page, rows, value, nav=""):
         if not self.enabled or not isinstance(value, dict):
             return False
-        path = self._path(self.key(kind, target, page, rows))
+        path = self._path(self.key(kind, target, page, rows, nav))
         temporary = None
         try:
             os.makedirs(self.directory, exist_ok=True)
@@ -440,8 +470,13 @@ class PaintCache(object):
         self.prune()
 
     def prune(self, now=None, max_entries=MAX_ENTRIES,
-              max_age=MAX_AGE_SECONDS):
-        """Drop old/excess entries; never raises into a paint."""
+              max_age=MAX_AGE_SECONDS, max_bytes=MAX_TOTAL_BYTES):
+        """Drop old/excess/large entries; never raises into a paint.
+
+        Count and byte budgets are both enforced, oldest first.  The byte cap
+        stops 240 * 4 MiB theoretical growth and keeps search pages from
+        crowding out room pages (advisor P2-16).
+        """
         if not self.enabled:
             return 0
         now = time.time() if now is None else now
@@ -468,10 +503,17 @@ class PaintCache(object):
                 self._remove(path)
                 removed += 1
                 continue
-            entries.append((stat.st_mtime, path))
-        if len(entries) > max_entries:
-            entries.sort(key=lambda item: item[0])
-            for _mtime, path in entries[:len(entries) - max_entries]:
+            entries.append((stat.st_mtime, path, int(stat.st_size)))
+        entries.sort(key=lambda item: item[0])
+        if max_bytes is not None and max_bytes >= 0:
+            total = sum(size for _mtime, _path, size in entries)
+            while entries and total > max_bytes:
+                _mtime, path, size = entries.pop(0)
+                self._remove(path)
+                total -= size
+                removed += 1
+        if max_entries is not None and len(entries) > max_entries:
+            for _mtime, path, _size in entries[:len(entries) - max_entries]:
                 self._remove(path)
                 removed += 1
         return removed

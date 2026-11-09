@@ -265,21 +265,77 @@ class DownloadQueue(object):
         return True, "Download started — progress is in Downloads."
 
     def cancel(self, key):
+        """Cancel a row and clean up any duplicate of the same transfer.
+
+        A completed copy of the same key/URL used to survive a cancel, so the
+        Downloads room kept showing a finished item after the user cancelled
+        it (3.9.54 device QA P2-3).  Mark every active duplicate and remove the
+        completed index entry/file as well.
+        """
         key = str(key or "")
+        cancelled_keys = []
+        url = ""
         with self._lock:
             row = self._items.get(key)
+            if row is None:
+                url = ""
+            else:
+                url = str(row.get("url") or "")
             if row is None or row.get("status") not in ACTIVE:
-                return False
-            row["cancel"] = True
-            row["status"] = "cancelling"
-            row["updated"] = time.time()
-        # A progress write from the transfer worker can land after this row is
-        # saved; the sidecar is the durable cancel barrier the worker polls
-        # before every chunk (P1-5).
-        self._request_cancel(key)
+                # The visible row may already be gone while a duplicate of the
+                # same transfer is still queued; clean that up below.
+                active = False
+            else:
+                active = True
+            for candidate, item in self._items.items():
+                if item.get("status") not in ACTIVE:
+                    continue
+                same = candidate == key
+                if url and str(item.get("url") or "") == url:
+                    same = True
+                if not same:
+                    continue
+                item["cancel"] = True
+                item["status"] = "cancelling"
+                item["updated"] = time.time()
+                cancelled_keys.append(candidate)
+        for candidate in cancelled_keys:
+            self._request_cancel(candidate)
         self._save_now()
         self._safe_update()
-        return True
+        if active or url:
+            self._delete_completed(key, url)
+        return active
+
+    def _delete_completed(self, key, url):
+        """Delete completed index rows for a cancelled transfer.
+
+        ``cancelled`` is terminal, so keeping a completed copy under the same
+        key leaves a duplicate that the cancel gesture was meant to remove.
+        This is best-effort: the queue must still cancel when the plugin index
+        is unavailable.
+        """
+        if self._modules is None:
+            return 0
+        try:
+            rows = self._modules.downloads.list_downloads()
+        except Exception:  # noqa: BLE001 - plugin index is optional here
+            return 0
+        removed = 0
+        for item in rows or []:
+            if not isinstance(item, dict):
+                continue
+            candidate_key = str(item.get("key") or "")
+            candidate_url = str(item.get("url") or "")
+            if candidate_key != key and (not url or candidate_url != url):
+                continue
+            try:
+                if self._modules.downloads.delete(candidate_key):
+                    removed += 1
+            except Exception as exc:  # noqa: BLE001 - file/index unavailable
+                self._log("could not delete completed download %s: %s"
+                          % (candidate_key, exc))
+        return removed
 
     def dismiss(self, key):
         key = str(key or "")
@@ -503,11 +559,24 @@ class DownloadQueue(object):
             self._finish(key, "failed", "Download failed: %s" % exc)
             return
         if result.get("ok"):
+            url = str(row.get("url") or "")
+            with self._lock:
+                current = self._items.get(key)
+                late_cancel = bool(current is not None
+                                   and current.get("cancel"))
+            if late_cancel or self._cancel_requested(key):
+                # Cancel landed in the same instant the transfer finished.
+                # The file is still unwanted: remove it rather than leaving a
+                # completed duplicate in Downloads (3.9.54 device QA P2-3).
+                self._delete_completed(key, url)
+                self._finish(key, "cancelled", "cancelled by user")
+                return
             with self._lock:
                 self._items.pop(key, None)
                 if key in self._order:
                     self._order.remove(key)
             self._clear_cancel(key)
+            self._cancel_duplicates(key, url)
             self._save_now()
             self._safe_update()
             return
@@ -530,15 +599,50 @@ class DownloadQueue(object):
         self._save_now()
         self._safe_update()
 
+    def _cancel_duplicates(self, key, url):
+        """Mark other active rows for the same URL as cancelled.
+
+        Two rows for one URL (for example a screen row and a saved retry) used
+        to leave one row queued/cancelling after the other finished.  A URL is
+        one transfer, so the duplicate must not keep a second worker or add a
+        second completed index entry.
+        """
+        if not url:
+            return []
+        duplicates = []
+        with self._lock:
+            for candidate, item in self._items.items():
+                if candidate == key:
+                    continue
+                if item.get("status") not in ACTIVE:
+                    continue
+                if str(item.get("url") or "") != url:
+                    continue
+                item["cancel"] = True
+                item["status"] = "cancelled"
+                item["detail"] = "Duplicate of another download"
+                item["updated"] = time.time()
+                duplicates.append(candidate)
+        for candidate in duplicates:
+            self._request_cancel(candidate)
+        if duplicates:
+            self._save_now()
+            self._safe_update()
+        return duplicates
+
     def _finish(self, key, status, detail):
         with self._lock:
             row = self._items.get(key)
             if row is None:
                 return
+            url = str(row.get("url") or "")
             row["status"] = status
             row["detail"] = str(detail or status)[:160]
             row["updated"] = time.time()
         self._clear_cancel(key)
+        if status == "cancelled":
+            self._cancel_duplicates(key, url)
+            self._delete_completed(key, url)
         self._log("download %s: %s (%s)" % (key, status, detail))
         self._save_now()
         self._safe_update()
