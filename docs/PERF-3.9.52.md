@@ -107,6 +107,17 @@ Remaining >1 s paths (honest list):
 * Plugin search fallback times out (>90 s) — pre-existing, unrelated to this
   pass; the screen's Search room is the supported search path.
 
+## Screens
+
+Device captures (Shield 1080p, downscaled to 1280 px) are in
+`docs/perf-3.9.52/`:
+
+* `home.png` — Home after the lazy-import change: all eleven rooms painted
+  without importing any data module beyond `plugin.kodi`.
+* `latest-painted.png` — Latest opened from the prefetched paint cache; the
+  quiet `SAVED LIST · up to date` status is visible bottom-left after the
+  background refresh completed with unchanged rows.
+
 ## Tests
 
 `python3 -m unittest discover -s test` → **970 tests OK**.
