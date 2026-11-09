@@ -1446,6 +1446,7 @@ class RaveData(object):
             if not url:
                 continue
             title = _text(row.get("label"), "Untitled")
+            row_sub = _text(row.get("sub") or row.get("plot"))
             fact = _fact(row.get("fact") or page_data.get("noun") or "set", "set")
             downloadable = bool(download_source and row.get("download")
                                 and self._downloadable(url, download_source))
@@ -1471,7 +1472,7 @@ class RaveData(object):
             entries.append(Entry(
                 key=_stable_key("web:%s" % source, url),
                 label=title,
-                subtitle=label,
+                subtitle=row_sub or label,
                 art=row_art,
                 kind="track",
                 source=track_source,
@@ -1480,8 +1481,8 @@ class RaveData(object):
                 hero=hero,
                 fact=fact,
                 code=_text(entry.code, "RP-46"),
-                plot=_text(row.get("plot") or row.get("sub"),
-                           "Web source · %s" % label),
+                plot=row_sub or _text(row.get("plot"),
+                                      "Web source · %s" % label),
                 meta=_meta(_text(row.get("fact")), label.upper(),
                            _text(entry.code)),
                 download_source=download_source if downloadable else "",

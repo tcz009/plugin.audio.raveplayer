@@ -1,3 +1,6 @@
+Rave Player 3.9.71 — richer web rows
+- UK Raves / EZ rows show the event, venue and date from the web API instead of the room name.
+
 Rave Player 3.9.70 — web playback + icons
 - EZ Garage and UK Raves rows sign short-lived web stream URLs at play time and no longer 401.
 - Web row icons resolve to local add-on art in Classic and the app; DejaVu cold fetch gets a 25s budget.
