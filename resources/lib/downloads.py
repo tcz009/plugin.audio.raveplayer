@@ -40,6 +40,12 @@ ALLOWED_SOURCES = {
     "Toronto Rave Mixtape Archive": ("torontoravemixtapearchive.com",
                                      "www.torontoravemixtapearchive.com"),
     "RaveTapePacks.com": ("ravetapepacks.com", "www.ravetapepacks.com"),
+    # Resolver results: Mediafire/Drive/Podomatic direct URLs and the web's
+    # signed Mega stream endpoint.  The page URLs themselves are resolved in
+    # routes.download_start() and never planned directly.
+    "Rave Resolver": ("mediafire.com", "drive.google.com",
+                      "drive.usercontent.google.com", "googleusercontent.com",
+                      "podomatic.com", "mega.nz", "mega.co.nz"),
 }
 ALLOWED_CONTENT_TYPES = ("audio/", "application/octet-stream")
 
@@ -128,11 +134,33 @@ def _source_host_ok(url, source):
     return False
 
 
-def eligible(url, source, check_host=True):
+def _host_in(url, hosts):
+    """True when ``url``'s host equals or is below one of ``hosts``."""
+    split = _url_parts(url)
+    if split is None:
+        return False
+    host = (split.hostname or "").lower().rstrip(".")
+    if not host:
+        return False
+    for domain in hosts or ():
+        domain = str(domain or "").strip().lower().rstrip(".")
+        if domain and (host == domain or host.endswith("." + domain)):
+            return True
+    return False
+
+
+def eligible(url, source, check_host=True, resolved=False, extra_hosts=None):
     """The single direct-file/source predicate shared with the web build.
 
     ``check_host=False`` is used for building context menus (cheap, no DNS);
     the start route always re-validates with the public-host guard.
+
+    ``resolved=True`` is for a URL returned by the resolver: Drive and the
+    signed Mega endpoint do not end in an audio extension, so the extension
+    requirement is replaced by the source host allowlist plus the probe's
+    Content-Type check in :func:`plan`.  ``extra_hosts`` names the exact
+    operator-configured resolver-service host for a signed Mega stream; that
+    URL is intentionally on the LAN/Tailscale and skips the public-host guard.
     """
     if str(source or "") not in ALLOWED_SOURCES:
         return False
@@ -144,11 +172,16 @@ def eligible(url, source, check_host=True):
         return False
     if split.username or split.password:
         return False
-    if not _extension(text):
+    if not _extension(text) and not resolved:
         return False
-    if not _source_host_ok(text, source):
+    service_host = _host_in(text, extra_hosts)
+    if not (_source_host_ok(text, source) or service_host):
         return False
     if not check_host:
+        return True
+    if service_host:
+        # Only download_start() passes this, after checking the URL is the
+        # configured service's /api/mega/stream endpoint.
         return True
     # Public-host/DNS guard reuses the same helper as playback.
     return bool(http.safe_stream_url(text))
@@ -269,19 +302,24 @@ def path_for(row):
     return os.path.join(download_dir(), row["filename"])
 
 
-def plan(url, title, source):
-    """Validate eligibility/size/space before asking the user to start."""
+def plan(url, title, source, resolved=False, extra_hosts=None,
+         allow_private=False):
+    """Validate eligibility/size/space before asking the user to start.
+
+    ``resolved``/``extra_hosts``/``allow_private`` are set only by
+    ``routes.download_start()`` for a resolver result; every other caller keeps
+    the original direct-file behaviour.
+    """
     result = {
         "allowed": False, "reason": "", "url": str(url or ""), "title": str(title or ""),
         "source": str(source or ""), "size": 0, "free": 0, "filename": "",
-        "path": "", "existing": False,
+        "path": "", "existing": False, "allow_private": bool(allow_private),
     }
-    if not eligible(url, source):
+    if not eligible(url, source, resolved=resolved, extra_hosts=extra_hosts):
         result["reason"] = "Not a downloadable direct audio file from an approved source."
         return result
     _ensure_dir()
-    extension = _extension(url)
-    probe = http.probe_media(url, timeout=20)
+    probe = http.probe_media(url, timeout=20, allow_private=allow_private)
     if not probe:
         result["reason"] = "Could not verify the file size/type."
         return result
@@ -304,6 +342,12 @@ def plan(url, title, source):
     if free - size < MIN_FREE_BYTES:
         result["reason"] = "Not enough free space (keep 256 MiB free)."
         return result
+    # Drive and the signed Mega endpoint carry no filename extension; the
+    # probe's audio Content-Type decides between the two allowed extensions so
+    # an M4A is never mislabelled as MP3.
+    extension = _extension(url)
+    if not extension:
+        extension = ".m4a" if ("mp4" in content_type or "m4a" in content_type) else ".mp3"
     filename = sanitize_filename(title, url, extension)
     path = os.path.join(download_dir(), filename)
     result.update({
@@ -337,7 +381,9 @@ def download(plan_row, progress=None, cancelled=None):
     _remove(temporary)
     handle = None
     try:
-        with http.open_media(plan_row["url"], timeout=30) as response:
+        with http.open_media(
+                plan_row["url"], timeout=30,
+                allow_private=bool(plan_row.get("allow_private"))) as response:
             content_type = str((response.headers.get("Content-Type") if response.headers else "") or "").lower()
             if not any(content_type.startswith(prefix) for prefix in ALLOWED_CONTENT_TYPES):
                 raise ValueError("upstream is not audio")

@@ -1,3 +1,13 @@
+Rave Player 3.9.54 — resolver + performance
+- Merged the 3.9.53 resolver wiring and the 3.9.52 performance pass.
+- Plugin 3.9.54 requires script.module.raveresolver 1.1.0; screen 3.9.54 requires plugin 3.9.54.
+
+# Rave Player 3.9.53
+
+- Manifest-only release: requires plugin.audio.raveplayer 3.9.53 for the
+  resolver wiring (provider page playback and downloads). No screen code
+  change.
+
 # Rave Player Screen 3.9.51 — performance pass
 
 - **Stale-while-revalidate paint.** The last good page for each room/folder is

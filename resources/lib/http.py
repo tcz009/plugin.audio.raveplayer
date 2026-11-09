@@ -372,6 +372,43 @@ def safe_stream_url(value):
     return text
 
 
+def _service_media_url(value):
+    """Syntax-only check for the operator-configured resolver stream URL.
+
+    The signed Mega endpoint normally lives on the LAN/Tailscale resolver
+    service, so it cannot pass :func:`safe_stream_url`.  Only
+    ``routes.download_start()`` passes ``allow_private=True``, and only after
+    confirming the URL is the exact configured origin + ``/api/mega/stream``.
+    This helper never decides trust; it rejects malformed URLs, credentials
+    and header injection.
+    """
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    base = text.split("|", 1)[0].strip()
+    if any(char in base for char in ("\r", "\n", "\x00", "\x7f")):
+        return ""
+    try:
+        split = urllib.parse.urlsplit(base)
+    except ValueError:
+        return ""
+    if split.scheme.lower() not in ("http", "https") or not split.netloc:
+        return ""
+    if split.username or split.password or not split.hostname:
+        return ""
+    return text
+
+
+def _same_origin(left, right):
+    """True when both URLs share scheme and netloc (redirect containment)."""
+    try:
+        a = urllib.parse.urlsplit(str(left or ""))
+        b = urllib.parse.urlsplit(str(right or ""))
+    except ValueError:
+        return False
+    return (a.scheme.lower(), a.netloc.lower()) == (b.scheme.lower(), b.netloc.lower())
+
+
 _PRIVATE_HOST_SUFFIXES = (".local", ".localhost", ".internal", ".home.arpa")
 
 
@@ -842,15 +879,20 @@ def fetch_json(url, timeout=DEFAULT_TIMEOUT, headers=None, ttl=0):
 
 
 @contextlib.contextmanager
-def open_media(url, timeout=DEFAULT_TIMEOUT, headers=None, method=None):
+def open_media(url, timeout=DEFAULT_TIMEOUT, headers=None, method=None,
+               allow_private=False):
     """Open a validated public media URL for streaming (downloads/bridge).
 
     Only direct media URLs are accepted (the caller checks the audio
     extension).  Redirects are blocked by the safe opener; a redirecting media
     URL fails the download rather than escaping validation.  ``|Header=``
     suffixes are parsed into request headers for compatibility.
+
+    ``allow_private=True`` is reserved for the signed Mega stream endpoint on
+    the operator-configured resolver service.  It still requires http(s) and
+    no userinfo, and every redirect must stay on the same origin.
     """
-    text = safe_stream_url(url)
+    text = _service_media_url(url) if allow_private else safe_stream_url(url)
     if not text:
         raise ValueError("not a public media URL")
     base, separator, suffix = text.partition("|")
@@ -881,7 +923,10 @@ def open_media(url, timeout=DEFAULT_TIMEOUT, headers=None, method=None):
                     or hop >= MAX_REDIRECTS:
                 raise
             target = urllib.parse.urljoin(current, location)
-            if not is_public_http_url(target):
+            if allow_private:
+                if not _same_origin(target, base):
+                    raise ValueError("redirect left the resolver service origin")
+            elif not is_public_http_url(target):
                 raise ValueError("redirect is not a public http(s) URL")
             current = target
     if response is None:  # pragma: no cover - loop always returns or raises
@@ -892,13 +937,16 @@ def open_media(url, timeout=DEFAULT_TIMEOUT, headers=None, method=None):
         _close_quietly(response)
 
 
-def probe_media(url, timeout=DEFAULT_TIMEOUT):
+def probe_media(url, timeout=DEFAULT_TIMEOUT, allow_private=False):
     """HEAD a direct media URL and return size/type/final URL, or ``{}``.
 
     Redirects are blocked by the safe opener (the direct sources are final
     URLs); the final URL is re-checked against the public-host guard.
+    ``allow_private`` follows :func:`open_media`: it is only for the signed
+    Mega endpoint on the operator-configured resolver service, and redirects
+    must stay on that origin.
     """
-    text = safe_stream_url(url)
+    text = _service_media_url(url) if allow_private else safe_stream_url(url)
     if not text:
         return {}
     import http.client
@@ -924,7 +972,10 @@ def probe_media(url, timeout=DEFAULT_TIMEOUT):
         try:
             with _egress_open(current, headers, effective, method="HEAD") as response:
                 final = response.geturl()
-                if not is_public_http_url(final):
+                if allow_private:
+                    if not _same_origin(final, base):
+                        return {}
+                elif not is_public_http_url(final):
                     return {}
                 response_headers = response.headers
                 try:
@@ -945,7 +996,10 @@ def probe_media(url, timeout=DEFAULT_TIMEOUT):
                     or hop >= MAX_REDIRECTS:
                 return {}
             target = urllib.parse.urljoin(current, location)
-            if not is_public_http_url(target):
+            if allow_private:
+                if not _same_origin(target, base):
+                    return {}
+            elif not is_public_http_url(target):
                 return {}
             current = target
         except (ValueError, TypeError, urllib_error.URLError,

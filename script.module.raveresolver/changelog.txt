@@ -1,0 +1,43 @@
+Rave Resolver 1.1.0
+- Web resolver 1.6.64 contract: parse `source`, `expires` (epoch) and
+  `stream` in /api/resolve responses, and keep accepting the older
+  `provider`/`expires_at`/`expires_in` shape.
+- Mega: when source is mega and `stream` is present, return the absolute
+  playable URL built from the configured service base plus the relative
+  signed path (query preserved; LAN, Tailscale and reverse-proxy-prefix bases
+  supported). The AES-CTR storage `url` is never returned; a missing or
+  invalid `stream` raises ServiceProtocolError instead of falling back to
+  ciphertext.
+- Mega resolution expiry comes from the signed path's `e` parameter; the
+  payload's `expires` only describes the storage URL. Response headers are
+  dropped for Mega so Kodi requests the self-authenticating URL directly
+  (no Authorization/Cookie/|Header suffix; Range/HEAD are the player's).
+- Auth: Bearer `resolver_service_token` (preferred; web contract for
+  RAVEWEB_RESOLVER_TOKEN) or a configured `resolver_service_cookie`
+  (`raveplayer_session=...`). Bearer wins when both are set. Cookie values
+  are redacted from logs and refused if they contain line breaks.
+- New setting: resolver_service_cookie (hidden). Existing settings unchanged.
+- Tests: offline Kodi-stub coverage for new/old payloads, Mega stream
+  selection, absolute URL construction (LAN/Tailscale/trailing slash/prefix),
+  Bearer vs cookie, and no-ciphertext fallbacks; no network.
+
+Rave Resolver 1.0.0
+- First installable resolver module for Rave Player (Kodi 20-22).
+- In-process adapters: direct audio allowlist, Mediafire file pages (signed
+  URL extraction, 2-hour cache, HTTP 429 backoff), Google Drive file ids
+  (virus-scan confirm form, Range probe, 2-hour cache).
+- Podomatic and Mega adapter seams: direct Podomatic CDN files resolve
+  in-process; Mega URLs are fully parsed. Mega/Podomatic page resolution uses
+  a supplied native adapter or the optional NAS /api/resolve service.
+- Optional NAS /api/resolve fallback with configurable base URL and Bearer
+  token. Service responses are validated as public http(s) URLs before use.
+- Security: loopback/private/link-local/metadata addresses refused before any
+  request; redirects re-validated hop by hop; service token and signed URLs
+  never logged; cache keys are SHA-256 hashes.
+- Settings: resolver_service_url, resolver_service_token,
+  resolver_enable_mega, timeouts, cache folder and cache TTL.
+- Tests: offline Kodi-stub suite covering adapter selection, allowlists,
+  private rejection, Mediafire/Drive parsing, Mega URL parsing and service
+  fallback; no network in the tests.
+- Additive only: plugin.audio.raveplayer routes are not wired in this release;
+  see docs/KODI-RESOLVER.md for the integration contract.

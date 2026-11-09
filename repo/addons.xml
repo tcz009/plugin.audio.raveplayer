@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addons>
-<addon id="plugin.audio.raveplayer" name="Rave Player" version="3.9.52" provider-name="TheYid009">
+<addon id="plugin.audio.raveplayer" name="Rave Player" version="3.9.54" provider-name="TheYid009">
   <requires>
     <import addon="xbmc.python" version="3.0.1" />
+    <import addon="script.module.raveresolver" version="1.1.0" />
   </requires>
   <extension point="xbmc.python.pluginsource" library="default.py">
     <provides>audio</provides>
@@ -25,10 +26,10 @@
     </assets>
   </extension>
 </addon>
-<addon id="script.raveplayer.ui" name="Rave Screen" version="3.9.51" provider-name="TheYid009">
+<addon id="script.raveplayer.ui" name="Rave Screen" version="3.9.54" provider-name="TheYid009">
   <requires>
     <import addon="xbmc.python" version="3.0.0" />
-    <import addon="plugin.audio.raveplayer" version="3.9.51" />
+    <import addon="plugin.audio.raveplayer" version="3.9.54" />
   </requires>
   <extension point="xbmc.python.script" library="default.py">
     <provides>executable</provides>
@@ -39,6 +40,29 @@
     <description lang="en_GB">The primary Rave Player app: one full-screen Kodi window with all eleven rooms, paged lists, an in-window keyboard search, favourites, downloads, live radio, About and Spinning Surprise. Drives the Rave Player plugin as its data and playback backend. Back exits cleanly; the plugin's Classic lists remain available as the fallback.</description>
     <description lang="en_US">The primary Rave Player app: one full-screen Kodi window with all eleven rooms, paged lists, an in-window keyboard search, favourites, downloads, live radio, About and Spinning Surprise. Drives the Rave Player plugin as its data and playback backend. Back exits cleanly; the plugin's Classic lists remain available as the fallback.</description>
     <disclaimer lang="en_GB">Rave Screen does not host or distribute any content. Playback is streamed from third-party public archives and radio directories.</disclaimer>
+    <platform>all</platform>
+    <license>GPL-3.0-or-later</license>
+    <language>en_GB</language>
+    <source>https://github.com/tcz009/plugin.audio.raveplayer</source>
+    <website>https://github.com/tcz009/plugin.audio.raveplayer</website>
+    <email>tcz009@hotmail.co.uk</email>
+    <assets>
+      <icon>icon.png</icon>
+      <fanart>fanart.jpg</fanart>
+    </assets>
+  </extension>
+</addon>
+<addon id="script.module.raveresolver" name="Rave Resolver" version="1.1.0" provider-name="TheYid009">
+  <requires>
+    <import addon="xbmc.python" version="3.0.0" />
+  </requires>
+  <extension point="xbmc.python.module" library="resources/lib" />
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en_GB">Resolver SDK for Rave Player — direct, Mediafire, Drive, Podomatic and Mega.</summary>
+    <summary lang="en_US">Resolver SDK for Rave Player — direct, Mediafire, Drive, Podomatic and Mega.</summary>
+    <description lang="en_GB">Shared Python resolver module for Rave Player. Resolves provider page links to directly playable audio URLs entirely on the Kodi device for direct files, Mediafire and Google Drive, with an optional NAS /api/resolve service fallback for Mega, Podomatic and future sources. No credentials are logged; private and loopback addresses are refused before any request.</description>
+    <description lang="en_US">Shared Python resolver module for Rave Player. Resolves provider page links to directly playable audio URLs entirely on the Kodi device for direct files, Mediafire and Google Drive, with an optional NAS /api/resolve service fallback for Mega, Podomatic and future sources. No credentials are logged; private and loopback addresses are refused before any request.</description>
+    <disclaimer lang="en_GB">This add-on does not host or distribute any content. It resolves links to third-party files for playback in Kodi.</disclaimer>
     <platform>all</platform>
     <license>GPL-3.0-or-later</license>
     <language>en_GB</language>

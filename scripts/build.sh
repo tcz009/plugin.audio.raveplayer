@@ -7,9 +7,11 @@ cd "$(dirname "$0")/.."
 
 PLUGIN_VERSION=$(python3 -c "import xml.etree.ElementTree as E;print(E.parse('addon.xml').getroot().get('version'))")
 SCREEN_VERSION=$(python3 -c "import xml.etree.ElementTree as E;print(E.parse('script.raveplayer.ui/addon.xml').getroot().get('version'))")
+MODULE_VERSION=$(python3 -c "import xml.etree.ElementTree as E;print(E.parse('script.module.raveresolver/addon.xml').getroot().get('version'))")
 mkdir -p dist
 rm -f "dist/plugin.audio.raveplayer-${PLUGIN_VERSION}.zip" \
-      "dist/script.raveplayer.ui-${SCREEN_VERSION}.zip"
+      "dist/script.raveplayer.ui-${SCREEN_VERSION}.zip" \
+      "dist/script.module.raveresolver-${MODULE_VERSION}.zip"
 find . -name __pycache__ -type d -prune -exec rm -rf {} +
 
 PLUGIN_OUT="$PWD/dist/plugin.audio.raveplayer-${PLUGIN_VERSION}.zip"
@@ -30,5 +32,19 @@ cp -R script.raveplayer.ui/addon.xml script.raveplayer.ui/default.py \
 (cd "$tmp" && zip -qr "$SCREEN_OUT" script.raveplayer.ui)
 rm -rf "$tmp"
 
+MODULE_OUT="$PWD/dist/script.module.raveresolver-${MODULE_VERSION}.zip"
+tmp=$(mktemp -d)
+mkdir -p "$tmp/script.module.raveresolver"
+cp -R script.module.raveresolver/addon.xml \
+      script.module.raveresolver/changelog.txt \
+      script.module.raveresolver/LICENSE.txt \
+      script.module.raveresolver/README.md \
+      script.module.raveresolver/icon.png \
+      script.module.raveresolver/fanart.jpg \
+      script.module.raveresolver/resources "$tmp/script.module.raveresolver/"
+(cd "$tmp" && zip -qr "$MODULE_OUT" script.module.raveresolver)
+rm -rf "$tmp"
+
 echo "built dist/plugin.audio.raveplayer-${PLUGIN_VERSION}.zip ($(du -h "$PLUGIN_OUT" | cut -f1))"
 echo "built dist/script.raveplayer.ui-${SCREEN_VERSION}.zip ($(du -h "$SCREEN_OUT" | cut -f1))"
+echo "built dist/script.module.raveresolver-${MODULE_VERSION}.zip ($(du -h "$MODULE_OUT" | cut -f1))"
