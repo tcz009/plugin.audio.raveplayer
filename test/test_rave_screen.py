@@ -1765,11 +1765,11 @@ class ManifestAndSkinTests(unittest.TestCase):
     def test_script_manifest_is_kodi_19_22_and_depends_on_the_plugin(self):
         root = ET.parse(os.path.join(SCREEN, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.raveplayer.ui")
-        self.assertEqual(root.get("version"), "3.9.63")
+        self.assertEqual(root.get("version"), "3.9.64")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
-        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.63")
+        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.64")
         extension = root.find("./extension[@point='xbmc.python.script']")
         self.assertIsNotNone(extension)
         self.assertEqual(extension.get("library"), "default.py")
@@ -2041,8 +2041,8 @@ class RaveScreenXMLTests(unittest.TestCase):
         progress = by_id(self.root, 608)
         self.assertEqual(progress.get("type"), "progress")
         self.assertEqual(progress.findtext("info"), "progress")
-        self.assertIn("progress-track-340x3.png", progress.findtext("texturebg"))
-        self.assertIn("progress-fill-2x3.png", progress.findtext("texturemid"))
+        self.assertIn("progress-bg-1x1.png", progress.findtext("texturebg"))
+        self.assertIn("progress-mid-8x28.png", progress.findtext("texturemid"))
         self.assertIn("sticker-on-air.png",
                       by_id(self.root, 601).findtext("texture"))
         self.assertIn("np-wave-340x28.png",

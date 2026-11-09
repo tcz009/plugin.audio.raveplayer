@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addons>
-<addon id="plugin.audio.raveplayer" name="Rave Player" version="3.9.63" provider-name="TheYid009">
+<addon id="plugin.audio.raveplayer" name="Rave Player" version="3.9.64" provider-name="TheYid009">
   <requires>
     <import addon="xbmc.python" version="3.0.1" />
     <import addon="script.module.raveresolver" version="1.1.0" />
@@ -26,10 +26,10 @@
     </assets>
   </extension>
 </addon>
-<addon id="script.raveplayer.ui" name="Rave Player App" version="3.9.63" provider-name="TheYid009">
+<addon id="script.raveplayer.ui" name="Rave Player App" version="3.9.64" provider-name="TheYid009">
   <requires>
     <import addon="xbmc.python" version="3.0.0" />
-    <import addon="plugin.audio.raveplayer" version="3.9.63" />
+    <import addon="plugin.audio.raveplayer" version="3.9.64" />
   </requires>
   <extension point="xbmc.python.script" library="default.py">
     <provides>executable</provides>

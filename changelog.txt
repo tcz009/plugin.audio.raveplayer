@@ -1,3 +1,6 @@
+Rave Player 3.9.64 — waveform bar
+- The now-playing bar is now a proper waveform: a real wave texture with an acid fill that advances as the track plays (unplayed stays dim).
+
 Rave Player 3.9.63 — naming
 - Music add-on entry is "Rave Player" again (the directory/classic entry).
 - The full-screen program entry is "Rave Player App".

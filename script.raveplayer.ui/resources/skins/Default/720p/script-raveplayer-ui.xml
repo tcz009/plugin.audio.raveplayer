@@ -576,7 +576,7 @@
             <visible>String.IsEqual(Window.Property(rp_now_show_duration),1)</visible>
         </control>
         <control type="image" id="607">
-            <description>Static now-playing waveform</description>
+            <description>Now-playing waveform</description>
             <posx>550</posx>
             <posy>646</posy>
             <width>340</width>
@@ -586,14 +586,14 @@
             <visible>!String.IsEqual(Window.Property(rp_now_mode),idle)</visible>
         </control>
         <control type="progress" id="608">
-            <description>Now playing progress, acid fill</description>
+            <description>Waveform played fill, acid overlay</description>
             <posx>550</posx>
-            <posy>676</posy>
+            <posy>646</posy>
             <width>340</width>
-            <height>3</height>
+            <height>28</height>
             <info>progress</info>
-            <texturebg>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/progress-track-340x3.png</texturebg>
-            <texturemid>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/progress-fill-2x3.png</texturemid>
+            <texturebg>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/progress-bg-1x1.png</texturebg>
+            <texturemid>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/progress-mid-8x28.png</texturemid>
             <visible>String.IsEqual(Window.Property(rp_now_show_progress),1)</visible>
         </control>
         <control type="image" id="609">
