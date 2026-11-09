@@ -1,3 +1,14 @@
+Rave Player 3.9.57 — cancel/data-integrity fix
+- Cancelling a download can no longer delete a successfully completed file for
+  another row that shares the same URL. Completed entries are deleted by job
+  identity (key) only, never by URL.
+- A queued-cancel sidecar is cleared on owner start and terminal load, so a
+  later retry of the same key runs normally instead of being cancelled/deleted.
+- The screen download queue now uses the lazy plugin modules hook for
+  completed-file deletion, so a screen cancel removes its own file/index row.
+- The owner persists a cancelled status inferred from the sidecar, so losing
+  the sidecar cannot resurrect the row.
+
 Rave Player 3.9.56 — remaining Kodi P2s (device QA + advisor)
 - Downloads: its rows use the neutral screen bed; the FAVOURITES hero no
   longer appears when the Downloads room opens.

@@ -243,6 +243,8 @@ class DownloadQueue(object):
         except Exception as exc:  # noqa: BLE001 - optional module
             return False, "Downloads are unavailable (%s)." % exc
         row_key = str(key or url)
+        # A cancel left behind for a queued row must not poison a retry.
+        self._clear_cancel(row_key)
         with self._lock:
             existing = self._items.get(row_key)
             if existing is not None and existing.get("status") in ACTIVE:
@@ -315,10 +317,14 @@ class DownloadQueue(object):
         This is best-effort: the queue must still cancel when the plugin index
         is unavailable.
         """
-        if self._modules is None:
+        try:
+            modules = self.modules
+        except Exception:  # noqa: BLE001 - plugin unavailable is best-effort
+            return 0
+        if modules is None:
             return 0
         try:
-            rows = self._modules.downloads.list_downloads()
+            rows = modules.downloads.list_downloads()
         except Exception:  # noqa: BLE001 - plugin index is optional here
             return 0
         removed = 0
@@ -326,11 +332,12 @@ class DownloadQueue(object):
             if not isinstance(item, dict):
                 continue
             candidate_key = str(item.get("key") or "")
-            candidate_url = str(item.get("url") or "")
-            if candidate_key != key and (not url or candidate_url != url):
+            # Identity, never URL: two jobs may share one URL, and a cancel
+            # must never delete the other job's successfully completed file.
+            if candidate_key != key:
                 continue
             try:
-                if self._modules.downloads.delete(candidate_key):
+                if modules.downloads.delete(candidate_key):
                     removed += 1
             except Exception as exc:  # noqa: BLE001 - file/index unavailable
                 self._log("could not delete completed download %s: %s"
@@ -667,6 +674,23 @@ class DownloadQueue(object):
             if key not in self._order:
                 self._order.append(key)
             self._items[key] = row
+        stale = [key for key, row in self._items.items()
+                 if row.get("status") not in ACTIVE]
+        if stale:
+            def drop(keys):
+                keys.difference_update(stale)
+            try:
+                self._update_cancels(drop)
+            except Exception:  # noqa: BLE001 - best effort
+                pass
+            # The owner must persist the terminal status it just inferred from
+            # the sidecar, otherwise losing the sidecar would resurrect the
+            # cancelled row on the next load.
+            if restart:
+                try:
+                    self._save_now()
+                except Exception:  # noqa: BLE001 - store is best effort
+                    pass
 
     def _read_store(self, restart=False):
         path = self._store_path
