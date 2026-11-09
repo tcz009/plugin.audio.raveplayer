@@ -1447,7 +1447,22 @@ class RaveData(object):
                 continue
             title = _text(row.get("label"), "Untitled")
             row_sub = _text(row.get("sub") or row.get("plot"))
-            fact = _fact(row.get("fact") or page_data.get("noun") or "set", "set")
+            # Web rows already carry "event/venue · date · source".  Put the
+            # event on the row itself: several DJs play the same event, and a
+            # bare name is ambiguous.  Keep the date as the row fact.
+            event = date = ""
+            if row_sub:
+                pieces = [part.strip() for part in row_sub.split("·")]
+                if pieces:
+                    event = pieces[0]
+                    for piece in pieces[1:]:
+                        if any(char.isdigit() for char in piece):
+                            date = piece
+                            break
+            if event:
+                title = "%s — %s" % (title, event)
+            fact = _fact(date or row.get("fact") or page_data.get("noun")
+                         or "set", "set")
             downloadable = bool(download_source and row.get("download")
                                 and self._downloadable(url, download_source))
             row_art = self._web_art(row.get("art"), art)

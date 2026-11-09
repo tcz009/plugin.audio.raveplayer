@@ -1,3 +1,6 @@
+Rave Player 3.9.72 — web rows show event/date
+- UK Raves / EZ rows include the event/venue in the row label and the date as the row fact, so repeated DJ names are distinguishable.
+
 Rave Player 3.9.71 — richer web rows
 - UK Raves / EZ rows show the event, venue and date from the web API instead of the room name.
 
