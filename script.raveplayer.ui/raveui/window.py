@@ -589,6 +589,28 @@ class RaveScreenWindow(xbmcgui.WindowXML):
         if action_id in MOVE_ACTIONS and self._controller is not None:
             self._controller.on_focus()
 
+    WAVE_FRAMES = tuple(
+        "special://home/addons/script.raveplayer.ui/resources/art/rave-screen/%s"
+        % name for name in ("np-wave-0.png", "np-wave-1.png",
+                            "np-wave-2.png", "np-wave-3.png"))
+
+    def animate_wave(self):
+        """Cycle the now-playing waveform while audio is playing."""
+        try:
+            if not xbmc.getCondVisibility("Player.Playing"):
+                return
+            now = time.monotonic()
+            if now - getattr(self, "_wave_at", 0.0) < 0.25:
+                return
+            self._wave_at = now
+            index = (getattr(self, "_wave_index", 0) + 1) % len(self.WAVE_FRAMES)
+            self._wave_index = index
+            control = self.getControl(607)
+            if control is not None:
+                control.setImage(self.WAVE_FRAMES[index])
+        except Exception:  # noqa: BLE001 - decorative only
+            pass
+
     def onFocus(self, control_id):
         if control_id == CONTROL_LIST and self._controller is not None:
             self._controller.on_focus()
@@ -986,6 +1008,12 @@ def open_screen(window_factory=None, monitor_factory=None):
                     try:
                         tick()
                     except Exception:  # noqa: BLE001 - a footer probe never closes
+                        pass
+                wave = getattr(window, "animate_wave", None)
+                if callable(wave):
+                    try:
+                        wave()
+                    except Exception:  # noqa: BLE001 - decorative
                         pass
                 _touch_instance(path)
                 xbmc.sleep(100)
