@@ -210,6 +210,8 @@ MENU_ART = {
     "shows_moxser": "moxser.png",
     "shows_hardscore": "hardscore.png",
     "shows_getdarker": "getdarker.png",
+    "shows_mikus": "mikus.png",
+    "shows_demodulated": "demodulated.png",
     # curated gems
     "curated_pirate": "pirate-archive.png",
     "curated_legacy": "legacy.png",
@@ -943,11 +945,11 @@ def shows_menu(handle, params):
         ("Moxser", url_for(mode="moxser"), MENU_ART["shows_moxser"], "fanart-moxser.jpg",
          "Old skool to new cool dance mixes.", "old skool"),
         ("Mikus Musik", url_for(mode="legacy_blog", source="mikus"),
-         MENU_ART["shows_podcasts"], "fanart-hub-shows.jpg",
+         MENU_ART["shows_mikus"], "fanart-hub-shows.jpg",
          "Dub, jungle, house and garage sets from the Mikus Musik blog.",
          "blog"),
         ("Demodulated Mixtapes", url_for(mode="legacy_blog", source="demodulated"),
-         MENU_ART["curated_legacy"], "fanart-mixes.jpg",
+         MENU_ART["shows_demodulated"], "fanart-mixes.jpg",
          "Old techno, jungle and rave mixtapes from Demodulated.", "mixtapes"),
     ]
     hub_fanart = art("fanart-hub-shows.jpg")

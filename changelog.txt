@@ -1,3 +1,6 @@
+Rave Player 3.9.65 — matching artwork
+- Rail/room icons now use the same named sticker artwork as the web app; Mikus and Demodulated get their own icons.
+
 Rave Player 3.9.64 — waveform bar
 - The now-playing bar is now a proper waveform: a real wave texture with an acid fill that advances as the track plays (unplayed stays dim).
 
