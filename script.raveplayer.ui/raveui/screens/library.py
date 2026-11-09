@@ -252,6 +252,7 @@ class PlayItem:
     live: bool = False
     local: bool = False
     source: str = ""
+    path: str = ""
 
     @property
     def pack(self):
@@ -1590,6 +1591,10 @@ class LibraryScreens:
             # Downloaded files are filesystem paths (or special://); the
             # stream guard would reject them for not being public http(s).
             return url
+        if (url.startswith("plugin://plugin.audio.raveplayer/")
+                and "mode=web_play" in url):
+            # The plugin signs a short-lived web stream URL at play time.
+            return url
         return self._playable(url)
 
     def _play_item(self, payload, url):
@@ -1601,6 +1606,7 @@ class LibraryScreens:
             live=bool(payload.get("live")),
             local=bool(payload.get("local")),
             source=_text(payload.get("source")),
+            path=url if str(url).startswith("plugin://") else "",
         )
 
     @staticmethod
@@ -1613,6 +1619,7 @@ class LibraryScreens:
             "live": item.live,
             "local": item.local,
             "source": item.source,
+            "path": item.path,
         }
 
     def _downloads_hero(self):

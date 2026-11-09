@@ -1457,7 +1457,7 @@ class RaveData(object):
             except ValueError:
                 web_path = ""
             if (web_path.startswith(("/api/ezgarage/", "/api/ukraves/"))
-                    and web_path.endswith(("/stream", "/file"))):
+                    and web_path.endswith("/stream")):
                 # A web-proxied stream needs the plugin to sign a short-lived
                 # URL; hand Kodi the plugin wrapper instead of the raw path.
                 play_path = (

@@ -3481,7 +3481,7 @@ def _is_web_stream_path(value):
     except ValueError:
         return False
     return (path.startswith(("/api/ezgarage/", "/api/ukraves/"))
-            and path.endswith(("/stream", "/file")))
+            and path.endswith("/stream"))
 
 
 def play(handle, params):
