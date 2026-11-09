@@ -18,6 +18,9 @@ and calls only public helpers:
     getdarker.items
     feeds.registry / episodes
     pirate.entries
+    legacyblog.sources / posts / post
+    routes.classic_filters / classic_raves / classic_radio_sections /
+    classic_archive_sections / classic_years
     favourites.load / add / remove / has / key
     downloads.eligible / plan / download / list_downloads / delete / format_size
     handoff.platform_kind / target
@@ -40,6 +43,7 @@ MODULE_NAMES = (
     "archive", "http", "kodi", "latest", "legacy", "radio", "toronto", "ui",
     "favourites", "downloads", "feeds", "moxser", "hardscore", "getdarker",
     "dnbradio", "pirate", "handoff", "live", "nowplaying", "spinner",
+    "routes", "legacyblog",
 )
 
 _CACHE = {}

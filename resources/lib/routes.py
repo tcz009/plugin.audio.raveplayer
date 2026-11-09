@@ -70,6 +70,7 @@ getdarker_source = _lazy("getdarker")
 hardscore_source = _lazy("hardscore")
 latest = _lazy("latest")
 legacy = _lazy("legacy")
+legacyblog = _lazy("legacyblog")
 live = _lazy("live")
 mixcloud_source = _lazy("mixcloud")
 moxser_source = _lazy("moxser")
@@ -336,6 +337,44 @@ def _rave_catalog():
 
 def _filter(key):
     return next((entry for entry in _filters() if entry["id"] == key), None)
+
+
+def classic_filters():
+    """Public route data for the screen's Classic Pack Series room.
+
+    The screen must show the same filters, in the same order, with the same
+    archive query as the classic menu.  ``art`` is resolved here because the
+    screen has no copy of ``FILTER_ART``/``MENU_ART``.
+    """
+    entries = []
+    for entry in _filters():
+        item = dict(entry)
+        item["art"] = FILTER_ART.get(entry["id"], MENU_ART["pack_series"])
+        item["fanart"] = "fanart-hub-packs.jpg"
+        entries.append(item)
+    return entries
+
+
+def classic_raves():
+    """Public route data for the screen's By Rave, Venue & Promoter room."""
+    return [dict(entry) for entry in _rave_catalog()]
+
+
+def classic_radio_sections():
+    """Public route data for the screen's Live Radio genre doors."""
+    return [dict(section) for section in RADIO_SECTIONS]
+
+
+def classic_archive_sections():
+    """Public route data for the screen's archive-backed rooms."""
+    return [dict(section) for section in ARCHIVE_SECTIONS]
+
+
+def classic_years():
+    """Newest-to-oldest years the classic By Year room offers."""
+    import datetime
+
+    return list(range(datetime.date.today().year, 1986, -1))
 
 
 @functools.lru_cache(maxsize=256)
@@ -903,6 +942,13 @@ def shows_menu(handle, params):
          "fanart-getdarker.jpg", "Dubstep and grime, 2003 onwards.", "dubstep/grime"),
         ("Moxser", url_for(mode="moxser"), MENU_ART["shows_moxser"], "fanart-moxser.jpg",
          "Old skool to new cool dance mixes.", "old skool"),
+        ("Mikus Musik", url_for(mode="legacy_blog", source="mikus"),
+         MENU_ART["shows_podcasts"], "fanart-hub-shows.jpg",
+         "Dub, jungle, house and garage sets from the Mikus Musik blog.",
+         "blog"),
+        ("Demodulated Mixtapes", url_for(mode="legacy_blog", source="demodulated"),
+         MENU_ART["curated_legacy"], "fanart-mixes.jpg",
+         "Old techno, jungle and rave mixtapes from Demodulated.", "mixtapes"),
     ]
     hub_fanart = art("fanart-hub-shows.jpg")
     for label, url, icon, fan, plot, label2 in rows:
@@ -2280,6 +2326,86 @@ def getdarker_page(handle, params):
     kodi.end_directory(handle, "files")
 
 
+def legacy_blog(handle, params):
+    """One 2014 blog archive (Mikus Musik / Demodulated Mixtapes)."""
+    entry = legacyblog.source(params.get("source", ""))
+    if not entry:
+        kodi.notify("That blog archive is no longer configured.")
+        kodi.end_directory(handle, "files")
+        return
+    posts = legacyblog.posts(entry["id"], limit=legacyblog.MAX_POSTS)
+    if not posts:
+        kodi.notify("%s did not answer — try again later." % entry["name"])
+        ui.status_item(
+            handle, "%s is offline" % entry["name"],
+            plot="The blog's RSS feed did not answer. Press OK to try again.",
+            fact="empty", kind="empty",
+            retry_url=url_for(mode="legacy_blog", source=entry["id"]))
+        kodi.end_directory(handle, "files")
+        return
+    rows = _rows_per_page()
+    page = _page_number(params)
+    window, page, pages, total, start = _paged(posts, page, rows)
+    _page_header(handle, page, pages, total, "posts",
+                 icon=art(MENU_ART["shows_podcasts"]))
+    for post in window:
+        title = ui.plain(post["title"])
+        date = ui.plain(post.get("date") or "")
+        label = title + ("  [COLOR gray](%s)[/COLOR]" % date if date else "")
+        ui.menu_item(
+            handle,
+            url_for(mode="legacy_blog_post", source=entry["id"],
+                    page=post["page_url"], label=post["title"]),
+            label,
+            icon=art(MENU_ART["shows_podcasts"]),
+            plot=post.get("summary") or entry["plot"],
+            title=title,
+            label2=date or "post",
+        )
+    _page_nav(handle, "legacy_blog", {"source": entry["id"]}, page, pages,
+              total, rows, "posts")
+    ui.menu_item(handle, url_for(mode="shows_menu"), "Back")
+    kodi.end_directory(handle, "files")
+
+
+def legacy_blog_post(handle, params):
+    """Direct audio and Mixcloud hand-offs inside one blog post."""
+    source_id = params.get("source", "")
+    entry = legacyblog.source(source_id)
+    page_url = params.get("page", "")
+    if not entry or not page_url:
+        kodi.notify("That blog post is no longer available.")
+        kodi.end_directory(handle, "songs")
+        return
+    details = legacyblog.post(entry["id"], page_url)
+    title = ui.plain(details.get("title") or params.get("label") or entry["name"])
+    played = 0
+    for url in details.get("media_urls") or []:
+        stream = _playable_url(url)
+        if not stream:
+            continue
+        ui.track_item(
+            handle,
+            url_for(mode="play", url=stream, label=title),
+            title,
+            thumb=art(MENU_ART["shows_podcasts"]),
+            plot="%s · direct MP3" % entry["name"],
+            title=title,
+            label2="MP3",
+            context=[_favourite("stream", stream, title, entry["name"])],
+        )
+        played += 1
+    shown = _handoff_link_items(
+        handle, details.get("mixcloud_urls") or [], title,
+        art(MENU_ART["curated_legacy"]),
+        "%s · opens in the Kodi Mixcloud add-on." % entry["name"])
+    if not played and not shown:
+        kodi.notify("No in-Kodi media on that %s post." % entry["name"])
+    ui.menu_item(handle,
+                 url_for(mode="legacy_blog", source=entry["id"]), "Back")
+    kodi.end_directory(handle, "files")
+
+
 def mixcloud_account(handle, params):
     source = mixcloud_source.source(params.get("key", ""))
     if not source:
@@ -3099,6 +3225,8 @@ HANDLERS = {
     "hardscore_event": hardscore_event,
     "getdarker": getdarker,
     "getdarker_page": getdarker_page,
+    "legacy_blog": legacy_blog,
+    "legacy_blog_post": legacy_blog_post,
     "mixcloud_account": mixcloud_account,
     "downloads_menu": downloads_menu,
     "download_start": download_start,

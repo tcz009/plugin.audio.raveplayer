@@ -253,9 +253,10 @@ class RaveScreenXmlTests(unittest.TestCase):
         data = RaveData(modules=object(), root=ROOT, script_root=SCREEN)
         labels = [row.label for row in data.home_rows()]
         self.assertEqual(labels, [
-            "Latest", "Toronto Rave Mixtape Archive", "JungleTapes.com",
-            "RaveTapePacks.com", "Live Radio", "Mixes & Shows", "Search",
-            "Favourites", "Downloads", "About", "Spinning Surprise",
+            "Latest", "Tape Packs", "Toronto Rave Mixtape Archive",
+            "JungleTapes.com", "RaveTapePacks.com", "Pirate Radio",
+            "Live Radio", "Mixes & Shows", "Search", "Favourites",
+            "Downloads", "About", "Spinning Surprise",
         ])
         for label in labels:
             with self.subTest(label=label):

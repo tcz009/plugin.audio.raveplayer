@@ -761,16 +761,21 @@ class AboutTests(LibraryTestCase):
         self.assertEqual(screen.state, STATE_READY)
         labels = [row.label for row in screen.rows]
         self.assertEqual(labels, ["Rave Player", "Rave Screen", "Kodi",
-                                  "Licence", "Project page",
-                                  "Internet Archive"])
+                                  "Licence", "Classic lists",
+                                  "Project page", "Internet Archive"])
         facts = [row.fact for row in screen.rows]
         self.assertEqual(facts, ["3.9.51", "3.9.50", "21.0",
-                                 "GPL-3.0-or-later", "github", "archive.org"])
+                                 "GPL-3.0-or-later", "fallback", "github",
+                                 "archive.org"])
         for row in screen.rows:
             self.assertEqual(row.kind, KIND_ACTION)
             self.assertEqual(row.code, "RP-36")
-            self.assertEqual(row.payload["action"], ACTION_OPEN)
             self.assertEqual(row.fanart, "/art/fanart-about.jpg")
+        for row in screen.rows[:4] + screen.rows[5:]:
+            self.assertEqual(row.payload["action"], ACTION_OPEN)
+        self.assertEqual(screen.rows[4].payload["action"], "classic")
+        self.assertEqual(screen.rows[4].payload["url"],
+                         "plugin://plugin.audio.raveplayer/?mode=classic_root")
         self.assertEqual(screen.rows[0].payload["url"], PROJECT_URL)
         self.assertEqual(screen.rows[-1].payload["url"], "https://archive.org")
         self.assertIn("3.9.51", screen.subtitle)

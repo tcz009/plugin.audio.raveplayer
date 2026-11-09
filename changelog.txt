@@ -1,3 +1,19 @@
+Rave Player 3.9.61 — full classic-menu parity in the screen
+- The full-screen app now reaches every destination the classic root offers:
+  a Tape Packs hub (Toronto, JungleTapes, RaveTapePacks, Classic Pack Series,
+  By Rave/Venue/Promoter, By Year, Every Pack), a Pirate Radio hub (Hardscore,
+  Pirate Radio Archives, Kool FM Sets), Live Radio genre doors, and an About
+  action that reopens the old directory UI.
+- Restored the two surviving 2014 blog sources — Mikus Musik and Demodulated
+  Mixtapes — in both the classic Mixes & Shows menu and the screen (RSS posts,
+  direct preview MP3s, Mixcloud hand-off when that add-on is installed).
+- Home is 13 rooms; no existing room, row, key or Back behaviour was removed.
+  Search, Favourites, Downloads, Spinning Surprise and About are unchanged.
+- Adds a parity matrix test: every classic page mode must be in the reviewed
+  matrix and reachable from a screen room/row/action.
+- Versions: plugin 3.9.61, screen 3.9.61 (requires plugin 3.9.61); resolver
+  1.1.0. Code only: no device run, no push and no tag.
+
 Rave Player 3.9.60 — open the app, parity pass
 - Opening the add-on now launches the full-screen app directly; the old directory menu is the fallback (and stays reachable).
 - Internal screen add-on renamed "Rave Player UI" so it is not presented as a separate product.

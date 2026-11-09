@@ -34,7 +34,8 @@ from .animation import FPS, MIN_DURATION, SpinnerAnimator, frame_index
 from .data import (DEFAULT_PAGE_SIZE, PAGE_SIZES, Entry, SearchTarget, Track,
                    _page_local)
 from .screens.library import (
-    ACTION_CANCEL, ACTION_OPEN, ACTION_PLAY, ACTION_PLAY_ALL, ACTION_REMOVE,
+    ACTION_CANCEL, ACTION_CLASSIC, ACTION_OPEN, ACTION_PLAY, ACTION_PLAY_ALL,
+    ACTION_REMOVE,
     ACTION_RETRY, ACTION_SHUFFLE, KIND_ACTION, KIND_ROOM, KIND_TRACK,
     LibraryScreens,
     PluginBackend, ROUTE_ABOUT, ROUTE_DOWNLOADS, ROUTE_FAVOURITES,
@@ -91,7 +92,7 @@ def _live_signature(rows):
 
 
 HOME_TITLE = "RAVE SCREEN"
-HOME_SUBTITLE = "11 rooms · OK opens · long-press OK for actions"
+HOME_SUBTITLE = "13 rooms · OK opens · long-press OK for actions"
 KEY_LIMIT = 48
 
 # Stale-while-revalidate status lines (perf/3.9.52).  The status slot is the
@@ -1798,6 +1799,22 @@ class RaveScreenController(object):
             self.view.set_status(
                 "Source: %s" % url if url else "Read-only credit — Back returns.")
             return False
+        if action == ACTION_CLASSIC:
+            url = str((getattr(entry, "payload", None) or {}).get("url") or "")
+            if not url:
+                self.view.set_status("Classic lists are not configured.")
+                return False
+            try:
+                import xbmc
+
+                xbmc.executebuiltin(
+                    "ActivateWindow(Programs,%s,return)" % url)
+            except Exception as exc:  # noqa: BLE001 - window unavailable
+                self._log("classic lists launch failed: %s" % exc)
+                self.view.set_status("Could not open Classic lists.")
+                return False
+            self.view.set_status("Opening Classic lists…")
+            return True
         return False
 
     def _retry_library(self, entry):
@@ -1987,6 +2004,19 @@ class RaveScreenController(object):
         action_type = str(action.get("type") or "")
         if action_type == "open" and action.get("source") == "pirate":
             return self._open_pirate_room(entry)
+        if action_type == "open" and action.get("source") == "live_tag":
+            tag = str(action.get("target") or action.get("tag") or "")
+            title = str(action.get("title") or getattr(entry, "label", "") or tag)
+            if not tag:
+                self.view.set_status("That genre door has no tag.")
+                return False
+            target = Entry(
+                key="live-tag-%s" % tag, label=title,
+                subtitle="Live Radio · %s" % title, art=getattr(entry, "art", ""),
+                kind="live_tag", source="live_tag", target=tag,
+                hero=getattr(entry, "hero", ""), fact="stations", code="RP-31",
+                plot="Live stations tagged %s" % tag)
+            return self._load_target(target, 1, push=True)
         live = self._live_radio()
         ok = live.perform(action)
         # Keep the shell latch in step with the module: a station that stopped

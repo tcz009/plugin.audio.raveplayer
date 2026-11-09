@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addons>
-<addon id="plugin.audio.raveplayer" name="Rave Player" version="3.9.60" provider-name="TheYid009">
+<addon id="plugin.audio.raveplayer" name="Rave Player" version="3.9.61" provider-name="TheYid009">
   <requires>
     <import addon="xbmc.python" version="3.0.1" />
     <import addon="script.module.raveresolver" version="1.1.0" />
@@ -26,10 +26,10 @@
     </assets>
   </extension>
 </addon>
-<addon id="script.raveplayer.ui" name="Rave Player UI" version="3.9.60" provider-name="TheYid009">
+<addon id="script.raveplayer.ui" name="Rave Player UI" version="3.9.61" provider-name="TheYid009">
   <requires>
     <import addon="xbmc.python" version="3.0.0" />
-    <import addon="plugin.audio.raveplayer" version="3.9.60" />
+    <import addon="plugin.audio.raveplayer" version="3.9.61" />
   </requires>
   <extension point="xbmc.python.script" library="default.py">
     <provides>executable</provides>
@@ -37,8 +37,8 @@
   <extension point="xbmc.addon.metadata">
     <summary lang="en_GB">Full-screen 2026 Rave UI for Rave Player, with Spinning Surprise.</summary>
     <summary lang="en_US">Full-screen 2026 Rave UI for Rave Player, with Spinning Surprise.</summary>
-    <description lang="en_GB">The primary Rave Player app: one full-screen Kodi window with all eleven rooms, paged lists, an in-window keyboard search, favourites, downloads, live radio, About and Spinning Surprise. Drives the Rave Player plugin as its data and playback backend. Back exits cleanly; the plugin's Classic lists remain available as the fallback.</description>
-    <description lang="en_US">The primary Rave Player app: one full-screen Kodi window with all eleven rooms, paged lists, an in-window keyboard search, favourites, downloads, live radio, About and Spinning Surprise. Drives the Rave Player plugin as its data and playback backend. Back exits cleanly; the plugin's Classic lists remain available as the fallback.</description>
+    <description lang="en_GB">The primary Rave Player app: one full-screen Kodi window with all thirteen rooms, paged lists, an in-window keyboard search, favourites, downloads, live radio, About and Spinning Surprise. Drives the Rave Player plugin as its data and playback backend. Back exits cleanly; the plugin's Classic lists remain available as the fallback.</description>
+    <description lang="en_US">The primary Rave Player app: one full-screen Kodi window with all thirteen rooms, paged lists, an in-window keyboard search, favourites, downloads, live radio, About and Spinning Surprise. Drives the Rave Player plugin as its data and playback backend. Back exits cleanly; the plugin's Classic lists remain available as the fallback.</description>
     <disclaimer lang="en_GB">Rave Screen does not host or distribute any content. Playback is streamed from third-party public archives and radio directories.</disclaimer>
     <platform>all</platform>
     <license>GPL-3.0-or-later</license>

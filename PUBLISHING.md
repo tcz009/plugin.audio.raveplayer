@@ -60,10 +60,11 @@ git push -u origin main --tags
 
 The 3.9.x release flow is: bump `addon.xml` + `changelog.txt`; rebuild the
 artifacts; commit the regenerated `repo/`; then tag. The current release is
-**3.9.59** (`plugin.audio.raveplayer` 3.9.59 + `script.raveplayer.ui` 3.9.59 +
-`script.module.raveresolver` 1.1.0), prepared on `fix/3.9.59`; the release
-notes are in `docs/RELEASE-3.9.59.md`, the resolver wiring and merge guidance
-in `docs/KODI-RESOLVER-WIRING-3.9.53.md`. `scripts/build.sh` and
+**3.9.61** (`plugin.audio.raveplayer` 3.9.61 + `script.raveplayer.ui` 3.9.61 +
+`script.module.raveresolver` 1.1.0), prepared on `feat/3.9.61-parity`; the
+release notes are in `docs/RELEASE-3.9.61.md`, the destination matrix in
+`docs/PARITY-3.9.61.md`, and the resolver wiring and merge guidance in
+`docs/KODI-RESOLVER-WIRING-3.9.53.md`. `scripts/build.sh` and
 `scripts/build-repo.sh` include all three add-ons, and the plugin now declares
 the resolver-module dependency.
 
@@ -83,7 +84,7 @@ git tag v<version>
 git push origin v<version>
 ```
 
-- Actions → `build` runs the 1186 unit tests, validates `addon.xml`, rebuilds
+- Actions → `build` runs the full unit suite, validates `addon.xml`, rebuilds
   `dist/` and `repo/`, and then fails if `repo/addons.xml`, `repo/addons.xml.md5`
   or the current versioned plugin zip are not committed
   (`scripts/check-repo-artifacts.sh`). Generated repo/ files must be committed or

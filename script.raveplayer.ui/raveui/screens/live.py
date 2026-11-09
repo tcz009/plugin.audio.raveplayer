@@ -188,6 +188,28 @@ PIRATE_ROW = Row(
     action={"type": "open", "source": "pirate", "target": "pirate"},
 )
 
+# Scene genre doors, identical to the classic radio_menu RADIO_SECTIONS.
+GENRE_ROWS = (
+    Row("Hardcore", "GENRE", "radio-hardcore.png", "RP-36", "section",
+        {"type": "open", "source": "live_tag", "tag": "hardcore",
+         "target": "hardcore", "title": "Hardcore"}),
+    Row("Jungle", "GENRE", "radio-jungle.png", "RP-37", "section",
+        {"type": "open", "source": "live_tag", "tag": "jungle",
+         "target": "jungle", "title": "Jungle"}),
+    Row("Drum & Bass", "GENRE", "radio-dnb.png", "RP-38", "section",
+        {"type": "open", "source": "live_tag", "tag": "drum and bass",
+         "target": "drum-and-bass", "title": "Drum & Bass"}),
+    Row("House", "GENRE", "radio-house.png", "RP-39", "section",
+        {"type": "open", "source": "live_tag", "tag": "house",
+         "target": "house", "title": "House"}),
+    Row("UK Garage", "GENRE", "radio-uk-garage.png", "RP-40", "section",
+        {"type": "open", "source": "live_tag", "tag": "uk garage",
+         "target": "uk-garage", "title": "UK Garage"}),
+    Row("Dubstep & Grime", "GENRE", "radio-dubstep-grime.png", "RP-41", "section",
+        {"type": "open", "source": "live_tag", "tag": "dubstep",
+         "target": "dubstep-grime", "title": "Dubstep & Grime"}),
+)
+
 
 def _text(value, fallback=""):
     text = " ".join(str(value or "").split())
@@ -383,6 +405,10 @@ class LiveRadio(object):
         pirate = PIRATE_ROW.copy()
         pirate["art"] = self._art(PIRATE_ROW["art"])
         rows.append(pirate)
+        for genre in GENRE_ROWS:
+            row = genre.copy()
+            row["art"] = self._art(genre["art"])
+            rows.append(row)
         return rows
 
     def action(self, token):

@@ -40,8 +40,8 @@ DEFAULT_PAGE_SIZE = 50
 MAX_FACT_CHARS = 16
 
 ROOM_ORDER = (
-    "latest", "toronto", "jungletapes", "ravetapepacks", "live", "mixes",
-    "search", "favourites", "downloads", "about", "surprise",
+    "latest", "packs", "toronto", "jungletapes", "ravetapepacks", "pirate",
+    "live", "mixes", "search", "favourites", "downloads", "about", "surprise",
 )
 
 # Plugin download source labels (resources/lib/downloads.py ALLOWED_SOURCES).
@@ -68,6 +68,8 @@ _SOURCE_LABEL = {
     "dnb": "DNB Radio",
     "getdarker": "GetDarker",
     "live": "Live radio",
+    "legacyblog": "Blog archive",
+    "mixcloud": "Mixcloud",
 }
 
 
@@ -85,6 +87,7 @@ class Track:
     download_source: str = ""
     local: bool = False
     path: str = ""          # direct Kodi path (local file or platform plugin URL)
+    station: str = ""       # live-radio reconnect token/name
 
 
 @dataclass(frozen=True)
@@ -368,6 +371,11 @@ class RaveData(object):
                  "Newest tape packs from the Internet Archive",
                  "rave.png", "fanart-latest.jpg", "newest", "RP-01",
                  "Newest packs, shows and radio rips — start here."),
+            room("packs", "Tape Packs",
+                 "Cassette packs, classic series, by rave and year",
+                 "tapepacks.png", "fanart-tapepacks.jpg", "1990–2004", "RP-37",
+                 "Every tape-pack door: Toronto, JungleTapes, RaveTapePacks, "
+                 "classic series, raves, years and the whole Archive."),
             room("toronto", "Toronto Rave Mixtape Archive",
                  "1990–2014 · jungle, house and X-Static tapes",
                  "toronto.png", "fanart-toronto.jpg", "1990–2014", "RP-19",
@@ -380,6 +388,10 @@ class RaveData(object):
                  "UK tape packs, 1992–2004 · by event, DJ, MC and year",
                  "ravetapepacks.png", "fanart-tapepacks.jpg", "1992–2004", "RP-03",
                  "The UK rave tape-pack archive, filed every way."),
+            room("pirate", "Pirate Radio",
+                 "Hardscore · Pirate Radio Archives · Kool FM sets",
+                 "pirate-radio.png", "fanart-curated.jpg", "1990s", "RP-38",
+                 "1990s pirate-radio recordings and every Kool FM set."),
             room("live", "Live Radio",
                  "Kool FM · Rinse FM · Centreforce and more",
                  "radio.png", "fanart-live.jpg", "live", "RP-31",
@@ -420,14 +432,26 @@ class RaveData(object):
         rows = rows or self.rows_per_page
         if key == "latest":
             return _page_local(self._latest_entries(), page, rows)
+        if key == "packs":
+            return _page_local(self._packs_entries(), page, rows)
         if key == "toronto":
             return _page_local(self._toronto_entries(), page, rows)
         if key == "jungletapes":
             return _page_local(self._jungletapes_entries(), page, rows)
         if key == "ravetapepacks":
             return _page_local(self._ravetapepacks_entries(), page, rows)
+        if key == "pirate":
+            return _page_local(self._pirate_entries(), page, rows)
         if key == "mixes":
             return _page_local(self._mixes_entries(), page, rows)
+        if key == "filters":
+            return _page_local(self._filter_index_entries(), page, rows)
+        if key == "raves":
+            return _page_local(self._rave_index_entries(), page, rows)
+        if key == "packs_years":
+            return _page_local(self._year_index_entries(), page, rows)
+        if key == "live_tags":
+            return _page_local(self._live_tag_index_entries(), page, rows)
         raise ValueError("unknown Rave Screen room %r" % key)
 
     def load(self, target, page=1, rows=None):
@@ -448,6 +472,169 @@ class RaveData(object):
     def entries_for(self, entry):
         """Compatibility view: one folder's first page."""
         return self.children(entry, 1).rows
+
+    # ---------------------------------------------------------- classic doors
+    def _classic(self, name, fallback=()):
+        try:
+            return list(getattr(self.modules.routes, name)() or fallback)
+        except Exception:  # noqa: BLE001 - old plugin without the helper
+            return list(fallback)
+
+    def _packs_entries(self):
+        def door(key, label, subtitle, art, hero, fact, code, plot,
+                 kind="section", source=None, target=None):
+            return Entry(key, label, subtitle, self._art(art), kind,
+                         source=source or target or key,
+                         target=target or key, hero=self._art(hero),
+                         fact=fact, code=code, plot=plot,
+                         meta=_meta(fact.upper(), "TAPE PACKS", code))
+
+        filter_count = len(self._classic("classic_filters"))
+        rave_count = len(self._classic("classic_raves"))
+        return [
+            door("pack-toronto", "Toronto Rave Mixtape Archive",
+                 "1990–2014 · jungle, house and X-Static tapes",
+                 "toronto.png", "fanart-toronto.jpg", "1990–2014", "RP-19",
+                 "Toronto rave mixtapes, 1990–2014.", target="toronto"),
+            door("pack-jungletapes", "JungleTapes.com",
+                 "Toronto jungle radio digitised from cassette",
+                 "jungletapes.png", "fanart-tapepacks.jpg", "310 shows", "RP-27",
+                 "Toronto jungle radio shows, digitised from cassette.",
+                 target="jungletapes"),
+            door("pack-ravetapepacks", "RaveTapePacks.com",
+                 "UK tape packs, 1992–2004 · by event, DJ, MC and year",
+                 "ravetapepacks.png", "fanart-tapepacks.jpg", "1992–2004", "RP-03",
+                 "The UK rave tape-pack archive, filed every way.",
+                 target="ravetapepacks"),
+            door("pack-series", "Classic Pack Series",
+                 "Dreamscape · Helter Skelter · Fantazia · One Nation",
+                 "series.png", "fanart-hub-packs.jpg",
+                 _fact("%d series" % filter_count if filter_count else "series"),
+                 "RP-39",
+                 "The UK pack canon, one filter per series.",
+                 kind="filter_index", target="filters"),
+            door("pack-raves", "By Rave, Venue & Promoter",
+                 "Sanctuary · Bagleys · Bowlers · Que Club · Biology",
+                 "rave-nights.png", "fanart-hub-packs.jpg",
+                 _fact("%d raves" % rave_count if rave_count else "raves"),
+                 "RP-40",
+                 "Browse the researched rave catalogue one event at a time.",
+                 kind="rave_index", target="raves"),
+            door("pack-years", "By Year",
+                 "Browse the Archive one year at a time, 1987–now",
+                 "years.png", "fanart-hub-packs.jpg", "1987–now", "RP-41",
+                 "Every year the Archive has tape packs for.",
+                 kind="year_index", target="packs_years"),
+            door("pack-every", "Every Pack",
+                 "Everything the Archive tags as a tape pack",
+                 "tapepacks-all.png", "fanart-tapepacks.jpg", "archive.org", "RP-42",
+                 "Archive mixtapes — the broad Every Pack query.",
+                 kind="archive_search", target="tapepacks"),
+        ]
+
+    def _pirate_entries(self):
+        return [
+            Entry("pirate-hardscore", "Hardscore",
+                  "The best 1990s pirate archive: Kool FM, Don FM, Green Apple",
+                  self._art("hardscore.png"), "folder",
+                  source="hardscore_source", target="hardscore_source",
+                  hero=self._art("fanart-hardscore.jpg"), fact="archive",
+                  code="RP-32", plot="Oldskool hardcore and jungle archive.",
+                  meta=_meta("ARCHIVE", "HARDSCORE.COM", "RP-32")),
+            Entry("pirate-archives", "Pirate Radio Archives",
+                  "Risk FM · Weekend Rush · Flava FM · 1990s recordings",
+                  self._art("pirate-archive.png"), "folder",
+                  source="pirate_source", target="pirate_source",
+                  hero=self._art("fanart-pirate-archive.jpg"), fact="1990s",
+                  code="RP-32", plot="Curated 1990s pirate-radio recordings.",
+                  meta=_meta("1990S", "PIRATE ARCHIVES", "RP-32")),
+            Entry("pirate-kool", "Kool FM Sets",
+                  "Every Kool FM set in the Archive",
+                  self._art("kool.png"), "filter",
+                  source="filter", target="kool",
+                  hero=self._art("fanart-live.jpg"), fact="sets",
+                  code="RP-31", plot="Kool FM archive sets, live door included.",
+                  meta=_meta("SETS", "KOOL FM", "RP-31")),
+        ]
+
+    def _filter_index_entries(self):
+        entries = []
+        for item in self._classic("classic_filters"):
+            key = _text(item.get("id"))
+            if not key:
+                continue
+            entries.append(Entry(
+                key="filter-%s" % key,
+                label=_text(item.get("name"), key),
+                subtitle="Classic Pack Series",
+                art=self._art(_text(item.get("art"), "series.png")),
+                kind="filter", source="filter", target=key,
+                hero=self._art(_text(item.get("fanart"), "fanart-hub-packs.jpg")),
+                fact="series", code="RP-39",
+                plot=_text(item.get("plot"), "Classic pack series"),
+                meta=_meta("SERIES", "CLASSIC PACKS", "RP-39")))
+        return entries
+
+    def _rave_index_entries(self):
+        entries = []
+        for item in self._classic("classic_raves"):
+            name = _text(item.get("name"))
+            slug = _text(item.get("slug"))
+            if not name or not slug:
+                continue
+            counts = []
+            if item.get("count"):
+                counts.append("%d packs" % item["count"])
+            if item.get("mixcloud_count"):
+                counts.append("%d sets" % item["mixcloud_count"])
+            entries.append(Entry(
+                key="rave-%s" % slug,
+                label=name,
+                subtitle="By rave, venue & promoter",
+                art=self._art("rave-nights.png"),
+                kind="rave", source="rave", target=slug,
+                hero=self._art("fanart-hub-packs.jpg"),
+                fact=_fact(" · ".join(counts) or "rave", "rave"),
+                code="RP-40", plot="Archive packs and Mixcloud sets for %s" % name,
+                meta=_meta(" · ".join(counts).upper() or "RAVE", "RAVE CATALOGUE",
+                           "RP-40")))
+        return entries
+
+    def _year_index_entries(self):
+        entries = []
+        for year in self._classic("classic_years"):
+            text = _text(year)
+            if not text:
+                continue
+            entries.append(Entry(
+                key="year-%s" % text,
+                label=text,
+                subtitle="By Year · Archive tape packs",
+                art=self._art("years.png"),
+                kind="year", source="year", target=text,
+                hero=self._art("fanart-hub-packs.jpg"),
+                fact="tape packs", code="RP-41",
+                plot="%s tape packs from the Internet Archive" % text,
+                meta=_meta("YEAR", "ARCHIVE.ORG", "RP-41")))
+        return entries
+
+    def _live_tag_index_entries(self):
+        entries = []
+        for section in self._classic("classic_radio_sections"):
+            key = _text(section.get("key"))
+            if not key:
+                continue
+            entries.append(Entry(
+                key="live-tag-%s" % key,
+                label=_text(section.get("label"), key),
+                subtitle="Live Radio · genre door",
+                art=self._art(_text(section.get("art"), "radio.png")),
+                kind="live_tag", source="live_tag", target=key,
+                hero=self._art("fanart-hub-live.jpg"),
+                fact="stations", code="RP-31",
+                plot=_text(section.get("plot"), "Live %s stations" % key),
+                meta=_meta("LIVE", "GENRE", "RP-31")))
+        return entries
 
     # -------------------------------------------------------------- latest
     def _latest_entries(self):
@@ -760,6 +947,20 @@ class RaveData(object):
                    "pirate-archive.png", "1990s",
                    "Curated 1990s pirate-radio recordings",
                    "fanart-pirate-archive.jpg"),
+            Entry("mikus_source", "Mikus Musik",
+                  "Dub, jungle, house and garage sets from the blog",
+                  self._art("podcasts.png"), "blog_source",
+                  source="mikus_source", target="mikus",
+                  hero=self._art("fanart-hub-shows.jpg"), fact="blog",
+                  code="RP-32", plot="Mikus Musik blog archive",
+                  meta=_meta("BLOG", "MIKUS MUSIK", "RP-32")),
+            Entry("demodulated_source", "Demodulated Mixtapes",
+                  "Old techno, jungle and rave mixtapes",
+                  self._art("legacy.png"), "blog_source",
+                  source="demodulated_source", target="demodulated",
+                  hero=self._art("fanart-mixes.jpg"), fact="mixtapes",
+                  code="RP-32", plot="Demodulated Mixtapes blog archive",
+                  meta=_meta("BLOG", "DEMODULATED", "RP-32")),
         ]
 
     def _mixes_children(self, entry, page, rows):
@@ -1154,6 +1355,29 @@ class RaveData(object):
             return self._mixes_children(entry, page, rows)
         if kind == "hardscore_post":
             return self._mixes_children(entry, page, rows)
+        if kind == "filter_index":
+            return _page_local(self._filter_index_entries(), page, rows)
+        if kind == "rave_index":
+            return _page_local(self._rave_index_entries(), page, rows)
+        if kind == "year_index":
+            return _page_local(self._year_index_entries(), page, rows)
+        if kind == "filter":
+            return self._filter_children(entry, page, rows)
+        if kind == "filter_live":
+            return self._filter_live_children(entry, page, rows)
+        if kind == "rave":
+            return self._rave_children(entry, page, rows)
+        if kind == "year":
+            return self._year_children(entry, page, rows)
+        if kind == "archive_search":
+            return self._archive_search_children(entry, page, rows)
+        if kind == "live_tag":
+            return self._live_tag_children(entry, page, rows)
+        if kind == "blog_source":
+            return self._blog_posts(_text(entry.label), _text(entry.target),
+                                    page, rows)
+        if kind == "blog_post":
+            return self._blog_post_children(entry, page, rows)
         return _page_local([], page, rows)
 
     def _archive_track_entries(self, tracks, identifier, title, year=""):
@@ -1238,6 +1462,257 @@ class RaveData(object):
         except Exception:  # noqa: BLE001 - play-all failure is a status line
             return []
         return []
+
+    # --------------------------------------------- classic archive children
+    def _archive_pack_entries(self, docs):
+        entries = []
+        for doc in docs or []:
+            if not isinstance(doc, dict):
+                continue
+            identifier = _text(doc.get("identifier"))
+            if not identifier:
+                continue
+            title = _text(doc.get("title"), identifier)
+            year = _text(doc.get("year")) or _year_from_text(doc.get("date"))
+            venue = ""
+            try:
+                venue = _text(self.modules.nowplaying.parse(title).get("venue"))
+            except Exception:  # noqa: BLE001 - venue is cosmetic
+                venue = ""
+            entries.append(Entry(
+                key="archive-%s" % identifier,
+                label=title,
+                subtitle="Internet Archive tape pack",
+                art=self._archive_thumb(identifier),
+                kind="pack", source="latest", target=identifier,
+                hero=self._art("fanart-latest.jpg"),
+                fact=_fact(year or "pack", "pack"), code="RP-39",
+                plot="Tape pack from the Internet Archive.",
+                meta=_meta(year, venue.upper(), "ARCHIVE.ORG", "RP-39"),
+                year=year))
+        return entries
+
+    def _archive_children(self, query, page, rows):
+        try:
+            docs, total = self.modules.archive.search(query, page=page, rows=rows)
+        except Exception:  # noqa: BLE001 - quiet empty plate
+            return _page_server([], page, rows, 0)
+        entries = self._archive_pack_entries(docs)
+        return _page_server(entries, page, rows, total,
+                            has_next=page * rows < total)
+
+    def _filter_children(self, entry, page, rows):
+        key = _text(entry.target)
+        item = next((candidate for candidate in self._classic("classic_filters")
+                     if _text(candidate.get("id")) == key), None)
+        if item is None:
+            return _page_server([], page, rows, 0)
+        extra = []
+        if page == 1 and item.get("live_name"):
+            extra.append(Entry(
+                key="filter-live-%s" % key,
+                label="▶ %s — live now" % _text(item.get("name"), key),
+                subtitle="Live Radio · genre door",
+                art=self._art("radio.png"),
+                kind="filter_live", source="filter_live",
+                target=_text(item.get("live_name")),
+                hero=self._art("fanart-live.jpg"), fact="live", code="RP-31",
+                plot="Live streams matching %s" % item.get("live_name"),
+                meta=_meta("LIVE", "RADIO", "RP-31")))
+        try:
+            docs, total = self.modules.archive.search(
+                _text(item.get("query")), page=page, rows=rows)
+        except Exception:  # noqa: BLE001 - quiet empty plate
+            docs, total = [], 0
+        entries = extra + self._archive_pack_entries(docs)
+        return _page_server(entries, page, rows, total + len(extra),
+                            has_next=page * rows < total)
+
+    def _filter_live_children(self, entry, page, rows):
+        name = _text(entry.target)
+        stations = []
+        try:
+            stations = self.modules.radio.curated(name) or []
+        except Exception:  # noqa: BLE001 - quiet empty plate
+            stations = []
+        if not stations:
+            try:
+                stations = self.modules.radio.stations_by_name(name, limit=100) or []
+            except Exception:  # noqa: BLE001 - quiet empty plate
+                stations = []
+        return _page_local(self._live_station_entries(stations, "Live now · %s" % name),
+                           page, rows)
+
+    def _rave_children(self, entry, page, rows):
+        slug = _text(entry.target)
+        item = next((candidate for candidate in self._classic("classic_raves")
+                     if _text(candidate.get("slug")) == slug
+                     or _text(candidate.get("name")) == slug), None)
+        if item is None:
+            return _page_server([], page, rows, 0)
+        entries = []
+        total = 0
+        if item.get("query") and item.get("count"):
+            try:
+                docs, total = self.modules.archive.search(
+                    _text(item.get("query")), page=page, rows=rows)
+            except Exception:  # noqa: BLE001 - quiet empty plate
+                docs, total = [], 0
+            entries.extend(self._archive_pack_entries(docs))
+        if page == 1 and item.get("mixcloud_query") and item.get("mixcloud_count"):
+            link = ""
+            try:
+                link = self.modules.handoff.mixcloud_search(
+                    _text(item.get("mixcloud_query")))
+                path = link
+            except Exception:  # noqa: BLE001 - add-on absent
+                path = ""
+            if path:
+                entries.append(Entry(
+                    key="rave-mixcloud-%s" % slug,
+                    label="Open %s sets in the Kodi Mixcloud add-on" %
+                          _text(item.get("name")),
+                    subtitle="Mixcloud · hand-off",
+                    art=self._art("mixcloud.png"),
+                    kind="external", source="mixcloud", target=link,
+                    track=Track(_text(item.get("name"), "Rave sets"),
+                                "Mixcloud", link, self._art("mixcloud.png"),
+                                source="mixcloud", path=path),
+                    hero=self._art("fanart-hub-packs.jpg"), fact="mixcloud",
+                    code="RP-40", plot="%d Mixcloud sets for %s." % (
+                        item["mixcloud_count"], item.get("name")),
+                    meta=_meta("MIXCLOUD", "HAND-OFF", "RP-40")))
+        return _page_server(entries, page, rows, total + (1 if page == 1 and entries
+                            and entries[-1].kind == "external" else 0),
+                            has_next=page * rows < total)
+
+    def _year_children(self, entry, page, rows):
+        year = _text(entry.target)
+        try:
+            query = self.modules.latest.year_query(int(year))
+            docs, total = self.modules.archive.search(query, page=page, rows=rows)
+        except (TypeError, ValueError, Exception):  # noqa: BLE001
+            return _page_server([], page, rows, 0)
+        return _page_server(self._archive_pack_entries(docs), page, rows, total,
+                            has_next=page * rows < total)
+
+    def _archive_search_children(self, entry, page, rows):
+        key = _text(entry.target)
+        section = next((candidate
+                        for candidate in self._classic("classic_archive_sections")
+                        if _text(candidate.get("key")) == key), None)
+        if section is None:
+            return _page_server([], page, rows, 0)
+        return self._archive_children(_text(section.get("query")), page, rows)
+
+    def _live_tag_children(self, entry, page, rows):
+        tag = _text(entry.target)
+        try:
+            stations = self.modules.radio.stations(tag, limit=500) or []
+        except Exception:  # noqa: BLE001 - quiet empty plate
+            stations = []
+        return _page_local(self._live_station_entries(stations, "Live · %s" % tag),
+                           page, rows)
+
+    def _live_station_entries(self, stations, label):
+        entries = []
+        for station in stations or []:
+            if not isinstance(station, dict):
+                continue
+            try:
+                name, meta = self.modules.radio.display(station)
+                url = self.modules.radio.stream_url(station)
+            except Exception:  # noqa: BLE001 - malformed directory row
+                continue
+            url = self._safe_url(url)
+            if not url:
+                continue
+            name = _text(name, "Live station")
+            art = _text(station.get("favicon") or station.get("favicon_url"))
+            art = art if art.lower().startswith(("http://", "https://"))                 else self._art("radio.png")
+            entries.append(Entry(
+                key="live-%s" % url,
+                label=name,
+                subtitle=label,
+                art=art,
+                kind="track", source="live", target=url,
+                track=Track(name, "Live radio", url, art, live=True,
+                            station=name, source="live"),
+                hero=self._art("fanart-live.jpg"),
+                fact="LIVE", code="RP-31",
+                plot=_text(meta, label),
+                meta=_meta(_text(meta).upper(), "LIVE RADIO", "RP-31")))
+        return entries
+
+    # --------------------------------------------------------- blog archives
+    def _blog_posts(self, kind, source_id, page, rows):
+        try:
+            posts = self.modules.legacyblog.posts(
+                source_id, limit=self.modules.legacyblog.MAX_POSTS) or []
+        except Exception:  # noqa: BLE001 - quiet empty plate
+            return _page_server([], page, rows, 0)
+        total = len(posts)
+        entries = []
+        start = max(0, (page - 1) * rows)
+        for post in posts[start:start + rows]:
+            if not isinstance(post, dict):
+                continue
+            title = _text(post.get("title"), "Blog post")
+            date = _text(post.get("date"))
+            entries.append(Entry(
+                key="blog-%s-%s" % (source_id, post.get("page_url")),
+                label=title,
+                subtitle="%s post" % kind,
+                art=self._art("podcasts.png"),
+                kind="blog_post",
+                source="legacyblog",
+                target="%s|%s" % (source_id, _text(post.get("page_url"))),
+                hero=self._art("fanart-hub-shows.jpg"),
+                fact=_fact(date or "post"), code="RP-32",
+                plot=_text(post.get("summary"), "%s post" % kind),
+                meta=_meta(date, kind.upper(), "RP-32"), year=date[:4]))
+        return _page_server(entries, page, rows, total,
+                            has_next=page * rows < total)
+
+    def _blog_post_children(self, entry, page, rows):
+        source_id, _, page_url = _text(entry.target).partition("|")
+        try:
+            details = self.modules.legacyblog.post(source_id, page_url) or {}
+        except Exception:  # noqa: BLE001 - quiet empty plate
+            details = {}
+        source = self.modules.legacyblog.source(source_id) or {}
+        label = _text(details.get("title"), entry.label)
+        out = []
+        for url in details.get("media_urls") or []:
+            safe = self._safe_url(url)
+            if not safe:
+                continue
+            out.append(self._track_entry(
+                {"name": label, "url": safe},
+                parent_label=label, parent_key="blog:%s" % source_id,
+                source="legacyblog", art=self._art("podcasts.png"),
+                hero=self._art("fanart-hub-shows.jpg"), code="RP-32",
+                plot="%s · direct MP3" % _text(source.get("name"), "Blog")))
+        for url in details.get("mixcloud_urls") or []:
+            try:
+                path = self.modules.handoff.target(url, label)
+            except Exception:  # noqa: BLE001 - missing add-on hides the row
+                path = ""
+            if not path:
+                continue
+            out.append(Entry(
+                key="blog-mixcloud-%s" % url,
+                label=label,
+                subtitle="%s · Mixcloud" % _text(source.get("name"), "Blog"),
+                art=self._art("mixcloud.png"),
+                kind="external", source="mixcloud", target=url,
+                track=Track(label, _text(source.get("name"), "Mixcloud"), url,
+                            self._art("mixcloud.png"), source="mixcloud",
+                            path=path),
+                hero=self._art("fanart-hub-shows.jpg"), fact="mixcloud",
+                code="RP-32", plot="Opens in the Kodi Mixcloud add-on.",
+                meta=_meta("MIXCLOUD", "HAND-OFF", "RP-32")))
+        return _page_local([row for row in out if row is not None], page, rows)
 
     # ------------------------------------------------------------- resolvers
     def resolve(self, entry):

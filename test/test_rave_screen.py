@@ -45,7 +45,7 @@ from raveui.playback import PlaybackService  # noqa: E402
 from raveui.screens.library import (ActionResult, PlayItem,
                                     Row as LibraryRow,
                                     Screen as LibraryScreen)
-from raveui.screens.live import LiveTrack  # noqa: E402
+from raveui.screens.live import LiveTrack, Row as LiveRow  # noqa: E402
 from raveui.surprise_pick import PickedTrack, SurprisePicker  # noqa: E402
 from raveui.tasks import (DirectTaskRunner, TaskCancelled, TaskFailed, TaskTimeout,
                           ThreadTaskRunner)  # noqa: E402
@@ -670,6 +670,33 @@ class ControllerTests(unittest.TestCase):
         self.assertTrue(ctl.on_click())
         self.assertEqual(data.favourites, ["child-1"])
 
+    def test_live_genre_door_opens_the_genre_room(self):
+        ctl, view, data, _ = controller(data=AppData())
+        ctl.start()
+        row = LiveRow(
+            title="Jungle", fact="GENRE", art="", code="RP-37",
+            kind="section",
+            action={"type": "open", "source": "live_tag", "tag": "jungle",
+                    "target": "jungle", "title": "Jungle"})
+        self.assertTrue(ctl._run_live_action(row, row.action))
+        self.assertEqual(data.loaded, [("children", "live-tag-jungle")])
+        self.assertEqual(view.rows[0].label, "Tape 1 - Brockie")
+        self.assertEqual(view.title, "Jungle")
+
+    def test_about_classic_lists_action_opens_the_plugin_directory(self):
+        ctl, view, _, _ = controller(data=AppData())
+        ctl.start()
+        entry = types.SimpleNamespace(
+            kind="library_action", action="classic",
+            payload={"action": "classic",
+                     "url": "plugin://plugin.audio.raveplayer/?mode=classic_root"})
+        with mock.patch.object(xbmc, "executebuiltin") as execute:
+            self.assertTrue(ctl._run_library_action(entry))
+        execute.assert_called_once_with(
+            "ActivateWindow(Programs,plugin://plugin.audio.raveplayer/"
+            "?mode=classic_root,return)")
+        self.assertIn("Classic lists", view.status)
+
     def test_rows_per_page_cycles_and_reloads(self):
         ctl, view, data, _ = controller(data=PagedFakeData())
         ctl.start()
@@ -1218,6 +1245,8 @@ def fake_modules():
             {"identifier": "pack-1", "title": "Dreamscape 19"}]),
         random_pack=mock.Mock(return_value={
             "identifier": "pack-1", "title": "Dreamscape 19"}),
+        year_query=mock.Mock(side_effect=lambda year: (
+            'title:("%s") AND mediatype:audio' % year)),
     )
     toronto = types.SimpleNamespace(
         genres=mock.Mock(return_value=[{"genre": "jungle", "label": "Jungle"}]),
@@ -1330,12 +1359,57 @@ def fake_modules():
         target=mock.Mock(return_value="plugin://plugin.audio.mixcloud/?mode=40&key=x"),
     )
     live = types.SimpleNamespace(is_live_stream=mock.Mock(return_value=False))
+    nowplaying = types.SimpleNamespace(
+        parse=mock.Mock(return_value={"venue": "Sanctuary"}))
+    routes = types.SimpleNamespace(
+        classic_filters=mock.Mock(return_value=[
+            {"id": "dreamscape", "name": "Dreamscape",
+             "query": 'title:(dreamscape) AND mediatype:audio',
+             "plot": "Dreamscape packs", "art": "dreamscape.png",
+             "fanart": "fanart-hub-packs.jpg"},
+            {"id": "kool", "name": "Kool FM",
+             "query": "collection:ravetapes AND Kool",
+             "live_name": "Kool", "plot": "Kool FM sets",
+             "art": "kool.png", "fanart": "fanart-hub-packs.jpg"},
+        ]),
+        classic_raves=mock.Mock(return_value=[
+            {"name": "Sanctuary", "slug": "sanctuary",
+             "query": 'title:(sanctuary) AND mediatype:audio',
+             "archive_query": 'title:(sanctuary) AND mediatype:audio',
+             "mixcloud_query": "sanctuary", "count": 12,
+             "mixcloud_count": 2}]),
+        classic_radio_sections=mock.Mock(return_value=[
+            {"key": "jungle", "label": "Jungle", "tag": "jungle",
+             "art": "radio-jungle.png", "plot": "Live jungle stations"}]),
+        classic_archive_sections=mock.Mock(return_value=[
+            {"key": "tapepacks", "label": "Every Pack",
+             "query": '"tape pack" AND mediatype:audio',
+             "art": "tapepacks-all.png", "plot": "Every pack"}]),
+        classic_years=mock.Mock(return_value=[2026, 2025]),
+    )
+    legacyblog = types.SimpleNamespace(
+        MAX_POSTS=500,
+        source=mock.Mock(side_effect=lambda key: {
+            "id": key, "name": "Mikus Musik" if key == "mikus"
+            else "Demodulated Mixtapes"}),
+        posts=mock.Mock(return_value=[
+            {"title": "Blog Set", "page_url": "https://blog.test/post",
+             "date": "2026-01-01", "summary": "A set",
+             "media_urls": ["https://blog.test/preview.mp3"],
+             "mixcloud_urls": ["https://www.mixcloud.com/mikus/set/"]}]),
+        post=mock.Mock(return_value={
+            "title": "Blog Set", "page_url": "https://blog.test/post",
+            "date": "2026-01-01", "summary": "A set",
+            "media_urls": ["https://blog.test/preview.mp3"],
+            "mixcloud_urls": ["https://www.mixcloud.com/mikus/set/"]}),
+    )
     addon = types.SimpleNamespace(getAddonInfo=mock.Mock(return_value="3.9.51"))
     return types.SimpleNamespace(
         root=ROOT, archive=archive, latest=latest, toronto=toronto, legacy=legacy,
         radio=radio, http=http, favourites=favourites, downloads=downloads,
         feeds=feeds, dnbradio=dnbradio, moxser=moxser, hardscore=hardscore,
         getdarker=getdarker, pirate=pirate, handoff=handoff, live=live,
+        nowplaying=nowplaying, routes=routes, legacyblog=legacyblog,
         addon=addon, kodi=types.SimpleNamespace(), ui=types.SimpleNamespace())
 
 
@@ -1344,15 +1418,16 @@ class DataTests(unittest.TestCase):
         return RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN,
                         **kwargs)
 
-    def test_home_rows_are_the_eleven_rooms(self):
+    def test_home_rows_are_the_thirteen_rooms(self):
         data = self.data()
         labels = [row.label for row in data.home_rows()]
         self.assertEqual(labels, [
-            "Latest", "Toronto Rave Mixtape Archive", "JungleTapes.com",
-            "RaveTapePacks.com", "Live Radio", "Mixes & Shows", "Search",
-            "Favourites", "Downloads", "About", "Spinning Surprise",
+            "Latest", "Tape Packs", "Toronto Rave Mixtape Archive",
+            "JungleTapes.com", "RaveTapePacks.com", "Pirate Radio",
+            "Live Radio", "Mixes & Shows", "Search", "Favourites",
+            "Downloads", "About", "Spinning Surprise",
         ])
-        self.assertEqual(len(labels), 11)
+        self.assertEqual(len(labels), 13)
         self.assertTrue(all(row.art for row in data.home_rows()))
         self.assertTrue(data.home_rows()[0].hero.endswith("fanart-latest.jpg"))
         self.assertTrue(data.home_rows()[-1].hero.endswith("fanart-surprise.jpg"))
@@ -1363,8 +1438,8 @@ class DataTests(unittest.TestCase):
         data = self.data()
         rows = data.home_rows()
         self.assertEqual([row.code for row in rows], [
-            "RP-01", "RP-19", "RP-27", "RP-03", "RP-31", "RP-32",
-            "RP-33", "RP-34", "RP-35", "RP-36", "RP-02",
+            "RP-01", "RP-37", "RP-19", "RP-27", "RP-03", "RP-38",
+            "RP-31", "RP-32", "RP-33", "RP-34", "RP-35", "RP-36", "RP-02",
         ])
         for row in rows:
             with self.subTest(row=row.label):
@@ -1494,9 +1569,86 @@ class DataTests(unittest.TestCase):
         labels = [row.label for row in data.section_entries("mixes")]
         self.assertEqual(labels, [
             "DNBRADIO Shows", "Podcasts & Mixes", "Moxser", "Hardscore",
-            "GetDarker", "Pirate Radio Archives"])
+            "GetDarker", "Pirate Radio Archives", "Mikus Musik",
+            "Demodulated Mixtapes"])
         dnb = data.entries_for(data.section_entries("mixes")[0])
         self.assertEqual(dnb[0].kind, "dnb_show")
+
+    def test_packs_room_reaches_every_classic_tape_destination(self):
+        data = self.data()
+        rows = data.section_entries("packs")
+        self.assertEqual([row.label for row in rows], [
+            "Toronto Rave Mixtape Archive", "JungleTapes.com",
+            "RaveTapePacks.com", "Classic Pack Series",
+            "By Rave, Venue & Promoter", "By Year", "Every Pack"])
+        self.assertEqual([row.target for row in rows], [
+            "toronto", "jungletapes", "ravetapepacks", "filters", "raves",
+            "packs_years", "tapepacks"])
+        self.assertEqual([row.kind for row in rows], [
+            "section", "section", "section", "filter_index", "rave_index",
+            "year_index", "archive_search"])
+
+    def test_pirate_room_reaches_hardscore_archives_and_kool(self):
+        data = self.data()
+        rows = data.section_entries("pirate")
+        self.assertEqual([row.label for row in rows],
+                         ["Hardscore", "Pirate Radio Archives", "Kool FM Sets"])
+        self.assertEqual([row.target for row in rows],
+                         ["hardscore_source", "pirate_source", "kool"])
+        hardscore = data.entries_for(rows[0])
+        self.assertEqual(hardscore[0].kind, "hardscore_post")
+        archives = data.entries_for(rows[1])
+        self.assertEqual(archives[0].kind, "track")
+        kool = data.entries_for(rows[2])
+        pack = next(row for row in kool if row.kind == "pack")
+        self.assertEqual(pack.target, "found-1")
+
+    def test_classic_pack_series_and_rave_and_year_children(self):
+        data = self.data()
+        series = data.children(data.section_entries("packs")[3], 1, 50)
+        self.assertEqual(series.rows[0].label, "Dreamscape")
+        self.assertEqual(series.rows[0].kind, "filter")
+        dreamscape = data.children(series.rows[0], 1, 50)
+        self.assertEqual(dreamscape.rows[0].kind, "pack")
+        self.assertEqual(dreamscape.rows[0].target, "found-1")
+        kool = data.children(series.rows[1], 1, 50)
+        self.assertEqual(kool.rows[0].kind, "filter_live")
+        live = data.children(kool.rows[0], 1, 50)
+        self.assertEqual(live.rows[0].kind, "track")
+        self.assertTrue(live.rows[0].track.live)
+        raves = data.children(data.section_entries("packs")[4], 1, 50)
+        self.assertEqual(raves.rows[0].label, "Sanctuary")
+        rave = data.children(raves.rows[0], 1, 50)
+        self.assertEqual(rave.rows[0].kind, "pack")
+        years = data.children(data.section_entries("packs")[5], 1, 50)
+        self.assertEqual([row.label for row in years.rows], ["2026", "2025"])
+        year = data.children(years.rows[0], 1, 50)
+        self.assertEqual(year.rows[0].kind, "pack")
+        every = data.children(data.section_entries("packs")[6], 1, 50)
+        self.assertEqual(every.rows[0].kind, "pack")
+
+    def test_live_genre_children_are_playable_live_rows(self):
+        data = self.data()
+        data.modules.radio.stations = mock.Mock(return_value=[
+            {"name": "Jungle Station", "url_resolved": "https://live.test/jungle",
+             "favicon": ""}])
+        tags = data.room("live_tags", 1, 25)
+        self.assertEqual(tags.rows[0].label, "Jungle")
+        page = data.children(tags.rows[0], 1, 50)
+        self.assertEqual(page.rows[0].label, "Jungle Station")
+        self.assertTrue(page.rows[0].track.live)
+        self.assertEqual(page.rows[0].track.station, "Jungle Station")
+
+    def test_blog_sources_list_posts_and_media(self):
+        data = self.data()
+        mixes = data.section_entries("mixes")
+        mikus = next(row for row in mixes if row.label == "Mikus Musik")
+        posts = data.children(mikus, 1, 50)
+        self.assertEqual(posts.rows[0].kind, "blog_post")
+        self.assertEqual(posts.rows[0].label, "Blog Set")
+        media = data.children(posts.rows[0], 1, 50)
+        self.assertEqual(media.rows[0].kind, "track")
+        self.assertEqual(media.rows[1].kind, "external")
 
     def test_spinner_frames_are_bundled_with_the_script(self):
         data = RaveData(modules=fake_modules(), root="/nonexistent",
@@ -1613,11 +1765,11 @@ class ManifestAndSkinTests(unittest.TestCase):
     def test_script_manifest_is_kodi_19_22_and_depends_on_the_plugin(self):
         root = ET.parse(os.path.join(SCREEN, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.raveplayer.ui")
-        self.assertEqual(root.get("version"), "3.9.60")
+        self.assertEqual(root.get("version"), "3.9.61")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
-        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.60")
+        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.61")
         extension = root.find("./extension[@point='xbmc.python.script']")
         self.assertIsNotNone(extension)
         self.assertEqual(extension.get("library"), "default.py")

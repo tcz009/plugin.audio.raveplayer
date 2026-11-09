@@ -59,6 +59,10 @@ ACTION_CANCEL = "cancel"   # stop an active DownloadQueue row
 # Not one of the seven shell actions: About links use it so a remote can still
 # open the project page.  A shell that does not handle it may ignore the row.
 ACTION_OPEN = "open"
+# About's escape hatch back to the plugin's original directory UI.  The shell
+# executes the plugin URL itself; no data is fetched by this module.
+ACTION_CLASSIC = "classic"
+CLASSIC_URL = "plugin://plugin.audio.raveplayer/?mode=classic_root"
 
 # The plugin setting offers exactly these; anything else (0, 75, a stale
 # profile) snaps to the nearest allowed size.  This is the "25/50/100" rule.
@@ -907,6 +911,18 @@ class LibraryScreens:
             self._about_row("Licence", info.licence or "GPL-3.0",
                             LICENCE_URL, icon, fanart,
                             "GNU General Public License v3.0 or later."),
+            Row(
+                label="Classic lists",
+                kind=KIND_ACTION,
+                fact=_fact("fallback"),
+                icon=icon,
+                fanart=fanart,
+                code=CODE_ABOUT,
+                payload={"action": ACTION_CLASSIC, "url": CLASSIC_URL},
+                subtitle="About & Sources",
+                plot="Open the original Kodi directory UI — every old menu "
+                     "is still there.",
+            ),
         ]
         for link in tuple(info.links or ()) + tuple(info.sources or ()):
             link = _link(link)

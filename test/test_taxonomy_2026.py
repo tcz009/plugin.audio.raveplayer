@@ -41,7 +41,8 @@ class TaxonomyContractTests(unittest.TestCase):
 
     def test_mixes_and_pirate_groups(self):
         self.assertEqual(labels(routes.shows_menu), [
-            "Podcasts & Mixes", "DNBRADIO", "GetDarker", "Moxser", "Back",
+            "Podcasts & Mixes", "DNBRADIO", "GetDarker", "Moxser",
+            "Mikus Musik", "Demodulated Mixtapes", "Back",
         ])
         self.assertEqual(labels(routes.pirate_radio), [
             "Hardscore", "Pirate Radio Archives", "Kool FM Sets", "Back",

@@ -46,16 +46,19 @@ class NewSourceRouteTests(unittest.TestCase):
         self.assertIn("mode=shows_menu", urls["Mixes & Shows"])
         self.assertIn("mode=radio_menu", urls["Live Radio"])
 
-    def test_shows_hub_is_the_four_living_feeds(self):
+    def test_shows_hub_is_the_six_living_sources(self):
         routes.shows_menu(1, {})
         self.assertEqual(self._labels(), [
-            "Podcasts & Mixes", "DNBRADIO", "GetDarker", "Moxser", "Back",
+            "Podcasts & Mixes", "DNBRADIO", "GetDarker", "Moxser",
+            "Mikus Musik", "Demodulated Mixtapes", "Back",
         ])
         urls = dict(zip(self._labels(), self._urls()))
         self.assertIn("mode=media_menu", urls["Podcasts & Mixes"])
         self.assertIn("mode=dnb_list", urls["DNBRADIO"])
         self.assertIn("mode=getdarker", urls["GetDarker"])
         self.assertIn("mode=moxser", urls["Moxser"])
+        self.assertIn("mode=legacy_blog", urls["Mikus Musik"])
+        self.assertIn("mode=legacy_blog", urls["Demodulated Mixtapes"])
 
     def test_tape_packs_hub_is_the_2026_order(self):
         routes.packs_menu(1, {})
@@ -266,6 +269,28 @@ class NewSourceRouteTests(unittest.TestCase):
             routes.getdarker_page(1, {"page": "https://getdarker.com/audio/sets/x/"})
         self.assertEqual(xbmcplugin.ITEMS, [])
         self.assertTrue(notify.called)
+
+    def test_legacy_blog_lists_posts_and_post_opens_media(self):
+        rows = [{"title": "Blog Set", "page_url": "https://blog.test/post",
+                 "date": "2026-01-01", "summary": "A set",
+                 "media_urls": ["https://archive.org/download/x/preview.mp3"],
+                 "mixcloud_urls": ["https://www.mixcloud.com/mikus/set/"]}]
+        with mock.patch.object(routes.legacyblog, "posts", return_value=rows):
+            routes.legacy_blog(1, {"source": "mikus"})
+        self.assertEqual(self._labels(), ["Blog Set  [COLOR gray](2026-01-01)[/COLOR]",
+                                          "Back"])
+        self.assertIn("mode=legacy_blog_post", self._urls()[0])
+        del xbmcplugin.ITEMS[:]
+        del xbmcplugin.CONTENT[:]
+        with mock.patch.object(routes.legacyblog, "post", return_value=rows[0]), \
+                mock.patch.object(routes.handoff, "available", return_value=True):
+            routes.legacy_blog_post(1, {
+                "source": "mikus", "page": "https://blog.test/post"})
+        urls = self._urls()
+        self.assertTrue(any("mode=play" in url and "preview.mp3" in url
+                            for url in urls))
+        self.assertTrue(any("plugin.audio.mixcloud" in url for url in urls))
+        self.assertFalse(any("mode=open_url" in url for url in urls))
 
     def _assert_no_raw_platform_url(self, items, allow_plugin=()):
         forbidden = ("mixcloud.com", "soundcloud.com", "youtube.com", "youtu.be")

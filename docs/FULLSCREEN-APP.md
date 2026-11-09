@@ -276,7 +276,7 @@ python3 -m unittest discover -s test        # 959 tests, OK (run 2×)
 
 Coverage added/updated in `test/test_rave_screen.py`:
 
-- room/data model (11 rooms, all source adapters, favourites/downloads/about);
+- room/data model (13 rooms since 3.9.61, all source adapters, favourites/downloads/about);
 - paging (local slice, server page, cursor, previous/next rows, Back focus);
 - in-window keyboard: typing, submit, results, Back restore;
 - context actions: play all/shuffle, download, favourite, rows-per-page;
@@ -311,7 +311,7 @@ checks report. The independent harness ran against the installed pair
 ### What passed on the device
 
 - Add-on pair enabled, versions and dependency satisfied (plugin 3.9.51 ≥ 3.9.51).
-- Home: 11 rooms discovered, first room focused, Surprise row present.
+- Home: 13 rooms discovered since 3.9.61, first room focused, Surprise row present.
 - Rooms: Latest, Toronto, JungleTapes (310 shows, Page 1 of 7), Live Radio,
   RaveTapePacks, Favourites, Downloads, About captured; room lists render with
   rows, hero, focus plate and footer.

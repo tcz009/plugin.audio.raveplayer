@@ -98,6 +98,31 @@ The menu renders are generated from the add-on's real ListItem output by
 `scripts/make-theme-shots.py`; the spinner preview is from
 `docs/SPINNER-3.9.19.md`. The download spinner is opt-in and defaults off; the stream-tuning spinner (3.9.34) defaults on and closes before playback starts. Surprise Me has a 1.2 s animated reveal in 3.9.35 (setting: Animate Surprise Me).
 
+### Full-screen app (3.9.61 parity)
+
+Since 3.9.51 the add-on opens the full-screen Rave Screen (the Rave Player UI
+script add-on) directly; the classic directory is the fallback. 3.9.61 makes
+the screen carry the whole classic tree:
+
+- **13 rooms** — Latest · Tape Packs · Toronto · JungleTapes · RaveTapePacks ·
+  Pirate Radio · Live Radio · Mixes & Shows · Search · Favourites · Downloads ·
+  About · Spinning Surprise.
+- **Tape Packs** — the three literal cassette sources, plus Classic Pack
+  Series, By Rave/Venue/Promoter, By Year and Every Pack.
+- **Pirate Radio** — Hardscore, Pirate Radio Archives and Kool FM Sets.
+- **Live Radio** — the three curated stations, Pirate Radio and the six scene
+  genre doors (Hardcore, Jungle, Drum & Bass, House, UK Garage, Dubstep &
+  Grime).
+- **Mixes & Shows** — Podcasts, DNBRADIO, GetDarker, Moxser, Hardscore,
+  Pirate Radio Archives, plus the restored 2014 blogs Mikus Musik and
+  Demodulated Mixtapes.
+- **About → Classic lists** launches the original plugin directory UI, so the
+  old menus remain reachable even from the screen.
+
+The reviewed destination-by-destination matrix is
+[`docs/PARITY-3.9.61.md`](docs/PARITY-3.9.61.md); the parity test fails if a
+classic page mode is added without a screen room, row or action.
+
 ### Kodi theme 2026 (3.9.16)
 
 The nine root rows, four hubs and key sources now carry their own sticker icon
@@ -268,9 +293,9 @@ A self-hosted **web version** (same sources, runs in Docker) lives at
 
 ## Install from the repository (recommended)
 
-Current release: **`plugin.audio.raveplayer` 3.9.59** with
-**`script.raveplayer.ui` 3.9.59** (the full-screen Rave app; the script requires
-the 3.9.59 plugin) and **`script.module.raveresolver` 1.1.0**.
+Current release: **`plugin.audio.raveplayer` 3.9.61** with
+**`script.raveplayer.ui` 3.9.61** (the full-screen Rave app; the script requires
+the 3.9.61 plugin) and **`script.module.raveresolver` 1.1.0**.
 
 Add the repository once, then Rave Player installs and updates itself.
 
@@ -308,7 +333,7 @@ for the wiring and merge notes, and
 
 Install it from the repository (Add-ons → Install from repository → Rave
 Player Repository → Program add-ons → Rave Resolver) or install
-`script.module.raveresolver-1.1.0.zip` directly. The 3.9.59 plugin declares
+`script.module.raveresolver-1.1.0.zip` directly. The 3.9.61 plugin declares
 the dependency, so Kodi installs the module first.
 
 ## Development
