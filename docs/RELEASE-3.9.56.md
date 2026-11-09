@@ -35,6 +35,8 @@ repository still installs the pair together.
 |---|---|
 | `dee9150` | Source, tests and version/changelog/README/PUBLISHING updates for all A/B fixes |
 | `2f2691f` | `docs/RELEASE-3.9.56.md` and the regenerated `repo/` artifacts |
+| `5053171` | Verification runs and commit ids recorded in the release notes |
+| `0b59f17` | Flock-error fallback hardening and the final `repo/` rebuild |
 
 ---
 
@@ -153,8 +155,8 @@ machine (Python 3.9.6). No device, network, ADB or Shield access was used.
 
 | Check | Result |
 |---|---|
-| Full suite (run 1) | **1166 tests, OK** in 22.4 s |
-| Full suite (run 2) | **1166 tests, OK** in 21.8 s |
+| Full suite (run 1) | **1166 tests, OK** in 21.8 s |
+| Full suite (run 2) | **1166 tests, OK** in 22.2 s |
 | `./scripts/build-repo.sh` | plugin 3.9.56, screen 3.9.56, resolver 1.1.0, repository 1.0.0 |
 | `./scripts/check-repo-artifacts.sh` | pass after committing the regenerated `repo/` |
 | Plugin zip | `dist/plugin.audio.raveplayer-3.9.56.zip`, 9,097,250 B, SHA-256 `4f174e4e2b6dc27b6521cea35b31a5e56353b3cfa06e143aa7c0ccdafc6dd7d2` |
