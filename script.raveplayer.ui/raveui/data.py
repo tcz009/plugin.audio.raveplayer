@@ -285,6 +285,25 @@ class RaveData(object):
             return self._script_root
 
     # ------------------------------------------------------------------ art
+    def _web_art(self, value, fallback=""):
+        """Use the add-on's local icon for a web /static/art URL.
+
+        Kodi's image loader has no web session, so a remote /static/art URL is
+        a 401 and paints the magenta placeholder.  The same icons ship in the
+        add-on, so map by basename and keep the remote URL only when there is
+        no local file.
+        """
+        text = str(value or "").replace("\\", "/")
+        marker = "/static/art/"
+        if marker in text:
+            name = text.split(marker, 1)[1].split("?", 1)[0].split("#", 1)[0]
+            name = name.rsplit("/", 1)[-1]
+            if name and not name.startswith("."):
+                local = self._art(name)
+                if local:
+                    return local
+        return text or fallback
+
     def _art(self, name):
         key = str(name or "")
         cached = self._art_cache.get(key)
@@ -1429,7 +1448,7 @@ class RaveData(object):
             fact = _fact(row.get("fact") or page_data.get("noun") or "set", "set")
             downloadable = bool(download_source and row.get("download")
                                 and self._downloadable(url, download_source))
-            row_art = _text(row.get("art"), art)
+            row_art = self._web_art(row.get("art"), art)
             track = Track(
                 title, label, url, row_art, live=False, source=track_source,
                 download_source=download_source if downloadable else "",
