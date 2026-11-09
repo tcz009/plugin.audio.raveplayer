@@ -1,3 +1,35 @@
+Rave Resolver 1.1.1 — hardening
+- Typed /api/resolve failures: map the web's `code` and `Retry-After` onto
+  NotFound / RateLimited / ProviderTimeout / ProviderError / BlockedURL /
+  InvalidURL / UnsupportedURL / ServiceAuthError instead of a generic
+  ServiceError.  A 3xx answer is refused (the service client follows no
+  redirects) and an error body is never echoed into an exception.
+- Cache safety: cached Mediafire/Drive URLs are re-checked against their own
+  `expires_at` and the cache TTL is clamped to it, so a 2 h entry cannot serve
+  an expired signed URL.  The Mediafire negative cache drops from 5 min to the
+  web's 15 s and is pruned/capped (128).  The JSON cache is bounded (512
+  entries / 64 MiB), writes 0600 files and `clear()` only deletes its own
+  hashed entries.
+- Ports: media/provider/Mega URLs accept only 80/443; the operator-configured
+  service base keeps any port (LAN :8080 still works).
+- Redirects: the HTTP client follows none by default.  Drive opts in to at
+  most 3 revalidated, allowlisted hops; Mediafire refuses every 3xx.
+- SSRF: service results are DNS-checked (already) and in-process adapter
+  results are re-validated for scheme/port/private-literal host; headers from
+  any adapter are sanitised (24 headers / 8 KiB, printable values, no
+  credentials/framing/Content-Type) before they reach Kodi.
+- Host parity: pdcn.co is recognised as Podomatic and canonicalised locally;
+  mega.io is a Mega host; drive.usercontent.google.com is a direct download,
+  not a Drive page.  Single-label and .localdomain hosts are refused.
+- Service base: bare `host:port` is accepted (`http://` assumed).  A bad /
+  link-local / cloud-metadata base leaves `service=None` and keeps Mediafire,
+  Drive, Podomatic and direct usable; the plugin retries instead of caching a
+  permanent import failure.  Link-local (169.254/16, fe80::/10) and metadata
+  endpoints are refused even though private LAN/Tailscale bases are allowed.
+- MegaLink.as_dict() no longer exposes the fragment key or URL.
+- Tests: offline Kodi-stub coverage for every mapping, expiry/negative/cache
+  bound, port/redirect/SSRF/header policy and host classification; no network.
+
 Rave Resolver 1.1.0
 - Web resolver 1.6.64 contract: parse `source`, `expires` (epoch) and
   `stream` in /api/resolve responses, and keep accepting the older

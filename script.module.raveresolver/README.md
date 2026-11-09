@@ -3,9 +3,9 @@
 Shared resolver SDK for **Rave Player** on Kodi 20 (Nexus) through Kodi 22
 (Piers). It turns provider page links into directly playable audio URLs.
 
-The plugin does not depend on this module yet. The 3.9.52 integration pass adds
-the `<import>` and calls it from `routes.play()`, `_play_tracks()` and
-downloads; see `docs/KODI-RESOLVER.md` in the plugin repo.
+The plugin requires this module (1.1.1 in 3.9.73) and calls it from
+`routes.play()`, `_play_tracks()` and downloads; see `docs/KODI-RESOLVER.md`
+in the plugin repo.
 
 ## What runs where
 
@@ -23,13 +23,13 @@ for direct, Mediafire or Drive.
 
 ## Install
 
-Install the module zip (`script.module.raveresolver-1.1.0.zip`) from the Rave
+Install the module zip (`script.module.raveresolver-1.1.1.zip`) from the Rave
 Player repository, or add it as a dependency of `plugin.audio.raveplayer`:
 
 ```xml
 <requires>
     <import addon="xbmc.python" version="3.0.1"/>
-    <import addon="script.module.raveresolver" version="1.1.0"/>
+    <import addon="script.module.raveresolver" version="1.1.1"/>
 </requires>
 ```
 
@@ -134,6 +134,11 @@ From the plugin repo root:
 ## Version history
 
 See `changelog.txt`. Version 1.0.0 was the first Kodi-installable module.
-Version 1.1.0 adds the web 1.6.64 service contract: `source`/`expires`/`stream`
+Version 1.1.1 is the 3.9.73 hardening release: typed service error codes,
+cached-expiry clamps, 80/443-only media ports, default no-redirect HTTP, DNS
+checks for absolute web results, `pdcn.co`/`mega.io`/`drive.usercontent` host
+parity, bare `host:port` service bases, bounded cache/negative state and
+sanitised headers.  Version 1.1.0 added the web 1.6.64 service contract:
+`source`/`expires`/`stream`
 parsing, the absolute Mega stream URL, and Bearer-or-cookie auth. The plugin
 routes are intentionally unchanged until the integration pass.

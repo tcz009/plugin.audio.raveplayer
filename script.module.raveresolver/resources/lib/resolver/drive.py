@@ -81,13 +81,15 @@ class DriveAdapter(Adapter):
         if not wanted:
             raise InvalidURL("unknown Google Drive file")
         key = "drive:v1:" + wanted
+        now = self._clock()
         if self.cache is not None:
             cached = self.cache.get(key)
             if cached is not MISSING and isinstance(cached, dict):
                 value = str(cached.get("url") or "")
-                if value:
+                expires_at = _float(cached.get("expires_at"))
+                if value and (expires_at is None or expires_at > now):
                     return Resolution(value, provider=self.name,
-                                      expires_at=cached.get("expires_at"))
+                                      expires_at=expires_at)
         try:
             direct = self._resolve_unlocked(wanted)
         except ResolveError:
@@ -97,8 +99,9 @@ class DriveAdapter(Adapter):
                              % type(exc).__name__)
         expires_at = self._clock() + self.ttl
         if self.cache is not None:
+            lifetime = max(1, int(min(self.ttl, expires_at - self._clock())))
             self.cache.put(key, {"url": direct, "expires_at": expires_at},
-                           ttl=self.ttl)
+                           ttl=lifetime)
         return Resolution(direct, provider=self.name, expires_at=expires_at)
 
     def _probe(self, url):
@@ -112,7 +115,8 @@ class DriveAdapter(Adapter):
                     "Range": "bytes=0-%d" % (MAX_PROBE_BYTES - 1),
                 },
                 max_bytes=MAX_PROBE_BYTES,
-                allowed_hosts=GOOGLE_HOSTS)
+                allowed_hosts=GOOGLE_HOSTS,
+                allow_redirects=True, max_redirects=3)
         except BlockedURL:
             raise
         except Exception as exc:  # noqa: BLE001
@@ -234,3 +238,10 @@ def parse_confirm_form(body):
     if not policy.host_matches(parts.hostname, ("google.com",)):
         return ""
     return action_url + "?" + urllib.parse.urlencode(params)
+
+
+def _float(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None

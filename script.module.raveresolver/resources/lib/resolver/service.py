@@ -50,33 +50,55 @@ import time
 import urllib.parse
 
 from . import policy
-from .base import (NotFound, ProviderError, Resolution, ServiceAuthError,
-                   ServiceError, ServiceProtocolError)
-from .http import HttpTransportError
+from .base import (BlockedURL, InvalidURL, NotFound, ProviderError,
+                   ProviderTimeout, RateLimited, Resolution, ServiceAuthError,
+                   ServiceError, ServiceProtocolError, UnsupportedURL)
+from .http import HttpTransportError, retry_after_seconds
 
 DEFAULT_PATH = "/api/resolve"
 DEFAULT_COOKIE_NAME = "raveplayer_session"
 MAX_RESPONSE_BYTES = 1024 * 1024
 MAX_STREAM_PATH = 8192
-_DROP_HEADERS = frozenset(("authorization", "proxy-authorization", "host",
-                           "cookie", "set-cookie", "content-length",
-                           "transfer-encoding", "connection"))
+MAX_RETRY_AFTER = 120
 _UNSAFE_PATH_RE = re.compile(r"[\x00-\x1f\x7f]")
+_CODE_RE = re.compile(r"^[a-z][a-z0-9_-]{0,39}$")
+
+
+def _service_base_parts(base_url):
+    """Parse ``base_url`` for the operator-configured service.
+
+    A bare ``host:port`` is accepted (``http://`` is assumed), matching the
+    plugin's ``webapi.normalise_base``.  The service base is the one URL that
+    may use a non-80/443 port, but link-local and cloud-metadata targets are
+    still refused: the request carries the Bearer token.
+    """
+    text = str(base_url or "").strip()
+    if (not text or len(text) > 8192
+            or any(char in text for char in ("\r", "\n", "\x00", "\x7f"))):
+        raise ServiceError("resolver_service_url is not a valid http(s) URL")
+    if "://" not in text:
+        text = "http://" + text
+    parts = policy.split_url(text, allowed_ports=None)
+    if parts is None:
+        raise ServiceError("resolver_service_url is not a valid http(s) URL")
+    if parts.query or parts.fragment:
+        raise ServiceError("resolver_service_url must not carry a query/fragment")
+    if policy.service_host_blocked(parts.hostname):
+        raise ServiceError(
+            "resolver_service_url must not point at a link-local or "
+            "metadata address")
+    return parts
 
 
 def endpoint(base_url):
     """Return the validated ``.../api/resolve`` endpoint for ``base_url``.
 
-    Accepts ``http://nas:8080`` (the common LAN case), a reverse-proxy prefix
-    such as ``https://rave.example/resolver``, or an already-complete
-    ``.../api/resolve`` URL.  Credentials in the URL are refused so the token
-    has one place to live.
+    Accepts ``nas:8080`` or ``http://nas:8080`` (the common LAN case), a
+    reverse-proxy prefix such as ``https://rave.example/resolver``, or an
+    already-complete ``.../api/resolve`` URL.  Credentials in the URL are
+    refused so the token has one place to live.
     """
-    parts = policy.split_url(base_url)
-    if parts is None:
-        raise ServiceError("resolver_service_url is not a valid http(s) URL")
-    if parts.query or parts.fragment:
-        raise ServiceError("resolver_service_url must not carry a query/fragment")
+    parts = _service_base_parts(base_url)
     path = (parts.path or "").rstrip("/")
     if path.endswith(DEFAULT_PATH):
         final_path = path
@@ -96,11 +118,7 @@ def stream_base(base_url):
     on the configured base (``https://rave.example/resolver``) is preserved so
     the media URL is ``https://rave.example/resolver/api/mega/stream?...``.
     """
-    parts = policy.split_url(base_url)
-    if parts is None:
-        raise ServiceError("resolver_service_url is not a valid http(s) URL")
-    if parts.query or parts.fragment:
-        raise ServiceError("resolver_service_url must not carry a query/fragment")
+    parts = _service_base_parts(base_url)
     path = (parts.path or "").rstrip("/")
     if path.endswith(DEFAULT_PATH):
         path = path[:-len(DEFAULT_PATH)]
@@ -196,20 +214,20 @@ class ServiceClient(object):
                                % type(exc).__name__)
 
         status = int(getattr(response, "status", 0) or 0)
-        if status in (401, 403):
-            raise ServiceAuthError(
-                "the resolver service rejected the configured credentials")
-        if status in (404, 410):
-            raise NotFound("the resolver service has no stream for that URL")
         if status < 200 or status >= 300:
-            raise ServiceError("the resolver service returned HTTP %s" % status)
+            _raise_service_error(response, status)
 
         payload = _json_body(response)
         if payload is None:
             raise ServiceProtocolError(
                 "the resolver service returned invalid JSON")
         if payload.get("ok") is False:
-            raise ServiceError("the resolver service could not resolve that URL")
+            error = _typed_error(_error_code(payload),
+                                 _retry_after(response, payload))
+            if error is not None:
+                raise error
+            raise ServiceError(
+                "the resolver service could not resolve that URL")
         result = payload
         for key in ("result", "data"):
             if isinstance(result.get(key), dict):
@@ -292,9 +310,11 @@ class ServiceClient(object):
             (base.scheme, base.netloc, path, parts.query, ""))
         try:
             # allow_private: the service base is operator-configured and is
-            # normally a LAN/Tailscale address.  Media hosts are not involved.
+            # normally a LAN/Tailscale address.  allowed_ports=None keeps a
+            # non-standard service port; media hosts are not involved.
             return policy.check_url(
-                absolute, allow_private=True, resolve_dns=False)
+                absolute, allow_private=True, resolve_dns=False,
+                allowed_ports=None)
         except Exception:  # noqa: BLE001
             raise ServiceProtocolError(
                 "the resolver service returned an invalid MEGA stream URL")
@@ -307,6 +327,102 @@ def _source_name(result, requested=None):
         if isinstance(value, str) and value.strip():
             return value.strip().lower()
     return str(requested or "").strip().lower()
+
+
+def _error_code(payload):
+    """The web's stable error ``code`` from a top-level or nested payload."""
+    if not isinstance(payload, dict):
+        return ""
+    for candidate in (payload, payload.get("result"), payload.get("data")):
+        if not isinstance(candidate, dict):
+            continue
+        value = candidate.get("code")
+        if isinstance(value, str):
+            text = value.strip().lower()
+            if _CODE_RE.match(text):
+                return text
+    return ""
+
+
+def _retry_after(response, payload):
+    """Numeric/date ``Retry-After`` header, then a JSON ``retry_after``."""
+    retry = retry_after_seconds(
+        getattr(response, "headers", {}), default=None,
+        maximum=MAX_RETRY_AFTER)
+    if retry is not None:
+        return retry
+    if not isinstance(payload, dict):
+        return None
+    for candidate in (payload, payload.get("result"), payload.get("data")):
+        if not isinstance(candidate, dict):
+            continue
+        for key in ("retry_after", "retryAfter"):
+            value = candidate.get(key)
+            try:
+                seconds = int(float(value))
+            except (TypeError, ValueError):
+                continue
+            return max(1, min(seconds, MAX_RETRY_AFTER))
+    return None
+
+
+def _typed_error(code, retry_after=None):
+    """Map a web error ``code`` to the SDK's typed exception, or ``None``."""
+    if not code:
+        return None
+    if code == "not_found":
+        return NotFound("the resolver service has no stream for that URL")
+    if code == "rate_limited":
+        return RateLimited(
+            "the resolver service is rate-limiting requests",
+            retry_after=retry_after)
+    if code == "timeout":
+        return ProviderTimeout("the resolver service timed out")
+    if code == "upstream":
+        return ProviderError("the resolver service could not reach the provider")
+    if code == "blocked":
+        return BlockedURL("the resolver service blocked that URL")
+    if code == "invalid":
+        return InvalidURL("the resolver service rejected that URL")
+    if code in ("unsupported", "unknown", "not_supported"):
+        return UnsupportedURL("the resolver service cannot resolve that source")
+    if code == "unauthorized":
+        return ServiceAuthError(
+            "the resolver service rejected the configured credentials")
+    return None
+
+
+def _raise_service_error(response, status):
+    """Raise a typed error for a non-2xx ``/api/resolve`` response.
+
+    The web returns HTTP 400 for policy failures and puts the specific reason
+    in the JSON ``code``; collapsing all of these into ``ServiceError`` would
+    discard the reason (and a 429's ``Retry-After``).
+    """
+    payload = _json_body(response)
+    code = _error_code(payload)
+    retry = _retry_after(response, payload or {})
+    if status in (401, 403):
+        raise ServiceAuthError(
+            "the resolver service rejected the configured credentials")
+    if status in (301, 302, 303, 307, 308):
+        raise ServiceProtocolError(
+            "the resolver service redirected unexpectedly")
+    error = _typed_error(code, retry)
+    if error is not None:
+        raise error
+    if status == 429:
+        raise RateLimited(
+            "the resolver service is rate-limiting requests",
+            retry_after=retry if retry is not None else 5)
+    if status == 504:
+        raise ProviderTimeout("the resolver service timed out")
+    if status in (404, 410):
+        raise NotFound("the resolver service has no stream for that URL")
+    if status in (502, 503):
+        raise ProviderError(
+            "the resolver service could not answer (HTTP %s)" % status)
+    raise ServiceError("the resolver service returned HTTP %s" % status)
 
 
 def _json_body(response):
@@ -389,16 +505,5 @@ def _size(value):
 
 
 def _safe_headers(value):
-    headers = {}
-    if not isinstance(value, dict):
-        return headers
-    for key, item in value.items():
-        name = str(key or "")
-        if not name or name.lower() in _DROP_HEADERS:
-            continue
-        if isinstance(item, (str, int, float)):
-            text = str(item)
-            if "\r" in text or "\n" in text or "\r" in name or "\n" in name:
-                continue
-            headers[name] = text
-    return headers
+    """Only media-request headers survive; see :func:`policy.sanitize_headers`."""
+    return policy.sanitize_headers(value)

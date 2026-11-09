@@ -29,11 +29,18 @@ AUDIO_EXTENSIONS = (".mp3", ".m4a", ".aac", ".ogg", ".oga", ".opus",
 # these trusted hosts (or a caller-supplied extra allowlist).
 PROVIDER_HOSTS = {
     "mediafire": ("mediafire.com",),
-    "drive": ("drive.google.com", "docs.google.com",
-              "drive.usercontent.google.com"),
-    "podomatic": ("podomatic.com",),
-    "mega": ("mega.nz", "mega.co.nz"),
+    # A Drive *file page* is drive.google.com/docs.google.com.  A
+    # drive.usercontent.google.com URL is the signed direct download, not a
+    # page, so the direct adapter owns it (audio extension + allowlist).
+    "drive": ("drive.google.com", "docs.google.com"),
+    "podomatic": ("podomatic.com", "pdcn.co"),
+    "mega": ("mega.nz", "mega.co.nz", "mega.io"),
 }
+
+# Media requests are web requests: only the standard http/https ports.  The
+# operator-configured resolver service base is the one exception and passes
+# ``allowed_ports=None`` explicitly (a LAN service often listens on :8080).
+MEDIA_PORTS = (80, 443)
 
 # Direct audio hosts the Rave Player sources actually use.  This is not meant
 # to be the whole internet: unknown public hosts return HostNotAllowed and the
@@ -60,13 +67,34 @@ DIRECT_HOSTS = (
 )
 
 _BLOCKED_HOST_SUFFIXES = (
-    ".local", ".localhost", ".internal", ".home.arpa", ".lan", ".test",
-    ".invalid", ".example", ".onion",
+    ".local", ".localhost", ".localdomain", ".internal", ".home.arpa",
+    ".lan", ".test", ".invalid", ".example", ".onion",
 )
+
+# Link-local/metadata endpoints that must never receive the resolver service
+# token, even though the service base is an explicit operator setting.  LAN
+# and Tailscale private addresses stay allowed.
+_METADATA_HOSTS = frozenset((
+    "metadata", "metadata.google.internal", "metadata.goog", "instance-data",
+    "metadata.azure.com",
+))
+_METADATA_IPV6 = "fd00:ec2::254"
 
 _HOST_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 _CONTROL_RE = re.compile(r"[\x00-\x20\x7f]")
 _MAX_URL = 8192
+_MAX_HEADERS = 24
+_MAX_HEADER_BYTES = 8192
+
+# Web resolver parity (W/base.py:49-64): response headers we replay to Kodi
+# must be a media request's own headers, never credentials or framing.
+_FORBIDDEN_HEADERS = frozenset((
+    "authorization", "proxy-authorization", "cookie", "set-cookie", "host",
+    "content-length", "content-type", "transfer-encoding", "connection",
+    "keep-alive", "proxy-connection", "upgrade", "te", "trailer",
+))
+_HEADER_NAME_RE = re.compile(r"^[A-Za-z0-9!#$%&'*+.^_`|~-]+$")
+_HEADER_VALUE_RE = re.compile(r"^[\x20-\x7e\x80-\xff\t]*$")
 
 
 def default_dns_resolver(host, port):
@@ -101,7 +129,40 @@ def local_hostname(host):
         return True
     if text == "localhost":
         return True
+    if "." not in text and ":" not in text:
+        # A dotless name is a LAN name (``nas``), never a public media host.
+        # IPv6 literals keep their colons and are checked as addresses.
+        return True
     return any(text.endswith(suffix) for suffix in _BLOCKED_HOST_SUFFIXES)
+
+
+def service_host_blocked(host):
+    """True for link-local / cloud-metadata service-base targets.
+
+    The resolver service URL is an explicit operator setting, so private and
+    Tailscale addresses are allowed.  Link-local (169.254/16, fe80::/10) and
+    known metadata endpoints are not: posting the Bearer token there would be
+    token exfiltration, not a resolver.
+    """
+    text = str(host or "").strip().strip("[]").rstrip(".").lower()
+    if not text:
+        return True
+    if text in _METADATA_HOSTS or any(
+            text.endswith("." + name) for name in _METADATA_HOSTS):
+        return True
+    try:
+        ip = ipaddress.ip_address(text)
+    except ValueError:
+        return False
+    if ip.version == 6 and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    return bool(
+        ip.is_link_local
+        or ip.is_unspecified
+        or ip.is_multicast
+        or (ip.version == 4 and ip.is_reserved)
+        or str(ip) == _METADATA_IPV6
+    )
 
 
 def host_is_blocked(host, port, resolver=None):
@@ -132,8 +193,13 @@ def host_is_blocked(host, port, resolver=None):
     return any(blocked_address(address) for address in addresses)
 
 
-def split_url(value):
-    """Return ``SplitResult`` for a conservative http(s) URL, or ``None``."""
+def split_url(value, allowed_ports=MEDIA_PORTS):
+    """Return ``SplitResult`` for a conservative http(s) URL, or ``None``.
+
+    ``allowed_ports`` defaults to :data:`MEDIA_PORTS` (80/443).  Only the
+    operator-configured service base passes ``None`` to keep an ephemeral LAN
+    port working.
+    """
     if not isinstance(value, str):
         return None
     text = value.strip()
@@ -161,8 +227,11 @@ def split_url(value):
         port = parts.port
     except ValueError:
         return None
-    if port is not None and not 1 <= port <= 65535:
-        return None
+    if port is not None:
+        if not 1 <= port <= 65535:
+            return None
+        if allowed_ports is not None and port not in tuple(allowed_ports):
+            return None
     return parts
 
 
@@ -224,16 +293,17 @@ def _normalise(parts):
 
 def check_url(value, allowed_hosts=None, require_audio=False,
               allow_private=False, resolve_dns=False, resolver=None,
-              extra_hosts=None):
+              extra_hosts=None, allowed_ports=MEDIA_PORTS):
     """Validate a URL and return its normalised form.
 
     Raises :class:`BlockedURL` for private/local targets, :class:`InvalidURL`
     for syntax errors and :class:`HostNotAllowed` when ``allowed_hosts`` is
-    supplied and the host is outside it.
+    supplied and the host is outside it.  Non-80/443 media ports are treated
+    as invalid syntax; only the service base opts out.
     """
     from .base import BlockedURL, HostNotAllowed, InvalidURL
 
-    parts = split_url(value)
+    parts = split_url(value, allowed_ports=allowed_ports)
     if parts is None:
         raise InvalidURL("not a public http(s) URL")
     host = (parts.hostname or "").lower().rstrip(".")
@@ -254,6 +324,37 @@ def check_url(value, allowed_hosts=None, require_audio=False,
     if require_audio and not is_audio_url(value):
         raise InvalidURL("that URL is not a direct audio file")
     return _normalise(parts)
+
+
+def sanitize_headers(value):
+    """Return only safe media-request headers from an untrusted mapping.
+
+    Mirrors the web resolver: at most 24 headers / 8 KiB, valid header-name
+    and printable-value syntax, and no credentials, framing or Content-Type.
+    A dropped header is safer than replaying it to Kodi.
+    """
+    headers = {}
+    total = 0
+    if not isinstance(value, dict):
+        return headers
+    for key, item in value.items():
+        if len(headers) >= _MAX_HEADERS:
+            break
+        name = str(key or "").strip()
+        if not name or len(name) > 256 or not _HEADER_NAME_RE.match(name):
+            continue
+        if name.lower() in _FORBIDDEN_HEADERS:
+            continue
+        if not isinstance(item, (str, int, float)):
+            continue
+        text = str(item).strip()
+        if not text or not _HEADER_VALUE_RE.match(text):
+            continue
+        if total + len(name) + len(text) > _MAX_HEADER_BYTES:
+            break
+        headers[name] = text
+        total += len(name) + len(text)
+    return headers
 
 
 def describe_url(value):

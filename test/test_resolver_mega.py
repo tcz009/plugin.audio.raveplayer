@@ -18,6 +18,7 @@ from resolver import Resolver  # noqa: E402
 from resolver.base import (AdapterNotReady, InvalidURL,  # noqa: E402
                            UnsupportedURL)
 from resolver.cache import Cache  # noqa: E402
+from resolver import policy  # noqa: E402
 from resolver.mega import MegaAdapter, MegaLink, parse_url  # noqa: E402
 from resolver_fakes import FakeHTTP, fake_dns, make_settings  # noqa: E402
 
@@ -65,10 +66,25 @@ class MegaParseTests(unittest.TestCase):
         with self.assertRaises(UnsupportedURL):
             parse_url("https://mega.nz/contact")
 
-    def test_repr_does_not_leak_key(self):
-        link = MegaLink("file", "abc12345", KEY, "https://mega.nz/file/x")
+    def test_repr_and_as_dict_do_not_leak_key(self):
+        link = MegaLink("file", "abc12345", KEY,
+                        "https://mega.nz/file/abc12345#" + KEY)
         self.assertNotIn(KEY, repr(link))
         self.assertIn("key=set", repr(link))
+        public = link.as_dict()
+        self.assertNotIn(KEY, repr(public))
+        self.assertNotIn("url", public)
+        self.assertEqual(public["has_key"], True)
+        other = MegaLink("file", "abc12345", "B" * 43,
+                         "https://mega.nz/file/abc12345#" + "B" * 43)
+        self.assertNotEqual(link, other)
+
+    def test_mega_io_is_a_mega_link(self):
+        link = parse_url("https://mega.io/file/abc12345#%s" % KEY)
+        self.assertEqual(link.kind, "file")
+        self.assertEqual(link.url, "https://mega.nz/file/abc12345#%s" % KEY)
+        self.assertEqual(policy.provider_for(
+            "https://mega.io/file/abc12345#%s" % KEY), "mega")
 
 
 class MegaAdapterTests(unittest.TestCase):

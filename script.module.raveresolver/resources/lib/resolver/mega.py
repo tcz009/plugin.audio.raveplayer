@@ -20,7 +20,7 @@ from . import policy
 from .base import (Adapter, AdapterNotReady, InvalidURL, ProviderError,
                    ResolveError, Resolution, UnsupportedURL)
 
-MEGA_HOSTS = ("mega.nz", "mega.co.nz")
+MEGA_HOSTS = ("mega.nz", "mega.co.nz", "mega.io")
 _HANDLE_RE = re.compile(r"^[A-Za-z0-9_-]{6,32}$")
 _KEY_RE = re.compile(r"^[A-Za-z0-9_=-]{16,128}$")
 
@@ -37,11 +37,21 @@ class MegaLink(object):
         self.url = str(url)
 
     def as_dict(self):
+        """A log-safe view: no fragment key and no URL (the URL embeds it).
+
+        Equality compares the private fields, so two links with different
+        keys remain distinct even though ``as_dict`` hides them.
+        """
         return {"kind": self.kind, "handle": self.handle,
-                "key": self.key, "url": self.url}
+                "has_key": bool(self.key)}
 
     def __eq__(self, other):
-        return isinstance(other, MegaLink) and self.as_dict() == other.as_dict()
+        return isinstance(other, MegaLink) and (
+            self.kind, self.handle, self.key, self.url
+        ) == (other.kind, other.handle, other.key, other.url)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __repr__(self):
         # The key is a decryption secret: never print it.

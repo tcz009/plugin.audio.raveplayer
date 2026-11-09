@@ -38,7 +38,7 @@ class ManifestTests(unittest.TestCase):
     def test_module_manifest_is_installable(self):
         root = ET.parse(os.path.join(MODULE, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.module.raveresolver")
-        self.assertEqual(root.get("version"), "1.1.0")
+        self.assertEqual(root.get("version"), "1.1.1")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
@@ -72,7 +72,7 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(rows["resolver_cache_ttl"].get("default"), "7200")
 
     def test_package_version_and_exports(self):
-        self.assertEqual(resolver.__version__, "1.1.0")
+        self.assertEqual(resolver.__version__, "1.1.1")
         for name in ("Resolver", "ResolveError", "Resolution", "InvalidURL",
                      "BlockedURL", "AdapterNotReady", "ServiceError"):
             self.assertTrue(hasattr(resolver, name), name)
@@ -152,6 +152,33 @@ class CacheTests(unittest.TestCase):
             handle.write("{not json")
         self.assertIs(cache.get(key), MISSING)
 
+    def test_memory_is_bounded(self):
+        cache = Cache(tempfile.mkdtemp(), ttl=60)
+        for index in range(600):
+            cache.put(cache.key("k", index), index, ttl=60)
+        self.assertLessEqual(len(cache._memory), 512)
+        self.assertIs(cache.get(cache.key("k", 0)), MISSING)
+        self.assertEqual(cache.get(cache.key("k", 599)), 599)
+
+    def test_clear_only_removes_own_entries(self):
+        directory = tempfile.mkdtemp()
+        cache = Cache(directory, ttl=60)
+        cache.put(cache.key("x"), "value", ttl=60)
+        unrelated = os.path.join(directory, "unrelated.json")
+        with open(unrelated, "w", encoding="utf-8") as handle:
+            handle.write("{}")
+        cache.clear()
+        self.assertTrue(os.path.exists(unrelated))
+        self.assertEqual(os.listdir(directory), ["unrelated.json"])
+
+    def test_entry_file_is_private(self):
+        directory = tempfile.mkdtemp()
+        cache = Cache(directory, ttl=60)
+        key = cache.key("x")
+        self.assertTrue(cache.put(key, {"url": "https://example.test/x.mp3"}))
+        mode = os.stat(cache.path_for(key)).st_mode & 0o777
+        self.assertEqual(mode, 0o600)
+
     def test_disabled_cache_is_a_miss(self):
         cache = Cache(tempfile.mkdtemp(), ttl=0)
         self.assertFalse(cache.enabled)
@@ -198,6 +225,66 @@ class PolicyTests(unittest.TestCase):
             with self.subTest(value=value):
                 with self.assertRaises(InvalidURL):
                     policy.check_url(value)
+
+    def test_media_ports_are_limited_to_80_and_443(self):
+        for value in ("https://archive.org:22/a.mp3",
+                      "http://mediafire.com:8080/file/abc/set.mp3",
+                      "https://mega.nz:8443/file/abc#key"):
+            with self.subTest(value=value):
+                with self.assertRaises(InvalidURL):
+                    policy.check_url(value)
+        self.assertEqual(
+            policy.check_url("http://archive.org:80/a.mp3"),
+            "http://archive.org:80/a.mp3")
+        self.assertEqual(
+            policy.check_url("https://archive.org:443/a.mp3"),
+            "https://archive.org:443/a.mp3")
+        # The operator service base is the one opt-out, handled by
+        # resolver.service.endpoint(); policy still rejects it by default.
+        self.assertIsNone(policy.split_url("http://nas:8080"))
+
+    def test_local_hostname_rejects_single_label_and_localdomain(self):
+        for value in ("http://nas/a.mp3", "http://printer.localdomain/a.mp3",
+                      "http://metadata.google.internal/x"):
+            with self.subTest(value=value):
+                with self.assertRaises(BlockedURL):
+                    policy.check_url(value)
+
+    def test_service_base_link_local_and_metadata_are_blocked(self):
+        for host in ("169.254.169.254", "0.0.0.0", "fe80::1",
+                     "fd00:ec2::254", "metadata.google.internal"):
+            with self.subTest(host=host):
+                self.assertTrue(policy.service_host_blocked(host))
+        for host in ("nas", "192.168.1.179", "127.0.0.1",
+                     "rave-nas.tail1234.ts.net", "rave.example"):
+            with self.subTest(host=host):
+                self.assertFalse(policy.service_host_blocked(host))
+
+    def test_headers_are_sanitised_like_the_web_resolver(self):
+        headers = policy.sanitize_headers({
+            "Referer": "https://www.mediafire.com/",
+            "Authorization": "Bearer secret",
+            "Cookie": "session=secret",
+            "Content-Type": "text/html",
+            "Host": "evil.example",
+            "X-Ok": "value",
+            "X-Number": 7,
+            "X-Crlf": "a\r\nInjected: yes",
+            "X-Blob": "x" * 9000,
+        })
+        self.assertEqual(headers.get("Referer"), "https://www.mediafire.com/")
+        self.assertEqual(headers.get("X-Ok"), "value")
+        self.assertEqual(headers.get("X-Number"), "7")
+        for dropped in ("Authorization", "Cookie", "Content-Type", "Host",
+                        "X-Crlf", "X-Blob"):
+            self.assertNotIn(dropped, headers)
+
+    def test_header_count_and_bytes_are_bounded(self):
+        many = {"X-%d" % index: "v" for index in range(40)}
+        self.assertLessEqual(len(policy.sanitize_headers(many)), 24)
+        big = {"X-A": "v" * 4000, "X-B": "v" * 4000, "X-C": "v" * 200}
+        cleaned = policy.sanitize_headers(big)
+        self.assertEqual(sorted(cleaned), ["X-A", "X-B"])
 
     def test_allowlist_rejects_unknown_public_host(self):
         with self.assertRaises(HostNotAllowed):
@@ -269,25 +356,63 @@ class _Opener(object):
 
 
 class HttpClientGuardTests(unittest.TestCase):
-    def test_redirect_to_private_is_blocked(self):
+    def test_redirect_to_private_is_blocked_when_following(self):
         error = urllib.error.HTTPError(
             "https://archive.org/a.mp3", 302, "Found",
             {"Location": "http://127.0.0.1/a.mp3"}, io.BytesIO(b""))
         client = HttpClient(dns_resolver=fake_dns, opener=_Opener([error]))
         with self.assertRaises(BlockedURL):
-            client.fetch("https://archive.org/a.mp3")
+            client.fetch("https://archive.org/a.mp3", allow_redirects=True)
 
-    def test_public_redirect_is_followed(self):
+    def test_redirects_are_not_followed_by_default(self):
+        error = urllib.error.HTTPError(
+            "https://archive.org/a.mp3", 302, "Found",
+            {"Location": "https://archive.org/b.mp3"}, io.BytesIO(b""))
+        opener = _Opener([error])
+        client = HttpClient(dns_resolver=fake_dns, opener=opener)
+        response = client.fetch("https://archive.org/a.mp3")
+        self.assertEqual(response.status, 302)
+        self.assertEqual(len(opener.calls), 1)
+
+    def test_public_redirect_is_followed_when_explicit(self):
         error = urllib.error.HTTPError(
             "https://archive.org/a.mp3", 302, "Found",
             {"Location": "https://archive.org/b.mp3"}, io.BytesIO(b""))
         opener = _Opener([error, _OpenerResponse(
             b"ok", url="https://archive.org/b.mp3")])
         client = HttpClient(dns_resolver=fake_dns, opener=opener)
-        response = client.fetch("https://archive.org/a.mp3")
+        response = client.fetch("https://archive.org/a.mp3",
+                                allow_redirects=True)
         self.assertEqual(response.body, b"ok")
         self.assertEqual(response.final_url, "https://archive.org/b.mp3")
         self.assertEqual(len(opener.calls), 2)
+
+    def test_redirect_to_an_off_allowlist_host_is_refused(self):
+        error = urllib.error.HTTPError(
+            "https://archive.org/a.mp3", 302, "Found",
+            {"Location": "https://other.org/b.mp3"}, io.BytesIO(b""))
+        client = HttpClient(dns_resolver=fake_dns, opener=_Opener([error]))
+        with self.assertRaises(HostNotAllowed):
+            client.fetch("https://archive.org/a.mp3", allow_redirects=True,
+                         allowed_hosts=("archive.org",))
+
+    def test_redirect_chain_is_capped_at_three(self):
+        def hop(url):
+            return urllib.error.HTTPError(
+                url, 302, "Found",
+                {"Location": "https://archive.org/next"},
+                io.BytesIO(b""))
+        opener = _Opener([hop("https://archive.org/a"),
+                          hop("https://archive.org/next"),
+                          hop("https://archive.org/next"),
+                          hop("https://archive.org/next")])
+        client = HttpClient(dns_resolver=fake_dns, opener=opener)
+        response = client.fetch("https://archive.org/a",
+                                allow_redirects=True)
+        # Three hops followed; the fourth 302 is returned to the caller
+        # rather than followed.
+        self.assertEqual(response.status, 302)
+        self.assertEqual(len(opener.calls), 4)
 
     def test_private_service_host_can_be_explicitly_allowed(self):
         opener = _Opener([_OpenerResponse(b"{}", url="http://nas.local:8080/x")])

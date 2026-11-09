@@ -14,9 +14,11 @@ disk must fall back to an empty cache and never break playback.
 import hashlib
 import json
 import os
+import re
 import tempfile
 import threading
 import time
+from collections import OrderedDict
 
 try:  # kept importable outside Kodi
     import xbmcvfs
@@ -25,7 +27,10 @@ except Exception:  # pragma: no cover - only in odd embedded builds
 
 VERSION = 1
 MAX_ENTRY_BYTES = 512 * 1024
+MAX_ENTRIES = 512
+MAX_DIR_BYTES = 64 * 1024 * 1024
 DEFAULT_TTL = 2 * 60 * 60
+_ENTRY_RE = re.compile(r"^[0-9a-f]{64}\.(?:json|tmp)$")
 
 
 class _Missing(object):
@@ -68,7 +73,7 @@ class Cache(object):
         self.enabled = bool(enabled) and self.ttl > 0
         self._clock = clock or time.time
         self._lock = threading.RLock()
-        self._memory = {}
+        self._memory = OrderedDict()
 
     def key(self, *parts):
         raw = "\x1f".join(str(part) for part in parts)
@@ -95,6 +100,7 @@ class Cache(object):
             record = self._memory.get(key)
             if record is not None:
                 if record["expires"] > self._clock():
+                    self._memory.move_to_end(key)
                     return record["value"]
                 self._memory.pop(key, None)
         path = self.path_for(key)
@@ -128,6 +134,9 @@ class Cache(object):
         expires = self._clock() + lifetime
         with self._lock:
             self._memory[key] = {"value": value, "expires": expires}
+            self._memory.move_to_end(key)
+            while len(self._memory) > MAX_ENTRIES:
+                self._memory.popitem(last=False)
         if not self._ensure_directory():
             return False
         path = self.path_for(key)
@@ -136,7 +145,14 @@ class Cache(object):
         try:
             with open(temporary, "w", encoding="utf-8") as handle:
                 json.dump(payload, handle, ensure_ascii=False)
+            try:
+                # Signed provider URLs are credentials: keep the cache
+                # readable only by the Kodi process, not by every local user.
+                os.chmod(temporary, 0o600)
+            except OSError:
+                pass
             os.replace(temporary, path)
+            self._prune_disk()
             return True
         except (OSError, TypeError, ValueError):
             self._remove(temporary)
@@ -148,7 +164,12 @@ class Cache(object):
         self._remove(self.path_for(key))
 
     def clear(self):
-        """Remove every JSON entry in the cache directory (best effort)."""
+        """Remove only this cache's own entries (best effort).
+
+        A configured ``resolver_cache_dir`` may be shared or point at the
+        Kodi temp root; deleting every ``.json``/``.tmp`` there would remove
+        unrelated add-on state.
+        """
         with self._lock:
             self._memory.clear()
         try:
@@ -156,8 +177,33 @@ class Cache(object):
         except OSError:
             return
         for name in names:
-            if name.endswith(".json") or name.endswith(".tmp"):
+            if _ENTRY_RE.match(name):
                 self._remove(os.path.join(self.directory, name))
+
+    def _prune_disk(self):
+        """Keep the directory under the entry and byte caps (best effort)."""
+        try:
+            names = os.listdir(self.directory)
+        except OSError:
+            return
+        entries = []
+        for name in names:
+            if not _ENTRY_RE.match(name) or not name.endswith(".json"):
+                continue
+            path = os.path.join(self.directory, name)
+            try:
+                stat = os.stat(path)
+            except OSError:
+                continue
+            entries.append((stat.st_mtime, stat.st_size, path))
+        entries.sort(reverse=True)
+        total = 0
+        kept = 0
+        for _mtime, size, path in entries:
+            total += size
+            kept += 1
+            if kept > MAX_ENTRIES or total > MAX_DIR_BYTES:
+                self._remove(path)
 
     @staticmethod
     def _remove(path):

@@ -13,7 +13,8 @@ sent to the service: a remote resolver must not become an SSRF bypass.
 """
 
 from . import policy
-from .base import InvalidURL, ResolveError, UnsupportedURL
+from .base import (InvalidURL, ProviderError, Resolution, ResolveError,
+                   UnsupportedURL)
 from .cache import Cache
 from .direct import DirectAdapter
 from .drive import DriveAdapter
@@ -61,9 +62,18 @@ class Resolver(object):
         elif service is not None:
             self.service = service
         else:
-            self.service = ServiceClient.from_settings(
-                self.settings, self.http, logger=self.logger,
-                dns_resolver=dns_resolver)
+            # A bad resolver_service_url/token must never disable the
+            # in-process adapters (Mediafire/Drive keep working offline).
+            # Configuration failures are logged once per construction and a
+            # later settings change can build a fresh Resolver.
+            try:
+                self.service = ServiceClient.from_settings(
+                    self.settings, self.http, logger=self.logger,
+                    dns_resolver=dns_resolver)
+            except Exception as exc:  # noqa: BLE001 - playback must not break
+                self.service = None
+                self.logger.warning(
+                    "resolver service disabled (%s)" % type(exc).__name__)
 
     # ------------------------------------------------------------- selection
     def provider_for(self, url):
@@ -97,6 +107,21 @@ class Resolver(object):
             names.append("service")
         return names
 
+    def _validated(self, result):
+        """Sanitise headers and reject a non-public adapter result.
+
+        Web's service validates every adapter result; in-process adapters hit
+        the network themselves, so a provider/parser bug or a native adapter
+        could otherwise hand Kodi a private URL or replay untrusted headers.
+        DNS is not repeated here (the adapter already connected); syntax,
+        port 80/443 and literal private/local targets are re-checked.
+        """
+        if not isinstance(result, Resolution):
+            raise ProviderError("the resolver returned no resolution")
+        result.headers = policy.sanitize_headers(result.headers)
+        policy.check_url(result.url, resolve_dns=False)
+        return result
+
     # --------------------------------------------------------------- resolve
     def resolve(self, url, provider=None, use_service=True):
         """Resolve one URL to a :class:`Resolution`.
@@ -114,7 +139,7 @@ class Resolver(object):
             adapter = self.adapter_for(url, name)
         if adapter is not None:
             try:
-                return adapter.resolve(url)
+                return self._validated(adapter.resolve(url))
             except ResolveError as exc:
                 primary = exc
                 self.logger.debug("in-process %s failed: %s"

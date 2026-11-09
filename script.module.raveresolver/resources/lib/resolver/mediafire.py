@@ -12,7 +12,6 @@ never logged.
 """
 
 import base64
-import email.utils
 import html
 import re
 import threading
@@ -23,11 +22,15 @@ from . import policy
 from .base import (Adapter, BlockedURL, InvalidURL, NotFound, ProviderError,
                    RateLimited, Resolution, UnsupportedURL)
 from .cache import MISSING
+from .http import retry_after_seconds
 
 MEDIAFIRE_HOSTS = ("mediafire.com",)
 PAGE_PREFIXES = ("/file/", "/download/")
 TTL = 2 * 60 * 60
-NEGATIVE_TTL = 5 * 60
+# Web parity: a definitive negative answer is cached for 15 s only.  Five
+# minutes turned a transient 5xx into a playback outage and kept 429s too long.
+NEGATIVE_TTL = 15
+MAX_NEGATIVE = 128
 MIN_GAP = 1.2
 MAX_PAGE_BYTES = 4 * 1024 * 1024
 MAX_BACKOFF = 120
@@ -71,12 +74,15 @@ class MediafireAdapter(Adapter):
         if signed:
             return self._direct(signed)
         key = "mediafire:v1:" + page
+        now = self._clock()
         cached = self.cache.get(key) if self.cache is not None else MISSING
         if cached is not MISSING and isinstance(cached, dict):
             value = str(cached.get("url") or "")
-            if value:
+            expires_at = _float(cached.get("expires_at"))
+            # A 2 h cache entry must never outlive the signed URL it stores.
+            if value and (expires_at is None or expires_at > now):
                 return Resolution(value, provider=self.name,
-                                  expires_at=cached.get("expires_at"))
+                                  expires_at=expires_at)
         with self._lock:
             now = self._monotonic()
             negative = self._negative.get(key)
@@ -108,7 +114,9 @@ class MediafireAdapter(Adapter):
 
             status = int(getattr(response, "status", 0) or 0)
             if status == 429:
-                retry_after = _retry_after(getattr(response, "headers", {}))
+                retry_after = retry_after_seconds(
+                    getattr(response, "headers", {}), default=5,
+                    maximum=MAX_BACKOFF)
                 self._backoff_until = self._monotonic() + retry_after
                 error = RateLimited(
                     "Mediafire is rate-limiting requests; try again in %d seconds"
@@ -120,6 +128,7 @@ class MediafireAdapter(Adapter):
                 self._remember_negative(key, error)
                 raise error
             if status < 200 or status >= 300:
+                # 3xx included: redirects are not followed (web parity).
                 error = ProviderError("Mediafire returned HTTP %s" % status)
                 self._remember_negative(key, error)
                 raise error
@@ -134,7 +143,8 @@ class MediafireAdapter(Adapter):
             expires_at = self._clock() + self.ttl
             record = {"url": value, "expires_at": expires_at}
             if self.cache is not None:
-                self.cache.put(key, record, ttl=self.ttl)
+                lifetime = max(1, int(min(self.ttl, expires_at - self._clock())))
+                self.cache.put(key, record, ttl=lifetime)
             return Resolution(value, provider=self.name,
                               expires_at=expires_at)
 
@@ -150,8 +160,20 @@ class MediafireAdapter(Adapter):
             self._sleep(wait)
 
     def _remember_negative(self, key, error):
-        self._negative[key] = (self._monotonic() + self.negative_ttl,
-                               error)
+        now = self._monotonic()
+        # Prune expired entries first, then cap the dict: a play-all of
+        # hundreds of failing URLs must not grow this forever.
+        for stale in [name for name, value in self._negative.items()
+                      if value[0] <= now]:
+            self._negative.pop(stale, None)
+        if key not in self._negative and len(self._negative) >= MAX_NEGATIVE:
+            try:
+                oldest = min(self._negative, key=lambda name: self._negative[name][0])
+            except ValueError:
+                oldest = None
+            if oldest is not None:
+                self._negative.pop(oldest, None)
+        self._negative[key] = (now + self.negative_ttl, error)
 
 
 def clean_page_url(value):
@@ -227,23 +249,8 @@ def signed_url_from_page(body):
     return ""
 
 
-def _retry_after(headers):
-    value = ""
-    for key, header_value in (headers or {}).items():
-        if str(key).lower() == "retry-after":
-            value = str(header_value or "").strip()
-            break
-    if not value:
-        return 5
+def _float(value):
     try:
-        return max(1, min(MAX_BACKOFF, int(float(value))))
+        return float(value)
     except (TypeError, ValueError):
-        pass
-    try:
-        when = email.utils.parsedate_to_datetime(value)
-        import datetime
-
-        now = datetime.datetime.now(datetime.timezone.utc)
-        return max(1, min(MAX_BACKOFF, int((when - now).total_seconds())))
-    except (TypeError, ValueError, OverflowError):
-        return 5
+        return None

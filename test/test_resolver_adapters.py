@@ -19,17 +19,19 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(MODULE, "resources", "lib"))
 sys.path.insert(0, HERE)
 
-from resolver import Resolver  # noqa: E402
+from resolver import Resolver, policy  # noqa: E402
 from resolver.base import (AdapterNotReady, BlockedURL, HostNotAllowed,  # noqa: E402
                            InvalidURL, NotFound, ProviderError, RateLimited,
-                           UnsupportedURL)
+                           Resolution, UnsupportedURL)
 from resolver.cache import Cache  # noqa: E402
 from resolver.direct import DirectAdapter  # noqa: E402
 from resolver.drive import (DriveNotAudio, DriveAdapter, UnknownDriveFile,  # noqa: E402
                             file_id, parse_confirm_form, view_url)
-from resolver.mediafire import (MediafireAdapter, clean_page_url,  # noqa: E402
+from resolver.mediafire import (MAX_NEGATIVE, NEGATIVE_TTL,  # noqa: E402
+                                MediafireAdapter, clean_page_url,
                                 signed_url_from_page)
-from resolver.podomatic import PodomaticAdapter  # noqa: E402
+from resolver.podomatic import (PodomaticAdapter, canonical_url,  # noqa: E402
+                                is_podomatic_url)
 from resolver_fakes import (FakeHTTP, RecordingLogger, fake_dns,  # noqa: E402
                             make_settings, response)
 
@@ -38,6 +40,51 @@ def build(http=None, settings=None, **kwargs):
     return Resolver(settings=settings or make_settings(), http=http,
                     cache=Cache(tempfile.mkdtemp(), ttl=300),
                     dns_resolver=fake_dns, service=False, **kwargs)
+
+
+class StubMediafireAdapter(object):
+    """A misbehaving adapter used to prove the manager validates results."""
+
+    name = "mediafire"
+
+    def __init__(self, resolution):
+        self.resolution = resolution
+
+    def matches(self, _url):
+        return True
+
+    def resolve(self, _url):
+        return self.resolution
+
+
+class ManagerValidationTests(unittest.TestCase):
+    PAGE = "https://www.mediafire.com/file/abc/set.mp3"
+
+    def resolver(self, resolution):
+        return Resolver(settings=make_settings(), service=False,
+                        adapters=[StubMediafireAdapter(resolution)])
+
+    def test_private_adapter_result_is_blocked(self):
+        resolver = self.resolver(Resolution("http://192.168.1.5/secret.mp3"))
+        with self.assertRaises(BlockedURL):
+            resolver.resolve(self.PAGE)
+
+    def test_non_standard_adapter_port_is_rejected(self):
+        resolver = self.resolver(
+            Resolution("https://download1.mediafire.com:8080/x.mp3"))
+        with self.assertRaises(InvalidURL):
+            resolver.resolve(self.PAGE)
+
+    def test_adapter_headers_are_sanitised(self):
+        resolver = self.resolver(Resolution(
+            "https://download1.mediafire.com/x.mp3",
+            headers={"Referer": "https://www.mediafire.com/",
+                     "Authorization": "Bearer secret",
+                     "Content-Type": "text/html",
+                     "X-Ok": "yes"}))
+        result = resolver.resolve(self.PAGE)
+        self.assertEqual(result.headers, {"Referer": "https://www.mediafire.com/",
+                                          "X-Ok": "yes"})
 
 
 class SelectionTests(unittest.TestCase):
@@ -178,6 +225,47 @@ class MediafireTests(unittest.TestCase):
         with self.assertRaises(ProviderError):
             self.adapter(http).resolve(self.PAGE)
 
+    def test_expired_cache_entry_is_refetched(self):
+        now = [1000.0]
+        http = FakeHTTP([
+            response('<a href="%s">x</a>' % self.SIGNED, url=self.PAGE),
+            response('<a href="%s">x</a>' % self.SIGNED, url=self.PAGE),
+        ])
+        adapter = self.adapter(http, clock=lambda: now[0])
+        adapter.resolve(self.PAGE)
+        now[0] += adapter.ttl + 1
+        result = adapter.resolve(self.PAGE)
+        self.assertEqual(result.url, self.SIGNED)
+        self.assertEqual(http.count("fetch"), 2)
+
+    def test_negative_cache_is_15_seconds_and_bounded(self):
+        self.assertEqual(NEGATIVE_TTL, 15)
+        self.assertEqual(MAX_NEGATIVE, 128)
+        now = [100.0]
+        http = FakeHTTP([
+            response("", status=404, url=self.PAGE),
+            response('<a href="%s">x</a>' % self.SIGNED, url=self.PAGE),
+        ])
+        adapter = self.adapter(http, clock=lambda: now[0],
+                               monotonic=lambda: now[0])
+        with self.assertRaises(NotFound):
+            adapter.resolve(self.PAGE)
+        with self.assertRaises(NotFound):
+            adapter.resolve(self.PAGE)
+        self.assertEqual(http.count("fetch"), 1)
+        now[0] += 16
+        self.assertEqual(adapter.resolve(self.PAGE).url, self.SIGNED)
+        self.assertEqual(http.count("fetch"), 2)
+
+    def test_negative_state_is_bounded(self):
+        pages = ["https://www.mediafire.com/file/%d/x" % index
+                 for index in range(MAX_NEGATIVE + 20)]
+        http = FakeHTTP([response("", status=404) for _page in pages])
+        adapter = self.adapter(http)
+        for page in pages:
+            with self.assertRaises(NotFound):
+                adapter.resolve(page)
+        self.assertLessEqual(len(adapter._negative), MAX_NEGATIVE)
     def test_non_mediafire_url_is_rejected(self):
         with self.assertRaises(InvalidURL):
             clean_page_url("https://example.com/file/abc/x.mp3")
@@ -238,6 +326,30 @@ class DriveTests(unittest.TestCase):
         adapter.resolve(self.URL)
         self.assertEqual(http.count("fetch"), 1)
 
+    def test_usercontent_download_is_not_a_drive_page(self):
+        download = ("https://drive.usercontent.google.com/download"
+                    "?id=abcdefghij1234567890&export=download")
+        self.assertFalse(DriveAdapter(FakeHTTP([]), Cache(tempfile.mkdtemp(), ttl=1)).matches(download))
+        self.assertNotEqual(policy.provider_for(download), "drive")
+        direct = ("https://drive.usercontent.google.com/download/"
+                  "set.mp3?id=abcdefghij1234567890")
+        self.assertEqual(policy.provider_for(direct), "direct")
+
+    def test_expired_cache_entry_is_refetched(self):
+        now = [1000.0]
+        http = FakeHTTP([
+            response(b"", headers={"Content-Type": "audio/mpeg"},
+                     url=self.DIRECT),
+            response(b"", headers={"Content-Type": "audio/mpeg"},
+                     url=self.DIRECT),
+        ])
+        adapter = DriveAdapter(http, Cache(tempfile.mkdtemp(), ttl=300),
+                               clock=lambda: now[0])
+        adapter.resolve(self.URL)
+        now[0] += adapter.ttl + 1
+        self.assertEqual(adapter.resolve(self.URL).url, self.DIRECT)
+        self.assertEqual(http.count("fetch"), 2)
+
     def test_404_and_non_audio(self):
         with self.assertRaises(UnknownDriveFile):
             self.adapter(FakeHTTP([response("", status=404)])).resolve(self.URL)
@@ -280,6 +392,30 @@ class PodomaticTests(unittest.TestCase):
         adapter = PodomaticAdapter()
         with self.assertRaises(InvalidURL):
             adapter.resolve("https://example.com/episode.mp3")
+
+    def test_pdcn_wrapper_is_canonicalised_locally(self):
+        wrapped = ("https://pdcn.co/e/https%3A%2F%2Fshow.podomatic.com"
+                   "%2Fenclosure%2F2026-01-01.mp3%3F_%3D1")
+        self.assertTrue(is_podomatic_url(wrapped))
+        self.assertEqual(canonical_url(wrapped),
+                         "https://show.podomatic.com/enclosure/2026-01-01.mp3?_=1")
+        result = PodomaticAdapter().resolve(wrapped)
+        self.assertEqual(result.provider, "podomatic")
+        self.assertEqual(result.url,
+                         "https://show.podomatic.com/enclosure/2026-01-01.mp3?_=1")
+        self.assertNotIn("pdcn.co", result.url)
+
+    def test_pdcn_plain_form_and_rejections(self):
+        self.assertEqual(
+            canonical_url("https://pdcn.co/e/show.podomatic.com/enclosure/x.mp3"),
+            "https://show.podomatic.com/enclosure/x.mp3")
+        bad = ("https://pdcn.co/e/https%3A%2F%2Fevil.example%2Fx.mp3",
+               "https://pdcn.co/not-e/show.podomatic.com/enclosure/x.mp3",
+               "https://pdcn.co/e/https%3A%2F%2Fshow.podomatic.com%2Fpodcasts%2F1")
+        for value in bad:
+            with self.subTest(value=value):
+                with self.assertRaises(Exception):
+                    PodomaticAdapter().resolve(value)
 
 
 if __name__ == "__main__":

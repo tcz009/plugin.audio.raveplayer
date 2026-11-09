@@ -10,6 +10,8 @@ The service adapter sets ``allow_private=True`` for its operator-configured
 NAS URL.  That flag is never used for media URLs.
 """
 
+import datetime
+import email.utils
 import gzip
 import urllib.error
 import urllib.parse
@@ -21,8 +23,35 @@ from . import policy
 USER_AGENT = "RaveResolver/1.0 (Kodi; +https://github.com/tcz009/plugin.audio.raveplayer)"
 DEFAULT_TIMEOUT = 20
 DEFAULT_MAX_BYTES = 4 * 1024 * 1024
-MAX_REDIRECTS = 5
+# Redirects are opt-in (Drive only) and capped at three allowlisted hops.
+MAX_REDIRECTS = 3
 REDIRECT_CODES = (301, 302, 303, 307, 308)
+
+
+def retry_after_seconds(headers, default=5, maximum=120):
+    """Parse a numeric/date ``Retry-After`` header, bounded and never raising.
+
+    ``default`` is returned when the header is absent or unusable; pass
+    ``None`` to let a caller fall back to another source (for example a JSON
+    body's ``retry_after``).
+    """
+    value = ""
+    for key, header_value in (headers or {}).items():
+        if str(key).lower() == "retry-after":
+            value = str(header_value or "").strip()
+            break
+    if not value:
+        return default
+    try:
+        return max(1, min(int(float(value)), int(maximum)))
+    except (TypeError, ValueError, OverflowError):
+        pass
+    try:
+        when = email.utils.parsedate_to_datetime(value)
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return max(1, min(int((when - now).total_seconds()), int(maximum)))
+    except (TypeError, ValueError, OverflowError, AttributeError):
+        return default
 
 
 class HttpTransportError(Exception):
@@ -86,21 +115,30 @@ class HttpClient(object):
             _NoRedirectHandler())
 
     def fetch(self, url, timeout=None, headers=None, max_bytes=None,
-              allowed_hosts=None, allow_private=False, allow_redirects=True,
-              extra_hosts=None):
+              allowed_hosts=None, allow_private=False, allow_redirects=False,
+              extra_hosts=None, max_redirects=MAX_REDIRECTS):
         return self.request("GET", url, timeout=timeout, headers=headers,
                             max_bytes=max_bytes, allowed_hosts=allowed_hosts,
                             allow_private=allow_private,
                             allow_redirects=allow_redirects,
-                            extra_hosts=extra_hosts)
+                            extra_hosts=extra_hosts,
+                            max_redirects=max_redirects)
 
     def request(self, method, url, timeout=None, headers=None, body=None,
                 max_bytes=None, allowed_hosts=None, allow_private=False,
-                allow_redirects=True, extra_hosts=None):
-        """Perform one guarded request and return :class:`HttpResponse`."""
+                allow_redirects=False, extra_hosts=None,
+                max_redirects=MAX_REDIRECTS):
+        """Perform one guarded request and return :class:`HttpResponse`.
+
+        Redirects are **not** followed unless the caller opts in (Drive's
+        allowlisted hop loop).  Each followed hop is re-validated against the
+        same host allowlist and DNS policy, and the chain is capped at
+        ``max_redirects``.
+        """
         method = str(method or "GET").upper()
         cap = int(max_bytes or self.max_bytes)
         current = str(url or "").strip()
+        hops = max(0, int(max_redirects)) if allow_redirects else 0
         request_headers = {
             "User-Agent": USER_AGENT,
             "Accept": "*/*",
@@ -113,12 +151,13 @@ class HttpClient(object):
                 str(key).lower() == "content-type" for key in request_headers):
             request_headers["Content-Type"] = "application/json"
 
-        for hop in range(MAX_REDIRECTS + 1):
+        for hop in range(hops + 1):
             try:
                 policy.check_url(
                     current, allowed_hosts=allowed_hosts,
                     allow_private=allow_private, resolve_dns=False,
-                    extra_hosts=extra_hosts)
+                    extra_hosts=extra_hosts,
+                    allowed_ports=None if allow_private else policy.MEDIA_PORTS)
             except Exception:
                 raise
             if not allow_private:
@@ -145,7 +184,7 @@ class HttpClient(object):
                 final_url = str(exc.geturl() or current)
                 location = _header(response_headers, "Location")
                 if (allow_redirects and status in REDIRECT_CODES and location
-                        and hop < MAX_REDIRECTS):
+                        and hop < hops):
                     try:
                         exc.close()
                     except Exception:  # noqa: BLE001
@@ -177,7 +216,7 @@ class HttpClient(object):
 
             if (allow_redirects and status in REDIRECT_CODES
                     and _header(response_headers, "Location")
-                    and hop < MAX_REDIRECTS):
+                    and hop < hops):
                 current = urllib.parse.urljoin(
                     final_url, _header(response_headers, "Location"))
                 continue
