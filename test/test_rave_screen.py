@@ -8,6 +8,7 @@ through the stub base class.
 
 import ast
 import itertools
+import json
 import os
 import sys
 import tempfile
@@ -2249,6 +2250,30 @@ class DownloadQueueTests(unittest.TestCase):
             time.sleep(0.01)
         return False
 
+    def wait_store(self, path, predicate, timeout=2.0):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                with open(path, encoding="utf-8") as handle:
+                    value = json.load(handle)
+            except (OSError, ValueError):
+                time.sleep(0.01)
+                continue
+            rows = value.get("rows") if isinstance(value, dict) else value
+            if predicate(rows or []):
+                return True
+            time.sleep(0.01)
+        return False
+
+    def wait_idle(self, queue, timeout=2.0):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            with queue._lock:
+                if not queue._running:
+                    return True
+            time.sleep(0.01)
+        return False
+
     def test_download_progress_row_then_completion(self):
         modules = self.modules()
         queue = DownloadQueue(modules=modules)
@@ -2303,6 +2328,10 @@ class DownloadQueueTests(unittest.TestCase):
             queue.start("https://x/1.mp3", "Set", "Archive.org", key="k")
             self.assertTrue(self.wait(
                 queue, lambda rows: rows and rows[0]["percent"] == 42))
+            # progress() updates memory before the worker persists it; wait
+            # for the durable row so the next owner cannot read 0.
+            self.assertTrue(self.wait_store(
+                path, lambda rows: rows and rows[0]["percent"] == 42))
             next_owner = DownloadQueue(store_path=path)
             rows = next_owner.rows()
             self.assertEqual(len(rows), 1)
@@ -2314,6 +2343,7 @@ class DownloadQueueTests(unittest.TestCase):
             release.set()
             self.assertTrue(self.wait(
                 queue, lambda rows: rows and rows[0]["status"] == "failed"))
+            self.assertTrue(self.wait_idle(queue))
 
     def test_window_queue_defers_transfer_to_the_headless_owner(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -2451,6 +2481,7 @@ class DownloadQueueTests(unittest.TestCase):
                                 for line in builtins))
             release.set()
             self.assertTrue(self.wait(queue, lambda rows: not rows))
+            self.assertTrue(self.wait_idle(queue))
 
     def test_two_writers_keep_every_store_snapshot_valid(self):
         """The window and headless owner write the same file concurrently."""

@@ -85,9 +85,12 @@ re-create a row the owner had completed/removed.
 - owner drain and a cross-process queued-cancel retry that actually downloads.
 
 The `DownloadQueueTests` in `test/test_rave_screen.py` were updated for the
-conservative rule (no delete) and for the new store package format. The full
-suite (`python3 -m unittest discover -s test`) ran twice on this tree:
-**1186 tests, OK** in both runs.
+conservative rule (no delete) and for the new store package format. Two
+pre-existing timing flakes were made deterministic: the interrupted-row test
+now waits for the durable store before loading the next owner, and the worker
+tests wait for the worker thread to finish before the temp directory is
+removed. The full suite (`python3 -m unittest discover -s test`) ran twice on
+this tree: **1186 tests, OK** in both runs.
 
 ## Known limits
 
