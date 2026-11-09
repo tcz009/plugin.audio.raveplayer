@@ -28,6 +28,11 @@ import xbmcgui
 PLUGIN = "plugin://plugin.audio.raveplayer/"
 PLUGIN_ID = "plugin.audio.raveplayer"
 
+# The web service's session-only proxy paths.  A saved/old Track.path that
+# still carries one of these relative paths is signed by web_play at play
+# time; handing it to Kodi raw would 401.
+WEB_STREAM_PREFIXES = ("/api/ezgarage/", "/api/ukraves/")
+
 
 @dataclass
 class PlaybackResult:
@@ -36,10 +41,27 @@ class PlaybackResult:
     count: int = 1
 
 
+def _default_dns_guard(url):
+    """Play-time public-host check using the plugin's shared helper.
+
+    The app and the plugin ship together, so importing the plugin's HTTP
+    helper here is safe.  If the bridge is temporarily unavailable we let the
+    ``mode=web_play`` wrapper (which repeats the check) decide; that keeps
+    playback working without weakening the plugin route.
+    """
+    try:
+        from . import pluginbridge
+
+        return bool(pluginbridge.load_plugin().http.is_public_http_url_dns(url))
+    except Exception:  # noqa: BLE001 - bridge unavailable: wrapper still guards
+        return True
+
+
 class PlaybackService(object):
-    def __init__(self, xbmc_module=None, xbmcgui_module=None):
+    def __init__(self, xbmc_module=None, xbmcgui_module=None, dns_guard=None):
         self.xbmc = xbmc_module or xbmc
         self.xbmcgui = xbmcgui_module or xbmcgui
+        self._dns_guard = dns_guard
         self.last_url = ""
         self.calls = 0
         self.stops = 0
@@ -60,13 +82,59 @@ class PlaybackService(object):
         return PLUGIN + "?" + urllib.parse.urlencode(params)
 
     @staticmethod
-    def _is_direct(track):
-        path = str(getattr(track, "path", "") or "")
+    def _is_web_api_path(value):
+        """True for a relative EZ Garage / UK Raves signed-stream path."""
+        try:
+            path = urllib.parse.urlsplit(str(value or "")).path
+        except ValueError:
+            return False
+        return path.startswith(WEB_STREAM_PREFIXES)
+
+    def _web_play_path(self, track, raw):
+        """Build the plugin web_play wrapper for one raw web stream path."""
+        title = str(getattr(track, "title", "") or "Untitled")
+        params = {"mode": "web_play", "url": str(raw), "label": title}
+        art = str(getattr(track, "art", "") or "")
+        if art:
+            params["thumb"] = art
+        if getattr(track, "live", False):
+            params["live"] = 1
+            params["station"] = str(
+                getattr(track, "station", "") or getattr(track, "pack", "")
+                or title)
+        return PLUGIN + "?" + urllib.parse.urlencode(params)
+
+    def _safe_path(self, track):
+        """Return the only path this service may hand to Kodi's player.
+
+        Local downloads and ``plugin://`` hand-off/``web_play`` paths are
+        already safe.  A raw absolute http(s) ``Track.path`` (for example an
+        old paint-cache entry from before web rows were wrapped) and a
+        relative ``/api/.../stream`` path are routed through ``web_play`` so
+        the plugin applies its public-DNS guard and signs session streams.
+        A stale private absolute path is refused instead of played directly.
+        """
+        url = str(getattr(track, "url", "") or "").strip()
+        path = str(getattr(track, "path", "") or "").strip()
+        local = bool(getattr(track, "local", False)) or url.startswith(
+            "file://")
+        if local:
+            return path or url
         if path:
-            return True
-        if getattr(track, "local", False):
-            return True
-        return bool(str(getattr(track, "url", "") or "").startswith("file://"))
+            if path.startswith(("plugin://", "special://", "file://")):
+                return path
+            if self._is_web_api_path(path):
+                # Same-origin relative proxy path: web_play signs it and
+                # exempts the operator's own base from the public-DNS check.
+                return self._web_play_path(track, path)
+            parts = urllib.parse.urlsplit(path)
+            if parts.scheme.lower() in ("http", "https"):
+                guard = self._dns_guard or _default_dns_guard
+                if not guard(path):
+                    raise ValueError("web stream host is not public")
+                return self._web_play_path(track, path)
+            return path
+        return self._plugin_path(track)
 
     def _item(self, track, path):
         title = str(getattr(track, "title", "") or "Untitled")
@@ -98,13 +166,7 @@ class PlaybackService(object):
         url = str(getattr(track, "url", "") or "").strip()
         if not url:
             raise ValueError("empty stream URL")
-        path = str(getattr(track, "path", "") or "")
-        if path:
-            pass
-        elif getattr(track, "local", False) or url.startswith("file://"):
-            path = url
-        else:
-            path = self._plugin_path(track)
+        path = self._safe_path(track)
         item = self._item(track, path)
         playlist = self.xbmc.PlayList(self.xbmc.PLAYLIST_MUSIC)
         playlist.clear()
@@ -132,21 +194,29 @@ class PlaybackService(object):
         playlist = self.xbmc.PlayList(self.xbmc.PLAYLIST_MUSIC)
         playlist.clear()
         paths = []
+        played = []
+        skipped = 0
         for track in tracks:
-            url = str(getattr(track, "url", ""))
-            path = str(getattr(track, "path", "") or "")
-            if not path:
-                path = url if getattr(track, "local", False) or url.startswith("file://") \
-                    else self._plugin_path(track)
+            try:
+                path = self._safe_path(track)
+            except ValueError:
+                # A stale private absolute path must not poison the queue.
+                skipped += 1
+                continue
             playlist.add(path, self._item(track, path))
             paths.append(path)
+            played.append(track)
+        if not paths:
+            raise ValueError("empty collection")
         self.xbmc.Player().play(playlist)
-        self.last_url = str(getattr(tracks[0], "url", ""))
+        self.last_url = str(getattr(played[0], "url", ""))
         self.last_paths = paths
         self.calls += 1
-        first = str(getattr(tracks[0], "title", "") or "Untitled")
-        text = ("Shuffled %d tracks — %s" % (len(tracks), first)) if shuffle else \
-            ("Playing %d tracks — %s" % (len(tracks), first))
+        first = str(getattr(played[0], "title", "") or "Untitled")
+        text = ("Shuffled %d tracks — %s" % (len(paths), first)) if shuffle else \
+            ("Playing %d tracks — %s" % (len(paths), first))
+        if skipped:
+            text += " · %d skipped" % skipped
         return PlaybackResult(text, self.last_url, len(paths))
 
     def stop(self):

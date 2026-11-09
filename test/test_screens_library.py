@@ -494,6 +494,28 @@ class FavouritesTests(LibraryTestCase):
             self.assertEqual(row.fanart, "/art/fanart-favourites.jpg")
             self.assertNotIn("screen-bed", row.fanart)
 
+    def test_stale_file_favourite_is_a_remove_row_without_a_wrapper(self):
+        self.backend.favourite_rows = [
+            {"kind": "stream",
+             "target": "/api/ezgarage/old/file",
+             "title": "Old EZ file", "source": "EZ Garage Sets"},
+            {"kind": "stream",
+             "target": "/api/ezgarage/new/stream",
+             "title": "New EZ stream", "source": "EZ Garage Sets"},
+        ]
+        screen = self.screens.favourites(1)
+        stale, live = screen.rows
+        self.assertEqual(stale.kind, KIND_ACTION)
+        self.assertEqual(stale.payload["action"], ACTION_REMOVE)
+        self.assertEqual(stale.payload["target"], "/api/ezgarage/old/file")
+        self.assertNotIn("web_play", str(stale.payload))
+        self.assertEqual(stale.fact, "stale")
+        self.assertEqual(live.kind, KIND_TRACK)
+        self.assertTrue(live.payload["url"].startswith(
+            "plugin://plugin.audio.raveplayer/?mode=web_play"))
+        self.assertIn("url=%2Fapi%2Fezgarage%2Fnew%2Fstream",
+                      live.payload["url"])
+
     def test_pagination_covers_every_entry_once(self):
         self.backend.favourite_rows = [
             {"kind": "stream", "target": "https://x.test/%d.mp3" % index,

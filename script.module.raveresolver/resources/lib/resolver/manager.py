@@ -13,8 +13,8 @@ sent to the service: a remote resolver must not become an SSRF bypass.
 """
 
 from . import policy
-from .base import (InvalidURL, ProviderError, Resolution, ResolveError,
-                   UnsupportedURL)
+from .base import (InvalidURL, ProviderError, RateLimited, Resolution,
+                   ResolveError, UnsupportedURL)
 from .cache import Cache
 from .direct import DirectAdapter
 from .drive import DriveAdapter
@@ -23,7 +23,8 @@ from .log import Logger
 from .mediafire import MediafireAdapter
 from .mega import MegaAdapter
 from .podomatic import PodomaticAdapter
-from .service import ServiceClient
+from .ratelimit import DomainRateLimiter
+from .service import ServiceClient, ServiceResultCache
 from .settings import Settings
 
 _DEFAULT = None
@@ -34,7 +35,8 @@ class Resolver(object):
 
     def __init__(self, settings=None, http=None, cache=None, logger=None,
                  adapters=None, service=None, dns_resolver=None,
-                 extra_hosts=None, native_mega=None, native_podomatic=None):
+                 extra_hosts=None, native_mega=None, native_podomatic=None,
+                 limiter=None, service_cache=None):
         self.settings = settings or Settings()
         self.logger = logger or Logger(secrets=(self.settings.service_token,
                                                 self.settings.service_cookie))
@@ -45,6 +47,12 @@ class Resolver(object):
             dns_resolver=dns_resolver, logger=self.logger)
         self.cache = cache or Cache(
             self.settings.cache_dir, ttl=self.settings.cache_ttl)
+        # One limiter per resolver process: in-process adapters and the NAS
+        # fallback share the same per-registrable-domain token bucket.
+        self.limiter = limiter if limiter is not None else DomainRateLimiter()
+        # Bounded in-memory result cache + single-flight for /api/resolve.
+        self.service_cache = (service_cache if service_cache is not None
+                              else ServiceResultCache())
         if adapters is None:
             adapters = [
                 MediafireAdapter(self.http, self.cache, logger=self.logger),
@@ -69,7 +77,7 @@ class Resolver(object):
             try:
                 self.service = ServiceClient.from_settings(
                     self.settings, self.http, logger=self.logger,
-                    dns_resolver=dns_resolver)
+                    dns_resolver=dns_resolver, result_cache=self.service_cache)
             except Exception as exc:  # noqa: BLE001 - playback must not break
                 self.service = None
                 self.logger.warning(
@@ -137,9 +145,23 @@ class Resolver(object):
         adapter = None
         if name:
             adapter = self.adapter_for(url, name)
+        # Direct audio is a local allowlist/DNS check, not provider work:
+        # gating it would throttle a play-all of archive.org tracks.  Every
+        # provider adapter and the service fallback share one bucket per
+        # registrable domain.
+        gated = False
+        if adapter is not None and adapter.name != "direct":
+            gated = True
+            self._take_slot(url)
         if adapter is not None:
             try:
                 return self._validated(adapter.resolve(url))
+            except RateLimited as exc:
+                # A provider's 429 applies to the domain, not just this
+                # adapter: block the service fallback too.
+                self.limiter.block(url, exc.retry_after or 5)
+                exc.fallback = False
+                raise
             except ResolveError as exc:
                 primary = exc
                 self.logger.debug("in-process %s failed: %s"
@@ -152,9 +174,24 @@ class Resolver(object):
         if (not use_service or self.service is None or primary is None
                 or not primary.fallback):
             raise primary
+        if not gated:
+            self._take_slot(url)
         self.logger.debug("falling back to resolver service for %s"
                           % (name or "unknown"))
-        return self.service.resolve(url, provider=name or None)
+        try:
+            return self.service.resolve(url, provider=name or None)
+        except RateLimited as exc:
+            self.limiter.block(url, exc.retry_after or 5)
+            exc.fallback = False
+            raise
+
+    def _take_slot(self, url):
+        """Consume one token for ``url``'s domain or raise ``RateLimited``."""
+        retry = self.limiter.take(url)
+        if retry:
+            raise RateLimited(
+                "too many resolver requests for this host; retry shortly",
+                retry_after=retry, fallback=False)
 
     def resolve_url(self, url, provider=None, use_service=True):
         """Convenience returning a string, or ``""`` on any resolve failure."""

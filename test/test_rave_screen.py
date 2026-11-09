@@ -1862,11 +1862,11 @@ class ManifestAndSkinTests(unittest.TestCase):
     def test_script_manifest_is_kodi_19_22_and_depends_on_the_plugin(self):
         root = ET.parse(os.path.join(SCREEN, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.raveplayer.ui")
-        self.assertEqual(root.get("version"), "3.9.73")
+        self.assertEqual(root.get("version"), "3.9.74")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
-        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.73")
+        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.74")
         extension = root.find("./extension[@point='xbmc.python.script']")
         self.assertIsNotNone(extension)
         self.assertEqual(extension.get("library"), "default.py")
@@ -2840,6 +2840,72 @@ class PlaybackPolicyTests(unittest.TestCase):
         service = PlaybackService()
         self.assertTrue(service.stop())
         self.assertEqual(service.stops, 1)
+
+    def test_absolute_public_track_path_is_wrapped_not_played_raw(self):
+        guard = mock.Mock(return_value=True)
+        service = PlaybackService(dns_guard=guard)
+        track = Track("Web set", "20bensons.com",
+                      "https://20bensons.com/mp3/a.mp3",
+                      path="https://20bensons.com/mp3/a.mp3")
+        service.play(track)
+        path, _item = xbmc.PLAYED[0].items[0]
+        self.assertFalse(path.startswith("https://"))
+        self.assertTrue(path.startswith("plugin://plugin.audio.raveplayer/"))
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(path).query)
+        self.assertEqual(query["mode"], ["web_play"])
+        self.assertEqual(query["url"], ["https://20bensons.com/mp3/a.mp3"])
+        guard.assert_called_once_with("https://20bensons.com/mp3/a.mp3")
+
+    def test_private_absolute_track_path_is_refused_not_played(self):
+        service = PlaybackService(dns_guard=lambda _url: False)
+        track = Track("Bad", "Web", "https://evil.example/a.mp3",
+                      path="https://evil.example/a.mp3")
+        with self.assertRaises(ValueError):
+            service.play(track)
+        self.assertEqual(xbmc.PLAYED, [])
+
+    def test_relative_signed_web_path_goes_through_web_play(self):
+        guard = mock.Mock(side_effect=AssertionError("relative needs no DNS"))
+        service = PlaybackService(dns_guard=guard)
+        track = Track("EZ Set", "EZ Garage Sets",
+                      "http://nas:8097/api/ezgarage/abc/stream",
+                      path="/api/ezgarage/abc/stream")
+        service.play(track)
+        path, _item = xbmc.PLAYED[0].items[0]
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(path).query)
+        self.assertEqual(query["mode"], ["web_play"])
+        self.assertEqual(query["url"], ["/api/ezgarage/abc/stream"])
+        guard.assert_not_called()
+
+    def test_existing_web_play_path_is_not_double_wrapped(self):
+        wrapped = ("plugin://plugin.audio.raveplayer/?mode=web_play&url="
+                   "https%3A%2F%2F20bensons.com%2Fmp3%2Fa.mp3")
+        guard = mock.Mock(side_effect=AssertionError("already wrapped"))
+        service = PlaybackService(dns_guard=guard)
+        service.play(Track("Web set", "20bensons.com",
+                           "https://20bensons.com/mp3/a.mp3", path=wrapped))
+        path, _item = xbmc.PLAYED[0].items[0]
+        self.assertEqual(path, wrapped)
+        guard.assert_not_called()
+
+    def test_play_collection_wraps_absolute_rows_and_skips_private_ones(self):
+        service = PlaybackService(
+            dns_guard=lambda url: "private" not in url)
+        tracks = [
+            Track("Public", "Web", "https://public.test/a.mp3",
+                  path="https://public.test/a.mp3"),
+            Track("Private", "Web", "https://private.test/b.mp3",
+                  path="https://private.test/b.mp3"),
+            Track("Normal", "Pack", "https://normal.test/c.mp3"),
+        ]
+        result = service.play_collection(tracks)
+        self.assertEqual(result.count, 2)
+        self.assertIn("1 skipped", result.text)
+        paths = [path for path, _item in xbmc.PLAYED[0].items]
+        self.assertEqual(paths[0].startswith("plugin://"), True)
+        self.assertIn("mode=web_play", paths[0])
+        self.assertIn("mode=play", paths[1])
+        self.assertNotIn("private.test", paths[1])
 
     def test_live_item_is_marked_live_and_uses_the_plugin_route(self):
         service = PlaybackService()

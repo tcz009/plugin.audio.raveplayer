@@ -1386,8 +1386,13 @@ class LibraryScreens:
             web_path = _urlparse.urlsplit(str(target)).path
         except ValueError:
             web_path = ""
-        if (web_path.startswith(("/api/ezgarage/", "/api/ukraves/"))
-                and web_path.endswith(("/stream", "/file"))):
+        web_source = web_path.startswith(("/api/ezgarage/", "/api/ukraves/"))
+        if web_source and web_path.endswith("/file"):
+            # The web service retired /file: it is not a stream.  Do not
+            # wrap a dead URL in web_play; leave the row as a clean remove
+            # action so the user can save the /stream row again.
+            playable = ""
+        elif web_source and web_path.endswith("/stream"):
             # The web stream is session-only; the plugin signs a short-lived
             # URL at play time, so a favourite row is still playable.
             playable = ("plugin://plugin.audio.raveplayer/"

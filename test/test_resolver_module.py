@@ -38,7 +38,7 @@ class ManifestTests(unittest.TestCase):
     def test_module_manifest_is_installable(self):
         root = ET.parse(os.path.join(MODULE, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.module.raveresolver")
-        self.assertEqual(root.get("version"), "1.1.1")
+        self.assertEqual(root.get("version"), "1.1.2")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
@@ -72,7 +72,7 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(rows["resolver_cache_ttl"].get("default"), "7200")
 
     def test_package_version_and_exports(self):
-        self.assertEqual(resolver.__version__, "1.1.1")
+        self.assertEqual(resolver.__version__, "1.1.2")
         for name in ("Resolver", "ResolveError", "Resolution", "InvalidURL",
                      "BlockedURL", "AdapterNotReady", "ServiceError"):
             self.assertTrue(hasattr(resolver, name), name)

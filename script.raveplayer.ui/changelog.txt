@@ -1,3 +1,23 @@
+Rave Player 3.9.74 — playback guard, favourites, resolver pacing
+- Full-screen app: an absolute raw `Track.path` (old paint-cache rows included)
+  is no longer handed to Kodi directly.  The app runs a play-time public-DNS
+  check and routes public web paths through the plugin's `mode=web_play`
+  wrapper, so same-origin EZ Garage / UK Raves streams are still signed and
+  private/LAN hosts are refused.  Relative `/api/.../stream` paths are wrapped
+  once; an existing `web_play` path is never double-wrapped.  Play-all skips a
+  stale private track instead of poisoning the queue.
+- Favourites: a saved `/api/ezgarage|ukraves/.../file` row is now a clean
+  "stale / remove" action, never a `web_play` wrapper; the web service retired
+  `/file` (only `/stream` is playable).
+- Resolver module 1.1.2: per-registrable-domain token bucket (LRU-bounded)
+  shared by in-process adapters and the NAS fallback; a provider 429 blocks
+  the domain with its bounded `Retry-After`.  `/api/resolve` results are
+  cached by URL with the TTL clamped to `expires`, concurrent identical
+  resolves are single-flighted, and the cache is bounded (errors are not
+  cached).  Drive and MEGA 429 answers are typed `RateLimited`.
+- Versions: plugin 3.9.74 (requires resolver 1.1.2), screen 3.9.74 (requires
+  plugin 3.9.74).  Offline code/docs only: no device, ADB, push/tag/deploy.
+
 Rave Player 3.9.73 — resolver hardening
 - Resolver module 1.1.1: typed /api/resolve error codes + Retry-After, cached
   signed-URL expiry clamps, 15 s Mediafire negative cache, 80/443-only media

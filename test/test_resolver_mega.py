@@ -16,7 +16,7 @@ sys.path.insert(0, HERE)
 
 from resolver import Resolver  # noqa: E402
 from resolver.base import (AdapterNotReady, InvalidURL,  # noqa: E402
-                           UnsupportedURL)
+                           RateLimited, UnsupportedURL)
 from resolver.cache import Cache  # noqa: E402
 from resolver import policy  # noqa: E402
 from resolver.mega import MegaAdapter, MegaLink, parse_url  # noqa: E402
@@ -137,6 +137,30 @@ class MegaAdapterTests(unittest.TestCase):
         with self.assertRaises(Exception) as caught:
             adapter.resolve(self.URL)
         self.assertIn("Mega resolve failed", str(caught.exception))
+
+    def test_native_429_is_typed_with_retry_after(self):
+        class NativeLimited(Exception):
+            status = 429
+            retry_after = 9
+
+        def limited(_link):
+            raise NativeLimited("slow down")
+
+        with self.assertRaises(RateLimited) as caught:
+            MegaAdapter(enabled=True, native=limited).resolve(self.URL)
+        self.assertEqual(caught.exception.retry_after, 9)
+
+    def test_native_429_from_an_http_error_code_is_typed(self):
+        class NativeHTTPError(Exception):
+            code = 429
+            headers = {"Retry-After": "6"}
+
+        def limited(_link):
+            raise NativeHTTPError("slow down")
+
+        with self.assertRaises(RateLimited) as caught:
+            MegaAdapter(enabled=True, native=limited).resolve(self.URL)
+        self.assertEqual(caught.exception.retry_after, 6)
 
     def test_manager_respects_disabled_mega_and_never_calls_service(self):
         http = FakeHTTP([])

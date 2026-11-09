@@ -18,7 +18,7 @@ import urllib.parse
 
 from . import policy
 from .base import (Adapter, AdapterNotReady, InvalidURL, ProviderError,
-                   ResolveError, Resolution, UnsupportedURL)
+                   RateLimited, ResolveError, Resolution, UnsupportedURL)
 
 MEGA_HOSTS = ("mega.nz", "mega.co.nz", "mega.io")
 _HANDLE_RE = re.compile(r"^[A-Za-z0-9_-]{6,32}$")
@@ -141,6 +141,9 @@ class MegaAdapter(Adapter):
         except ResolveError:
             raise
         except Exception as exc:  # noqa: BLE001
+            limited = _rate_limited(exc)
+            if limited is not None:
+                raise limited
             raise ProviderError("Mega resolve failed (%s)" % type(exc).__name__)
         if isinstance(value, Resolution):
             value.provider = self.name
@@ -157,3 +160,39 @@ class MegaAdapter(Adapter):
         target = policy.check_url(target, resolve_dns=False)
         return Resolution(target, provider=self.name, expires_at=expires_at,
                           headers=headers)
+
+
+def _rate_limited(exc):
+    """Translate a native adapter's HTTP 429 into :class:`RateLimited`.
+
+    The bundled native client (when present) is free to raise an exception
+    carrying ``status``/``code`` 429 and ``retry_after``; urllib's HTTPError
+    also exposes ``code`` and ``headers``.  Anything else stays a generic
+    :class:`ProviderError`.
+    """
+    status = None
+    for name in ("status", "status_code", "code"):
+        value = getattr(exc, name, None)
+        if value is not None:
+            status = value
+            break
+    try:
+        if int(status) != 429:
+            return None
+    except (TypeError, ValueError):
+        return None
+    retry = getattr(exc, "retry_after", None)
+    if retry is None:
+        headers = getattr(exc, "headers", None) or {}
+        try:
+            from .http import retry_after_seconds
+            retry = retry_after_seconds(headers, default=5, maximum=120)
+        except Exception:  # noqa: BLE001 - a malformed header is not fatal
+            retry = 5
+    try:
+        retry = max(1, min(int(retry), 120))
+    except (TypeError, ValueError):
+        retry = 5
+    return RateLimited(
+        "Mega is rate-limiting requests; try again in %d seconds" % retry,
+        retry_after=retry)

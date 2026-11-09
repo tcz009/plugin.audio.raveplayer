@@ -17,8 +17,9 @@ import urllib.parse
 
 from . import policy
 from .base import (Adapter, BlockedURL, InvalidURL, NotFound, ProviderError,
-                   ResolveError, Resolution)
+                   RateLimited, ResolveError, Resolution)
 from .cache import MISSING
+from .http import retry_after_seconds
 
 UC_URL = "https://drive.google.com/uc?export=download&id=%s"
 VIEW_URL = "https://drive.google.com/file/d/%s/view"
@@ -130,6 +131,8 @@ class DriveAdapter(Adapter):
     def _resolve_unlocked(self, wanted):
         status, headers, final_url, body = self._probe(
             UC_URL % urllib.parse.quote(wanted, safe=""))
+        if status == 429:
+            raise _rate_limited(headers)
         if status in (401, 403):
             raise DriveError("Google Drive refused access to that file")
         if status in (404, 410):
@@ -144,9 +147,19 @@ class DriveAdapter(Adapter):
         if not confirm:
             raise DriveNotAudio("that Google Drive file is not a playable audio file")
         status, headers, final_url, _body = self._probe(confirm)
+        if status == 429:
+            raise _rate_limited(headers)
         if status < 200 or status >= 400 or not _is_audio(headers):
             raise DriveNotAudio("that Google Drive file is not a playable audio file")
         return _checked_final(final_url)
+
+
+def _rate_limited(headers):
+    """Map Drive's 429 (and Retry-After) to the shared typed failure."""
+    retry_after = retry_after_seconds(headers, default=5, maximum=120)
+    return RateLimited(
+        "Google Drive is rate-limiting requests; try again in %d seconds"
+        % retry_after, retry_after=retry_after)
 
 
 def _checked_final(value):

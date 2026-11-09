@@ -46,6 +46,7 @@ allowed there and no service-supplied absolute URL is followed.
 import datetime
 import json
 import re
+import threading
 import time
 import urllib.parse
 
@@ -60,6 +61,9 @@ DEFAULT_COOKIE_NAME = "raveplayer_session"
 MAX_RESPONSE_BYTES = 1024 * 1024
 MAX_STREAM_PATH = 8192
 MAX_RETRY_AFTER = 120
+DEFAULT_RESULT_TTL = 300.0
+MAX_RESULT_ENTRIES = 256
+MAX_INFLIGHT = 64
 _UNSAFE_PATH_RE = re.compile(r"[\x00-\x1f\x7f]")
 _CODE_RE = re.compile(r"^[a-z][a-z0-9_-]{0,39}$")
 
@@ -145,11 +149,170 @@ def cookie_header(value, name=DEFAULT_COOKIE_NAME):
     return text
 
 
+class _Flight(object):
+    """One in-progress resolve that identical callers can wait on."""
+
+    __slots__ = ("event", "result", "error")
+
+    def __init__(self):
+        self.event = threading.Event()
+        self.result = None
+        self.error = None
+
+
+class ServiceResultCache(object):
+    """Bounded TTL cache + single-flight for ``POST /api/resolve`` results.
+
+    Keys are the requested URL (plus the optional provider hint), so two
+    callers asking for the same page share one service request.  A successful
+    result is kept for at most :data:`DEFAULT_RESULT_TTL`, clamped to the
+    result's own ``expires_at``: a signed stream that expires in 30 seconds is
+    never served for five minutes.  Errors are never cached (a transient 429
+    must not keep failing after the back-off).
+
+    The cache is in memory only: it is bounded (LRU) and dies with the Kodi
+    process, which avoids writing signed service URLs to disk on top of the
+    adapter cache.
+    """
+
+    def __init__(self, ttl=DEFAULT_RESULT_TTL, max_entries=MAX_RESULT_ENTRIES,
+                 clock=None, max_inflight=MAX_INFLIGHT, wait_timeout=90.0):
+        try:
+            self.ttl = max(0.0, float(ttl))
+        except (TypeError, ValueError, OverflowError):
+            self.ttl = DEFAULT_RESULT_TTL
+        self.max_entries = max(1, int(max_entries))
+        self.max_inflight = max(1, int(max_inflight))
+        self.wait_timeout = max(0.1, float(wait_timeout))
+        self.clock = clock or time.time
+        self._entries = {}
+        self._order = []
+        self._inflight = {}
+        self._lock = threading.RLock()
+
+    @staticmethod
+    def key(url, provider=None):
+        return (str(url or ""), str(provider or ""))
+
+    def get(self, url, provider=None):
+        """Return a live :class:`Resolution` or ``None``."""
+        key = self.key(url, provider)
+        now = self.clock()
+        with self._lock:
+            record = self._entries.get(key)
+            if record is None:
+                return None
+            expires_at, result = record
+            if expires_at <= now:
+                self._drop_locked(key)
+                return None
+            self._touch_locked(key)
+            return result
+
+    def put(self, url, provider, result):
+        """Store one successful resolution; returns True when cached."""
+        if not isinstance(result, Resolution):
+            return False
+        now = self.clock()
+        lifetime = self.ttl
+        if result.expires_at:
+            try:
+                remaining = float(result.expires_at) - now
+            except (TypeError, ValueError, OverflowError):
+                remaining = 0.0
+            if remaining <= 0:
+                return False
+            lifetime = min(lifetime, remaining)
+        if lifetime <= 0:
+            return False
+        key = self.key(url, provider)
+        with self._lock:
+            self._entries[key] = (now + lifetime, result)
+            self._touch_locked(key)
+            while len(self._order) > self.max_entries:
+                self._drop_locked(self._order[0])
+        return True
+
+    def run(self, url, provider, factory):
+        """Return the cached result, or resolve once for identical callers."""
+        key = self.key(url, provider)
+        cached = self.get(url, provider)
+        if cached is not None:
+            return cached
+        flight = None
+        owner = False
+        with self._lock:
+            # Close the race between the first lookup and taking the flight:
+            # another caller may have filled the cache in that window.
+            record = self._entries.get(key)
+            if record is not None and record[0] > self.clock():
+                self._touch_locked(key)
+                return record[1]
+            flight = self._inflight.get(key)
+            if flight is None and len(self._inflight) < self.max_inflight:
+                flight = _Flight()
+                self._inflight[key] = flight
+                owner = True
+        if flight is not None and not owner:
+            flight.event.wait(self.wait_timeout)
+            if flight.error is not None:
+                raise flight.error
+            if flight.result is not None:
+                return flight.result
+            # The owner died without publishing a result; resolve ourselves.
+        try:
+            result = factory()
+        except Exception as exc:
+            if owner:
+                self._finish(key, flight, error=exc)
+            raise
+        if owner:
+            self.put(url, provider, result)
+            self._finish(key, flight, result=result)
+        return result
+
+    def clear(self):
+        with self._lock:
+            self._entries.clear()
+            self._order = []
+            self._inflight.clear()
+
+    def __len__(self):
+        now = self.clock()
+        with self._lock:
+            for key in list(self._entries):
+                if self._entries[key][0] <= now:
+                    self._drop_locked(key)
+            return len(self._entries)
+
+    def _finish(self, key, flight, result=None, error=None):
+        with self._lock:
+            self._inflight.pop(key, None)
+        flight.result = result
+        flight.error = error
+        flight.event.set()
+
+    def _touch_locked(self, key):
+        try:
+            self._order.remove(key)
+        except ValueError:
+            pass
+        self._order.append(key)
+
+    def _drop_locked(self, key):
+        self._entries.pop(key, None)
+        try:
+            self._order.remove(key)
+        except ValueError:
+            pass
+
+
 class ServiceClient(object):
     """POST JSON to the resolver service and validate its answer."""
 
     def __init__(self, base_url, token="", timeout=25, http=None, logger=None,
-                 dns_resolver=None, cookie="", cookie_name=DEFAULT_COOKIE_NAME):
+                 dns_resolver=None, cookie="", cookie_name=DEFAULT_COOKIE_NAME,
+                 result_cache=None):
         self.base_url = str(base_url or "")
         self.endpoint = endpoint(self.base_url) if self.base_url else ""
         self.stream_base = stream_base(self.base_url) if self.base_url else ""
@@ -159,6 +322,7 @@ class ServiceClient(object):
         self.http = http
         self.logger = logger
         self.dns_resolver = dns_resolver or policy.default_dns_resolver
+        self.result_cache = result_cache
 
     @property
     def auth_mode(self):
@@ -183,17 +347,25 @@ class ServiceClient(object):
         return {}
 
     @classmethod
-    def from_settings(cls, settings, http, logger=None, dns_resolver=None):
+    def from_settings(cls, settings, http, logger=None, dns_resolver=None,
+                      result_cache=None):
         if not settings.service_configured:
             return None
         return cls(settings.service_url, token=settings.service_token,
                    cookie=settings.service_cookie,
                    timeout=settings.service_timeout, http=http,
-                   logger=logger, dns_resolver=dns_resolver)
+                   logger=logger, dns_resolver=dns_resolver,
+                   result_cache=result_cache)
 
     def resolve(self, url, provider=None):
         if not self.endpoint:
             raise ServiceError("the resolver service is not configured")
+        if self.result_cache is not None:
+            return self.result_cache.run(
+                url, provider, lambda: self._resolve_once(url, provider))
+        return self._resolve_once(url, provider)
+
+    def _resolve_once(self, url, provider=None):
         payload = {"url": str(url or "")}
         if provider:
             payload["provider"] = str(provider)

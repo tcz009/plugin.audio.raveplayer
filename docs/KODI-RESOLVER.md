@@ -2,7 +2,7 @@
 
 Status: **wired into the plugin in 3.9.53.**
 
-`script.module.raveresolver` 1.1.1 is an installable Kodi module add-on that
+`script.module.raveresolver` 1.1.2 is an installable Kodi module add-on that
 packages the resolver SDK in `resources/lib/resolver/`. The plugin
 `plugin.audio.raveplayer` now resolves provider pages in play/play-all and
 downloads; the shipped behaviour and merge notes are in
@@ -29,7 +29,7 @@ Add one line to `plugin.audio.raveplayer/addon.xml`:
 <addon id="plugin.audio.raveplayer" ... version="3.9.53">
     <requires>
         <import addon="xbmc.python" version="3.0.1"/>
-        <import addon="script.module.raveresolver" version="1.1.1"/>
+        <import addon="script.module.raveresolver" version="1.1.2"/>
     </requires>
     ...
 </addon>
@@ -85,6 +85,15 @@ to `NotFound` (`not_found`), `RateLimited` (`rate_limited`, with a bounded
 `Retry-After`), `ProviderTimeout` (`timeout`), `ProviderError` (`upstream`),
 `BlockedURL` (`blocked`), `InvalidURL` (`invalid`) or `UnsupportedURL`
 (`unsupported`/`unknown`); 401/403 stay `ServiceAuthError`.  A 3xx is refused.
+
+Since 1.1.2 the SDK also paces itself on the Kodi side.  `Resolver` owns one
+`DomainRateLimiter` (60 requests/minute, burst 10, one bucket per registrable
+domain, LRU-bounded to 256 domains).  A provider 429 records its bounded
+`Retry-After` and blocks the next adapter attempt and the service fallback for
+that domain.  `ServiceClient` takes a bounded in-memory `ServiceResultCache`
+(300 s, clamped to the result's `expires`, 256 entries, single-flight for
+identical URLs); errors are never cached.  Drive and MEGA native 429 answers
+are `RateLimited` too.
 
 ## 3. `routes.play()` integration
 
@@ -406,8 +415,8 @@ Kodi (or any player) requests the returned stream URL **directly**:
 
 ## 9. Rollout checklist (Lead, tonight)
 
-1. Merge/cherry-pick this module branch or install the 1.1.1 module zip.
-2. Add the `<import addon="script.module.raveresolver" version="1.1.1"/>` line.
+1. Merge/cherry-pick this module branch or install the 1.1.2 module zip.
+2. Add the `<import addon="script.module.raveresolver" version="1.1.2"/>` line.
 3. Apply the `routes.play()` and `_play_tracks()` edits above.
 4. Apply the downloads allowlist + `download_start()` edits.
 5. Add the download context item for resolvable pages.
@@ -450,7 +459,7 @@ All HTTP and DNS is injected; no test opens a network connection.
 
 ```
 script.module.raveresolver/
-  addon.xml (1.1.1)
+  addon.xml (1.1.2)
   changelog.txt
   README.md
   resources/settings.xml
@@ -465,3 +474,5 @@ repo/  (regenerated catalogue + module zip)
 
 `resources/lib/routes.py` and `resources/lib/http.py` were updated in 3.9.73
 for play-time DNS validation of absolute web rows and the widened host mirror.
+In 3.9.74 the app playback path (`raveui/playback.py`) applies the same guard
+to a raw absolute `Track.path` and routes it through `mode=web_play`.

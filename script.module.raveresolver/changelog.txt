@@ -1,3 +1,21 @@
+Rave Resolver 1.1.2 — Kodi-side pacing and service cache
+- Per-registrable-domain token bucket (60/min, burst 10, LRU-bounded to 256
+  keys) shared by Mediafire/Drive/Podomatic/Mega and the NAS fallback.  A
+  provider 429 records its bounded `Retry-After`; the manager refuses both the
+  next adapter attempt and the service fallback until it elapses, and a 429
+  is never retried through another transport.  Direct audio (no provider
+  page/network work) is not gated, so play-all is unaffected.
+- `POST /api/resolve` result cache: keyed by URL plus the optional provider
+  hint, TTL 300 s clamped to the result's `expires`, LRU-bounded to 256
+  entries.  Concurrent identical resolves share one in-flight request; errors
+  (including 429) are not cached.
+- Google Drive and MEGA native-adapter 429 answers map to `RateLimited` with a
+  bounded `Retry-After` (urllib `HTTPError.code` and `status`/`code`-carrying
+  native exceptions are recognised).  The service client already maps 429.
+- Tests: offline unit coverage for registrable-domain grouping, burst/refill,
+  429 blocking, LRU bounds, cache expiry/clamp/bounds, single-flight and the
+  Drive/MEGA mappings.
+
 Rave Resolver 1.1.1 — hardening
 - Typed /api/resolve failures: map the web's `code` and `Retry-After` onto
   NotFound / RateLimited / ProviderTimeout / ProviderError / BlockedURL /

@@ -350,6 +350,30 @@ class DriveTests(unittest.TestCase):
         self.assertEqual(adapter.resolve(self.URL).url, self.DIRECT)
         self.assertEqual(http.count("fetch"), 2)
 
+    def test_429_is_typed_with_retry_after(self):
+        http = FakeHTTP([response(
+            "", status=429, headers={"Retry-After": "13"}, url=self.DIRECT)])
+        with self.assertRaises(RateLimited) as caught:
+            self.adapter(http).resolve(self.URL)
+        self.assertEqual(caught.exception.retry_after, 13)
+
+    def test_429_on_the_confirm_probe_is_typed(self):
+        form = (
+            '<form id="download-form" action="https://drive.usercontent.google.com/download">'
+            '<input type="hidden" name="id" value="abcdefghij1234567890">'
+            '<input type="hidden" name="export" value="download">'
+            '<input type="hidden" name="confirm" value="t">'
+            "</form>")
+        http = FakeHTTP([
+            response(form, headers={"Content-Type": "text/html"},
+                     url="https://drive.google.com/uc?export=download"),
+            response("", status=429, headers={"Retry-After": "4"},
+                     url=self.DIRECT),
+        ])
+        with self.assertRaises(RateLimited) as caught:
+            self.adapter(http).resolve(self.URL)
+        self.assertEqual(caught.exception.retry_after, 4)
+
     def test_404_and_non_audio(self):
         with self.assertRaises(UnknownDriveFile):
             self.adapter(FakeHTTP([response("", status=404)])).resolve(self.URL)
