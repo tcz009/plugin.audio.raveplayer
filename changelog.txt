@@ -1,3 +1,7 @@
+Rave Player 3.9.66 — easier stop
+- At Home while playing, the footer shows STOP on the Back button; pressing Back stops the audio (second Back leaves the app).
+- Includes the web-matching sticker icons for every shared room/source.
+
 Rave Player 3.9.65 — matching artwork
 - Rail/room icons now use the same named sticker artwork as the web app; Mikus and Demodulated get their own icons.
 

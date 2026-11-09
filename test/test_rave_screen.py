@@ -870,8 +870,13 @@ class ControllerTests(unittest.TestCase):
         self.assertFalse(view.closed)
         self.assertFalse(ctl.closed)
         self.assertIn("audio playing", view.status)
-        # Audio is Kodi's: the app can be left while the set continues.
+        # Back to Home, then Back stops the audio instead of leaving it
+        # running; the next Back closes the window.
         ctl.on_back()
+        self.assertFalse(view.closed)
+        ctl.on_back()
+        self.assertFalse(view.closed)
+        self.assertEqual(playback.stop_calls, 1)
         ctl.on_back()
         self.assertTrue(view.closed)
 
@@ -1765,11 +1770,11 @@ class ManifestAndSkinTests(unittest.TestCase):
     def test_script_manifest_is_kodi_19_22_and_depends_on_the_plugin(self):
         root = ET.parse(os.path.join(SCREEN, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.raveplayer.ui")
-        self.assertEqual(root.get("version"), "3.9.65")
+        self.assertEqual(root.get("version"), "3.9.66")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
-        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.65")
+        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.66")
         extension = root.find("./extension[@point='xbmc.python.script']")
         self.assertIsNotNone(extension)
         self.assertEqual(extension.get("library"), "default.py")

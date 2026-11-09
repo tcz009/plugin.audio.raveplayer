@@ -485,6 +485,13 @@ class RaveScreenController(object):
         if self._stack:
             self._restore(self._stack.pop())
             return False
+        # At Home with audio playing, Back stops playback instead of leaving
+        # audio running behind Kodi; the next Back closes the app.
+        if self._home_and_playing():
+            self.on_stop()
+            self._call_view("set_status", "Stopped. Press Back again to leave.")
+            self._paint_footer()
+            return False
         self._closed = True
         self._surprise_cancel.set()
         self._loading_cancel.set()
@@ -2129,6 +2136,8 @@ class RaveScreenController(object):
         self._footer = footer
         self._footer_at = time.monotonic()
         self._call_view("set_footer", footer)
+        self._call_view("set_key_hints", "OPEN",
+                        "STOP" if self._home_and_playing() else "BACK")
 
     def _footer_for_current(self):
         if self._live_on_air():
@@ -2141,6 +2150,15 @@ class RaveScreenController(object):
             return nowplaying.standby()
         return nowplaying.standby(room=getattr(entry, "label", ""),
                                   fact=getattr(entry, "fact", ""))
+
+    def _home_and_playing(self):
+        """True when the app is at Home and audio is live (Back = Stop)."""
+        if self._stack or self._target is not None:
+            return False
+        try:
+            return bool(self._is_playing() or self._live_on_air())
+        except Exception:  # noqa: BLE001 - no player means not playing
+            return False
 
     def _live_on_air(self):
         """Both our live run and the live module must agree the station is on."""
