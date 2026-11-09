@@ -265,9 +265,9 @@ A self-hosted **web version** (same sources, runs in Docker) lives at
 
 ## Install from the repository (recommended)
 
-Current release: **`plugin.audio.raveplayer` 3.9.53** with
-**`script.raveplayer.ui` 3.9.53** (the full-screen Rave app; the script requires
-the 3.9.53 plugin).
+Current release: **`plugin.audio.raveplayer` 3.9.54** with
+**`script.raveplayer.ui` 3.9.54** (the full-screen Rave app; the script requires
+the 3.9.54 plugin) and **`script.module.raveresolver` 1.1.0**.
 
 Add the repository once, then Rave Player installs and updates itself.
 
@@ -305,7 +305,7 @@ for the wiring and merge notes, and
 
 Install it from the repository (Add-ons → Install from repository → Rave
 Player Repository → Program add-ons → Rave Resolver) or install
-`script.module.raveresolver-1.1.0.zip` directly. The 3.9.53 plugin declares
+`script.module.raveresolver-1.1.0.zip` directly. The 3.9.54 plugin declares
 the dependency, so Kodi installs the module first.
 
 ## Development
