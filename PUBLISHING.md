@@ -63,7 +63,7 @@ artifacts; commit the regenerated `repo/`; then tag. The current release is
 **3.9.51** (`plugin.audio.raveplayer` 3.9.51 + `script.raveplayer.ui` 3.9.50),
 prepared on `feat/app-integration`; the exact commands and rollback are in
 `docs/RELEASE-3.9.51.md`. The resolver-module branch additionally publishes
-`script.module.raveresolver` 1.0.0; `scripts/build.sh` and
+`script.module.raveresolver` 1.1.0; `scripts/build.sh` and
 `scripts/build-repo.sh` include it, but the plugin does not depend on it until
 the 3.9.52 integration pass (`docs/KODI-RESOLVER.md`).
 

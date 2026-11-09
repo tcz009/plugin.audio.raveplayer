@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <settings>
     <category id="service" label="Resolver service (fallback)">
-        <setting id="resolver_service_url" type="text" label="NAS resolver URL (e.g. http://nas:8080)" default=""/>
-        <setting id="resolver_service_token" type="text" label="Service token" default="" option="hidden"/>
+        <setting id="resolver_service_url" type="text" label="NAS resolver URL (e.g. http://nas:8080 or Tailscale)" default=""/>
+        <setting id="resolver_service_token" type="text" label="Service token (Bearer; preferred)" default="" option="hidden"/>
+        <setting id="resolver_service_cookie" type="text" label="Web session cookie (temporary cookie auth, e.g. raveplayer_session=...)" default="" option="hidden"/>
         <setting id="resolver_enable_mega" type="bool" label="Enable Mega links (in-process adapter or service)" default="false"/>
         <setting id="resolver_service_timeout" type="number" label="Service timeout (seconds)" default="25"/>
     </category>

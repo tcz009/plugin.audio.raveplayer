@@ -155,14 +155,21 @@ class FallbackTests(unittest.TestCase):
         self.assertEqual(result.url, "https://cdn.example.com/episode.mp3")
 
     def test_mega_enabled_falls_back_to_service(self):
+        stream = ("/api/mega/stream?u=https%3A%2F%2Fmega.nz%2Ffile%2Fabc12345"
+                  "%23" + "A" * 43 + "&e=1800000000&t=signed-token")
         http = FakeHTTP([response({
             "url": "https://gfs123.userstorage.mega.co.nz/abc",
-            "provider": "mega",
+            "source": "mega",
+            "stream": stream,
         }, url="http://nas:8080/api/resolve")])
         result = self.resolver(http).resolve(
             "https://mega.nz/file/abc12345#" + "A" * 43)
         self.assertEqual(result.provider, "mega")
         self.assertEqual(result.source, "service")
+        self.assertTrue(result.url.startswith(
+            "http://nas:8080/api/mega/stream?"))
+        self.assertNotIn("userstorage.mega.co.nz", result.url)
+        self.assertEqual(result.headers, {})
 
     def test_no_service_keeps_in_process_error(self):
         resolver = self.resolver(FakeHTTP([]), settings=make_settings(

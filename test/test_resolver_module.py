@@ -38,7 +38,7 @@ class ManifestTests(unittest.TestCase):
     def test_module_manifest_is_installable(self):
         root = ET.parse(os.path.join(MODULE, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.module.raveresolver")
-        self.assertEqual(root.get("version"), "1.0.0")
+        self.assertEqual(root.get("version"), "1.1.0")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
@@ -59,17 +59,20 @@ class ManifestTests(unittest.TestCase):
             MODULE, "resources", "settings.xml")).getroot()
         rows = {item.get("id"): item for item in root.findall(".//setting")}
         for key in ("resolver_service_url", "resolver_service_token",
-                    "resolver_enable_mega", "resolver_http_timeout",
+                    "resolver_service_cookie", "resolver_enable_mega",
+                    "resolver_http_timeout",
                     "resolver_service_timeout", "resolver_cache_dir",
                     "resolver_cache_ttl"):
             self.assertIn(key, rows)
         self.assertEqual(rows["resolver_enable_mega"].get("default"), "false")
         self.assertEqual(rows["resolver_service_token"].get("option"), "hidden")
+        self.assertEqual(rows["resolver_service_cookie"].get("option"), "hidden")
+        self.assertEqual(rows["resolver_service_cookie"].get("default"), "")
         self.assertEqual(rows["resolver_http_timeout"].get("default"), "20")
         self.assertEqual(rows["resolver_cache_ttl"].get("default"), "7200")
 
     def test_package_version_and_exports(self):
-        self.assertEqual(resolver.__version__, "1.0.0")
+        self.assertEqual(resolver.__version__, "1.1.0")
         for name in ("Resolver", "ResolveError", "Resolution", "InvalidURL",
                      "BlockedURL", "AdapterNotReady", "ServiceError"):
             self.assertTrue(hasattr(resolver, name), name)
@@ -79,6 +82,8 @@ class SettingsTests(unittest.TestCase):
     def test_defaults(self):
         settings = Settings(addon=FakeAddon())
         self.assertEqual(settings.service_url, "")
+        self.assertEqual(settings.service_cookie, "")
+        self.assertEqual(settings.service_auth_mode, "none")
         self.assertFalse(settings.service_configured)
         self.assertFalse(settings.enable_mega)
         self.assertEqual(settings.http_timeout, 20)
@@ -90,6 +95,7 @@ class SettingsTests(unittest.TestCase):
         settings = Settings(addon=FakeAddon({
             "resolver_service_url": "http://nas:8080",
             "resolver_service_token": "top-secret",
+            "resolver_service_cookie": "session-secret",
             "resolver_enable_mega": "true",
             "resolver_http_timeout": "1",
             "resolver_service_timeout": "999",
@@ -97,19 +103,24 @@ class SettingsTests(unittest.TestCase):
             "resolver_cache_ttl": "0",
         }))
         self.assertTrue(settings.service_configured)
+        self.assertEqual(settings.service_auth_mode, "bearer")
         self.assertTrue(settings.enable_mega)
         self.assertEqual(settings.http_timeout, 3)
         self.assertEqual(settings.service_timeout, 120)
         self.assertEqual(settings.cache_ttl, 0)
         self.assertEqual(settings.cache_dir, tempfile.gettempdir())
 
-    def test_token_never_appears_in_public_view_or_repr(self):
+    def test_token_and_cookie_never_appear_in_public_view_or_repr(self):
         settings = Settings(addon=FakeAddon({
-            "resolver_service_token": "top-secret"}))
+            "resolver_service_token": "top-secret",
+            "resolver_service_cookie": "session-secret"}))
         public = settings.as_public_dict()
         self.assertTrue(public["token_configured"])
+        self.assertTrue(public["cookie_configured"])
         self.assertNotIn("top-secret", repr(public))
+        self.assertNotIn("session-secret", repr(public))
         self.assertNotIn("top-secret", repr(settings))
+        self.assertNotIn("session-secret", repr(settings))
 
 
 class CacheTests(unittest.TestCase):

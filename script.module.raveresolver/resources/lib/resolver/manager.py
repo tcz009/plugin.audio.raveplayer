@@ -35,7 +35,8 @@ class Resolver(object):
                  adapters=None, service=None, dns_resolver=None,
                  extra_hosts=None, native_mega=None, native_podomatic=None):
         self.settings = settings or Settings()
-        self.logger = logger or Logger(secrets=(self.settings.service_token,))
+        self.logger = logger or Logger(secrets=(self.settings.service_token,
+                                                self.settings.service_cookie))
         self.extra_hosts = tuple(extra_hosts or ())
         self.dns_resolver = dns_resolver
         self.http = http or HttpClient(

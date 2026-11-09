@@ -15,7 +15,7 @@ downloads; see `docs/KODI-RESOLVER.md` in the plugin repo.
 | Mediafire | yes | no | Extracts the signed `download*.mediafire.com` URL |
 | Google Drive | yes | no | Handles the >100 MB virus-scan confirm form |
 | Podomatic | direct CDN files only | page links | Page scraper lands in the web build |
-| Mega | URL parsing + adapter seam | until native lands | AES client is not bundled |
+| Mega | URL parsing + adapter seam | signed stream | Web returns `/api/mega/stream?...`; the raw `url` is ciphertext and is never played |
 | Anything else | no | optional | Service fallback when configured |
 
 The NAS `POST /api/resolve` endpoint is a **fallback**, never the primary path
@@ -23,13 +23,13 @@ for direct, Mediafire or Drive.
 
 ## Install
 
-Install the module zip (`script.module.raveresolver-1.0.0.zip`) from the Rave
+Install the module zip (`script.module.raveresolver-1.1.0.zip`) from the Rave
 Player repository, or add it as a dependency of `plugin.audio.raveplayer`:
 
 ```xml
 <requires>
     <import addon="xbmc.python" version="3.0.1"/>
-    <import addon="script.module.raveresolver" version="1.0.0"/>
+    <import addon="script.module.raveresolver" version="1.1.0"/>
 </requires>
 ```
 
@@ -52,6 +52,11 @@ result.kodi_url()   # URL with Kodi |Header=... suffix when needed
 result.expires_at   # epoch seconds, or None
 ```
 
+A Mega result from the service is the playable signed stream URL
+(`<base>/api/mega/stream?...`), never the AES-CTR ciphertext. Its
+`expires_at` is the signed token's `e`, and its `headers` mapping is empty:
+Kodi must request the URL directly without appending `Authorization`/`Cookie`.
+
 - `resolver.needs_resolution(url)` — False for ordinary direct audio, True for
   provider pages and unknown links.
 - `resolver.provider_for(url)` — provider name or `""`.
@@ -68,8 +73,9 @@ Failures are typed: `InvalidURL`, `BlockedURL`, `HostNotAllowed`,
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `resolver_service_url` | empty | NAS base URL, e.g. `http://nas:8080` |
-| `resolver_service_token` | empty | Bearer token; masked in the UI, never logged |
+| `resolver_service_url` | empty | Web base URL, e.g. `http://nas:8080` or a Tailscale name |
+| `resolver_service_token` | empty | Bearer token (`RAVEWEB_RESOLVER_TOKEN` contract); masked, never logged |
+| `resolver_service_cookie` | empty | `raveplayer_session=...` cookie for web builds without a service token; masked, never logged |
 | `resolver_enable_mega` | false | Allow Mega links (native adapter or service) |
 | `resolver_http_timeout` | 20 s | Provider page/probe timeout |
 | `resolver_service_timeout` | 25 s | NAS fallback timeout |
@@ -91,8 +97,14 @@ come from third parties.
 - Redirects are followed manually (max 5) and every hop is re-validated.
 - A service result must be a public http(s) URL; it cannot point Kodi at the
   LAN. A private/loopback URL is never sent to the service either.
-- The service token is sent only as `Authorization: Bearer ...`; it is not in
-  the URL, the cache, a log line or a `Resolution.headers` mapping.
+- Only one service auth mode is used: `Authorization: Bearer ...` when a
+  token is set, otherwise `Cookie: raveplayer_session=...` when a session
+  cookie is configured. Neither is in the URL, the cache, a log line or a
+  `Resolution.headers` mapping.
+- Non-Mega service results must be public http(s) URLs. A Mega stream URL is
+  built from the operator-configured service base (LAN/Tailscale allowed) and
+  the service-supplied relative `stream` path; an absolute stream path or a
+  missing `stream` is refused. The ciphertext `url` is never played.
 - Logs contain scheme + host at most; signed URLs and query strings are
   stripped by `resolver.log`.
 
@@ -121,5 +133,7 @@ From the plugin repo root:
 
 ## Version history
 
-See `changelog.txt`. Version 1.0.0 is the first Kodi-installable module; the
-plugin routes are intentionally unchanged until the integration pass.
+See `changelog.txt`. Version 1.0.0 was the first Kodi-installable module.
+Version 1.1.0 adds the web 1.6.64 service contract: `source`/`expires`/`stream`
+parsing, the absolute Mega stream URL, and Bearer-or-cookie auth. The plugin
+routes are intentionally unchanged until the integration pass.

@@ -25,7 +25,7 @@ from .base import (Adapter, AdapterNotReady, BaseAdapter, BlockedURL,
                    ServiceError, ServiceProtocolError, UnsupportedURL)
 from .manager import Resolver, get_resolver, reset_resolver, resolve
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     "Adapter", "AdapterNotReady", "BaseAdapter", "BlockedURL", "HostNotAllowed", "InvalidURL",

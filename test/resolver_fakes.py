@@ -27,6 +27,7 @@ def make_settings(**overrides):
     values = {
         "resolver_service_url": "",
         "resolver_service_token": "",
+        "resolver_service_cookie": "",
         "resolver_enable_mega": "false",
         "resolver_http_timeout": "20",
         "resolver_service_timeout": "25",

@@ -15,6 +15,7 @@ ADDON_ID = "script.module.raveresolver"
 DEFAULTS = {
     "resolver_service_url": "",
     "resolver_service_token": "",
+    "resolver_service_cookie": "",
     "resolver_enable_mega": False,
     "resolver_http_timeout": 20,
     "resolver_service_timeout": 25,
@@ -82,6 +83,16 @@ class Settings(object):
         return self.raw("resolver_service_token").strip()
 
     @property
+    def service_cookie(self):
+        """A web session cookie value/pair for cookie-auth mode.
+
+        This is a bearer credential, not a preference: it is read exactly as
+        configured (``name=value`` or a bare value) and is never included in
+        logs or the public settings view.
+        """
+        return self.raw("resolver_service_cookie").strip()
+
+    @property
     def enable_mega(self):
         return self.boolean("resolver_enable_mega",
                             DEFAULTS["resolver_enable_mega"])
@@ -120,6 +131,8 @@ class Settings(object):
             "service_url": self.service_url,
             "service_configured": self.service_configured,
             "token_configured": bool(self.service_token),
+            "cookie_configured": bool(self.service_cookie),
+            "auth_mode": self.service_auth_mode,
             "enable_mega": self.enable_mega,
             "http_timeout": self.http_timeout,
             "service_timeout": self.service_timeout,
@@ -127,10 +140,19 @@ class Settings(object):
             "cache_ttl": self.cache_ttl,
         }
 
+    @property
+    def service_auth_mode(self):
+        """``bearer``, ``cookie`` or ``none``; matches ServiceClient."""
+        if self.service_token:
+            return "bearer"
+        if self.service_cookie:
+            return "cookie"
+        return "none"
+
     def __repr__(self):
-        return "<Settings service=%s token=%s mega=%s cache=%s>" % (
+        return "<Settings service=%s auth=%s mega=%s cache=%s>" % (
             "yes" if self.service_configured else "no",
-            "yes" if self.service_token else "no",
+            self.service_auth_mode,
             "yes" if self.enable_mega else "no",
             os.path.basename(self.cache_dir) or "default")
 
