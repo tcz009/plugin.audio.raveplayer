@@ -33,7 +33,11 @@ def _maybe_launch_screen(argv):
         if not bool(xbmc.getCondVisibility(
                 "System.AddonIsEnabled(%s)" % routes.RAVE_SCREEN_ADDON)):
             return False
-        xbmc.executebuiltin("RunScript(%s)" % routes.RAVE_SCREEN_ADDON)
+        try:
+            handle = int(args[1]) if len(args) > 1 else -1
+        except (TypeError, ValueError):
+            handle = -1
+        routes.rave_screen(handle, {})
         return True
     except Exception:  # noqa: BLE001 - fall back to the classic menu
         return False
