@@ -3139,13 +3139,15 @@ def _playable_url(value):
 # provider page must still be recognised so it can never be queued raw.
 _RESOLVER_PAGE_HOSTS = {
     "mediafire": ("mediafire.com",),
-    "drive": ("drive.google.com", "docs.google.com",
-              "drive.usercontent.google.com"),
-    "podomatic": ("podomatic.com",),
-    "mega": ("mega.nz", "mega.co.nz"),
+    # drive.usercontent.google.com is the signed direct download, not a page:
+    # it must stay on the direct path (web-source and saved-link parity).
+    "drive": ("drive.google.com", "docs.google.com"),
+    "podomatic": ("podomatic.com", "pdcn.co"),
+    "mega": ("mega.nz", "mega.co.nz", "mega.io"),
 }
 _RESOLVER = None
 _RESOLVER_IMPORT_FAILED = False
+_RESOLVER_WARNED = False
 
 
 def _resolver():
@@ -3155,8 +3157,12 @@ def _resolver():
     Configure dialog; ``script.module.raveresolver``'s own settings remain for
     other consumers.  Import lazily so a missing module only affects provider
     pages, never the root menu.
+
+    A missing module is permanent; any other construction failure (a bad
+    service setting, a transient import) is logged once and retried on the
+    next invocation, so fixing the setting does not need a Kodi restart.
     """
-    global _RESOLVER, _RESOLVER_IMPORT_FAILED
+    global _RESOLVER, _RESOLVER_IMPORT_FAILED, _RESOLVER_WARNED
     if _RESOLVER is not None:
         return _RESOLVER
     if _RESOLVER_IMPORT_FAILED:
@@ -3166,10 +3172,17 @@ def _resolver():
         from resolver.settings import Settings
 
         _RESOLVER = Resolver(settings=Settings(addon=kodi.ADDON))
-    except Exception as exc:  # noqa: BLE001 - playback must not break
+    except ImportError as exc:
         _RESOLVER_IMPORT_FAILED = True
-        kodi.log("resolver module unavailable (%s)" % type(exc).__name__,
-                 level=30)
+        if not _RESOLVER_WARNED:
+            _RESOLVER_WARNED = True
+            kodi.log("resolver module unavailable (%s)" % type(exc).__name__,
+                     level=30)
+    except Exception as exc:  # noqa: BLE001 - playback must not break
+        if not _RESOLVER_WARNED:
+            _RESOLVER_WARNED = True
+            kodi.log("resolver unavailable (%s)" % type(exc).__name__,
+                     level=30)
     return _RESOLVER
 
 
@@ -3444,6 +3457,16 @@ def web_play(handle, params):
     if not stream:
         _fail_playback(handle, "That web stream address is not playable.")
         return
+    # Listing only checks syntax (a DNS lookup per row would stall the door).
+    # At play time an absolute web row must resolve to a public address: a
+    # scraped/stored hostname pointing at the LAN must not reach Kodi's
+    # player.  The operator's own web base stays exempt (relative EZ/UK Raves
+    # rows are proxied by that service).
+    if not (base and webapi.same_origin(stream, base)):
+        if not http.is_public_http_url_dns(stream):
+            _fail_playback(handle,
+                           "That web stream address is not playable.")
+            return
     # EZ Garage / UK Raves rows are web-proxied Mediafire streams; the web
     # service only accepts its session or a short-lived signed URL.  Sign here
     # so Kodi never receives (or logs) the long-lived bearer token.

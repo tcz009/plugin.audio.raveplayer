@@ -408,3 +408,31 @@ class CacheKeyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PublicUrlDnsTests(unittest.TestCase):
+    def test_fake_resolver_public_and_private(self):
+        public = lambda host, port: ["93.184.216.34"]
+        private = lambda host, port: ["10.0.0.5"]
+        self.assertTrue(http.is_public_http_url_dns(
+            "https://source.example/a.mp3", public))
+        self.assertFalse(http.is_public_http_url_dns(
+            "https://source.example/a.mp3", private))
+        self.assertFalse(http.is_public_http_url_dns(
+            "http://192.168.1.5/a.mp3", public))
+        self.assertFalse(http.is_public_http_url_dns(
+            "http://169.254.169.254/latest", public))
+
+    def test_mixed_dns_answer_is_refused(self):
+        mixed = lambda host, port: ["93.184.216.34", "127.0.0.1"]
+        self.assertFalse(http.is_public_http_url_dns(
+            "https://source.example/a.mp3", mixed))
+
+    def test_unresolvable_and_non_http_are_refused(self):
+        def broken(host, port):
+            raise OSError("no dns")
+
+        self.assertFalse(http.is_public_http_url_dns(
+            "https://source.example/a.mp3", broken))
+        self.assertFalse(http.is_public_http_url_dns(
+            "file:///etc/passwd", lambda host, port: ["93.184.216.34"]))

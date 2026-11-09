@@ -108,22 +108,39 @@ class WebRouteTests(unittest.TestCase):
     def test_web_play_relative_uses_the_service_origin(self):
         settings = {"resolver_service_url": BASE,
                     "resolver_service_token": "token"}
+        client = mock.Mock()
+        client.signed_play.return_value = ""
         with mock.patch.object(routes.kodi, "setting",
                                side_effect=lambda name, default="": settings.get(
-                                   name, default)):
+                                   name, default)), \
+                mock.patch.object(routes, "_web_client", return_value=client):
             routes.web_play(1, {"url": "/api/ezgarage/abc/stream",
                                 "label": "EZ Set"})
         resolved = xbmcplugin.RESOLVED[-1]
         self.assertTrue(resolved["ok"])
         self.assertEqual(resolved["path"], BASE + "/api/ezgarage/abc/stream")
         self.assertEqual(resolved["properties"]["IsPlayable"], "true")
+        # The same-origin row never runs a public-DNS check on the LAN base.
+        self.assertTrue(client.signed_play.called)
 
     def test_web_play_absolute_public_stream_is_direct(self):
-        with mock.patch.object(routes.kodi, "setting", return_value=""):
+        public = [(2, 1, 6, "", ("93.184.216.34", 443))]
+        with mock.patch.object(routes.kodi, "setting", return_value=""), \
+                mock.patch.object(routes.http.socket, "getaddrinfo",
+                                  return_value=public):
             routes.web_play(1, {"url": "https://20bensons.com/mp3/a.mp3",
                                 "label": "20bensons set"})
         self.assertEqual(xbmcplugin.RESOLVED[-1]["path"],
                          "https://20bensons.com/mp3/a.mp3")
+
+    def test_web_play_absolute_row_is_refused_when_dns_is_private(self):
+        private = [(2, 1, 6, "", ("10.0.0.5", 443))]
+        with mock.patch.object(routes.kodi, "setting", return_value=""), \
+                mock.patch.object(routes.http.socket, "getaddrinfo",
+                                  return_value=private):
+            routes.web_play(1, {"url": "https://evil.example/mp3/a.mp3",
+                                "label": "bad"})
+        self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"])
 
     def test_web_play_refuses_foreign_private_and_platform_urls(self):
         for value in ("http://192.168.1.50/secret.mp3",

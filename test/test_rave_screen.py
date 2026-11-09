@@ -1860,11 +1860,11 @@ class ManifestAndSkinTests(unittest.TestCase):
     def test_script_manifest_is_kodi_19_22_and_depends_on_the_plugin(self):
         root = ET.parse(os.path.join(SCREEN, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.raveplayer.ui")
-        self.assertEqual(root.get("version"), "3.9.72")
+        self.assertEqual(root.get("version"), "3.9.73")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
-        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.72")
+        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.73")
         extension = root.find("./extension[@point='xbmc.python.script']")
         self.assertIsNotNone(extension)
         self.assertEqual(extension.get("library"), "default.py")

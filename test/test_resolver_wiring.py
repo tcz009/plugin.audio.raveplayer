@@ -147,6 +147,20 @@ class SelectionAndHeaderTests(WiringBase):
         self.assertEqual(routes._provider_for("https://archive.org/a.mp3"), "")
         self.assertEqual(routes._provider_for("https://example.test/a"), "")
 
+    def test_page_provider_mirror_recognises_new_hosts(self):
+        self.assertEqual(
+            routes._provider_for("https://mega.io/file/abc12345#" + "A" * 43),
+            "mega")
+        self.assertEqual(
+            routes._provider_for("https://pdcn.co/e/x.podomatic.com/enclosure/a.mp3"),
+            "podomatic")
+        # A Drive direct download is not a file page; it stays on the direct
+        # path (and is DNS-validated when Kodi plays it).
+        self.assertEqual(
+            routes._provider_for(
+                "https://drive.usercontent.google.com/download?id=abc"),
+            "")
+
 
 class MegaStreamTests(WiringBase):
     def test_signed_stream_is_absolute_and_headerless(self):
@@ -554,7 +568,7 @@ class SettingsAndManifestTests(unittest.TestCase):
                    for item in plugin.findall("./requires/import")}
         self.assertEqual(imports.get("script.module.raveresolver"),
                          module.get("version"))
-        self.assertEqual(plugin.get("version"), "3.9.72")
+        self.assertEqual(plugin.get("version"), "3.9.73")
 
     def test_resolver_settings_are_in_the_plugin_ui(self):
         root = ET.parse(os.path.join(ROOT, "resources", "settings.xml")).getroot()

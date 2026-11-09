@@ -301,12 +301,15 @@ def blocked_address(address):
     )
 
 
-def host_is_blocked(hostname, port):
+def host_is_blocked(hostname, port, resolver=None):
     """Resolve a host and return True when any answer is non-public.
 
     Literal IPs are checked without a DNS lookup.  Every A/AAAA answer must be
     public (a mixed answer covers DNS-rebinding style hosts), and an
     unresolvable host is refused because Kodi could not play it anyway.
+
+    ``resolver`` is an injectable ``(host, port) -> [address]`` callable used
+    by tests and play-time checks; production callers keep the stdlib lookup.
     """
     import ipaddress
 
@@ -319,6 +322,12 @@ def host_is_blocked(hostname, port):
         literal = None
     if literal is not None:
         return blocked_address(literal)
+    if resolver is not None:
+        try:
+            addresses = list(resolver(text, port or 0))
+        except (socket.gaierror, OSError, UnicodeError, ValueError):
+            return True
+        return not addresses or any(blocked_address(a) for a in addresses)
     key = (text.lower(), port or 0)
     # Memoise per route only: one play_all can otherwise resolve the same
     # archive.org host for every track (A3/A10 performance), while direct
@@ -342,7 +351,7 @@ def host_is_blocked(hostname, port):
     return blocked
 
 
-def is_public_http_url(value):
+def is_public_http_url(value, resolver=None):
     """True for an http(s) URL whose host resolves only to public addresses."""
     text = str(value or "").strip()
     if not text:
@@ -353,12 +362,43 @@ def is_public_http_url(value):
         return False
     if split.scheme.lower() not in ("http", "https") or not split.netloc:
         return False
+    if split.username or split.password:
+        return False
     try:
         port = split.port
         hostname = split.hostname
     except ValueError:
         return False
-    return not host_is_blocked(hostname, port)
+    if not hostname:
+        return False
+    return not host_is_blocked(hostname, port, resolver)
+
+
+def is_public_http_url_dns(value, resolver=None):
+    """Play-time public-URL guard: syntax + a real DNS answer check.
+
+    Directory/listing code deliberately stays syntax-only (one DNS lookup per
+    unique host is too slow for a 100-row door).  This function is for the
+    moment a URL is about to be handed to Kodi's player, where a hostname
+    resolving to loopback/LAN/metadata must be refused.
+    """
+    text = str(value or "").strip()
+    if not text:
+        return False
+    base = text.split("|", 1)[0].strip()
+    if not base or any(char in base for char in ("\r", "\n", "\x00", "\x7f")):
+        return False
+    try:
+        split = urllib.parse.urlsplit(base)
+        port = split.port
+        hostname = split.hostname
+    except ValueError:
+        return False
+    if split.scheme.lower() not in ("http", "https") or not split.netloc:
+        return False
+    if split.username or split.password or not hostname:
+        return False
+    return not host_is_blocked(hostname, port, resolver)
 
 
 def safe_stream_url(value):

@@ -60,10 +60,9 @@ git push -u origin main --tags
 
 The 3.9.x release flow is: bump `addon.xml` + `changelog.txt`; rebuild the
 artifacts; commit the regenerated `repo/`; then tag. The current release is
-**3.9.61** (`plugin.audio.raveplayer` 3.9.61 + `script.raveplayer.ui` 3.9.61 +
-`script.module.raveresolver` 1.1.0), prepared on `feat/3.9.61-parity`; the
-release notes are in `docs/RELEASE-3.9.61.md`, the destination matrix in
-`docs/PARITY-3.9.61.md`, and the resolver wiring and merge guidance in
+**3.9.73** (`plugin.audio.raveplayer` 3.9.73 + `script.raveplayer.ui` 3.9.73 +
+`script.module.raveresolver` 1.1.1), prepared on `feat/3.9.73-resolver`; the
+release notes are in `docs/RELEASE-3.9.73.md`, and the resolver wiring and merge guidance in
 `docs/KODI-RESOLVER-WIRING-3.9.53.md`. `scripts/build.sh` and
 `scripts/build-repo.sh` include all three add-ons, and the plugin now declares
 the resolver-module dependency.

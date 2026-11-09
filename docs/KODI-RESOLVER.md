@@ -2,7 +2,7 @@
 
 Status: **wired into the plugin in 3.9.53.**
 
-`script.module.raveresolver` 1.1.0 is an installable Kodi module add-on that
+`script.module.raveresolver` 1.1.1 is an installable Kodi module add-on that
 packages the resolver SDK in `resources/lib/resolver/`. The plugin
 `plugin.audio.raveplayer` now resolves provider pages in play/play-all and
 downloads; the shipped behaviour and merge notes are in
@@ -29,7 +29,7 @@ Add one line to `plugin.audio.raveplayer/addon.xml`:
 <addon id="plugin.audio.raveplayer" ... version="3.9.53">
     <requires>
         <import addon="xbmc.python" version="3.0.1"/>
-        <import addon="script.module.raveresolver" version="1.1.0"/>
+        <import addon="script.module.raveresolver" version="1.1.1"/>
     </requires>
     ...
 </addon>
@@ -78,6 +78,13 @@ Typed failures all carry `.code` and `.fallback`: `InvalidURL`, `BlockedURL`,
 `HostNotAllowed`, `UnsupportedURL`, `AdapterNotReady`, `NotFound`,
 `ProviderError`, `ProviderTimeout`, `RateLimited`, `ServiceAuthError`,
 `ServiceError`, `ServiceProtocolError`.
+
+Since 1.1.1 a non-2xx `/api/resolve` is no longer collapsed into
+`ServiceError`: the web's JSON `code` (and the HTTP status as a fallback) maps
+to `NotFound` (`not_found`), `RateLimited` (`rate_limited`, with a bounded
+`Retry-After`), `ProviderTimeout` (`timeout`), `ProviderError` (`upstream`),
+`BlockedURL` (`blocked`), `InvalidURL` (`invalid`) or `UnsupportedURL`
+(`unsupported`/`unknown`); 401/403 stay `ServiceAuthError`.  A 3xx is refused.
 
 ## 3. `routes.play()` integration
 
@@ -232,7 +239,14 @@ ignored:
 http://192.168.1.179:8097           LAN
 http://rave-nas.tail1234.ts.net:8097 Tailscale
 https://rave.example/resolver       reverse-proxy prefix
+nas:8080                            bare host:port (http:// assumed)
 ```
+
+A bare `host:port` is accepted (1.1.1) exactly like
+`webapi.normalise_base()`.  The service base may use any port, but
+link-local (169.254/16, fe80::/10) and cloud-metadata targets are refused:
+the request carries the Bearer token.  A bad setting leaves the in-process
+adapters usable; it does not disable resolution.
 
 The client sends:
 
@@ -386,12 +400,14 @@ Kodi (or any player) requests the returned stream URL **directly**:
   authenticates itself, and a stray `Authorization`/`Cookie` would be both
   unnecessary and potentially breaking.
 - The cache stores signed provider URLs (needed for replay). It lives under
-  the Kodi temp/profile area and uses SHA-256 file names.
+  the Kodi temp/profile area, uses SHA-256 file names, `0600` files, is
+  bounded (512 entries / 64 MiB) and re-checks each record's own `expires_at`
+  before serving it.  `clear()` only removes its own hashed entries.
 
 ## 9. Rollout checklist (Lead, tonight)
 
-1. Merge/cherry-pick this module branch or install the 1.1.0 module zip.
-2. Add the `<import addon="script.module.raveresolver" version="1.1.0"/>` line.
+1. Merge/cherry-pick this module branch or install the 1.1.1 module zip.
+2. Add the `<import addon="script.module.raveresolver" version="1.1.1"/>` line.
 3. Apply the `routes.play()` and `_play_tracks()` edits above.
 4. Apply the downloads allowlist + `download_start()` edits.
 5. Add the download context item for resolvable pages.
@@ -434,7 +450,7 @@ All HTTP and DNS is injected; no test opens a network connection.
 
 ```
 script.module.raveresolver/
-  addon.xml (1.1.0)
+  addon.xml (1.1.1)
   changelog.txt
   README.md
   resources/settings.xml
@@ -447,4 +463,5 @@ scripts/build.sh scripts/build-repo.sh scripts/check-repo-artifacts.sh
 repo/  (regenerated catalogue + module zip)
 ```
 
-No plugin route file is modified in this branch.
+`resources/lib/routes.py` and `resources/lib/http.py` were updated in 3.9.73
+for play-time DNS validation of absolute web rows and the widened host mirror.

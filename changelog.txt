@@ -1,3 +1,16 @@
+Rave Player 3.9.73 — resolver hardening
+- Resolver module 1.1.1: typed /api/resolve error codes + Retry-After, cached
+  signed-URL expiry clamps, 15 s Mediafire negative cache, 80/443-only media
+  ports, default no-redirect HTTP, DNS-checked absolute web rows, pdcn.co /
+  mega.io / drive.usercontent host parity, safe bare host:port service base,
+  bounded cache/negative state, sanitised headers and no MEGA key in
+  MegaLink.as_dict().
+- Classic `web_play` passes an absolute web-source row through a real DNS
+  public-host check at play time (listing stays syntax-only); the app's direct
+  absolute `Track.path` rows are a documented residual.
+- Versions: plugin 3.9.73 (requires resolver 1.1.1), screen 3.9.73
+  (requires plugin 3.9.73). Offline code/docs only: no device, ADB, push/tag.
+
 Rave Player 3.9.72 — web rows show event/date
 - UK Raves / EZ rows include the event/venue in the row label and the date as the row fact, so repeated DJ names are distinguishable.
 
