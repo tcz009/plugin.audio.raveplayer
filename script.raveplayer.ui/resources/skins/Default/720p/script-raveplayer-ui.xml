@@ -54,7 +54,7 @@
             <aligny>center</aligny>
         </control>
         <control type="image" id="113">
-            <description>Baked print subtitle: THE RAVE SCREEN</description>
+            <description>Baked print subtitle: THE RAVE PLAYER</description>
             <posx>124</posx>
             <posy>74</posy>
             <width>102</width>
@@ -836,7 +836,7 @@
             <posy>44</posy>
             <width>300</width>
             <height>20</height>
-            <label>RAVE SCREEN / SURPRISE</label>
+            <label>RAVE PLAYER / SURPRISE</label>
             <font>font10</font>
             <textcolor>0xFFA8A399</textcolor>
             <shadowcolor>0xFF07070B</shadowcolor>

@@ -463,7 +463,7 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(len(rows), 3)
         self.assertEqual(view.rows[0].label, "Latest")
         self.assertEqual(view.hero, view.rows[0])
-        self.assertEqual(view.title, "RAVE SCREEN")
+        self.assertEqual(view.title, "RAVE PLAYER")
         self.assertIn("OK opens", view.subtitle)
         self.assertEqual(view.key_hints, ("OPEN", "BACK"))
 
@@ -2180,7 +2180,7 @@ class RowViewTests(unittest.TestCase):
                          "Now playing: Tape — Pack")
 
     def test_home_hides_the_view_crumb(self):
-        self.view.set_title("RAVE SCREEN")
+        self.view.set_title("RAVE PLAYER")
         self.view.set_subtitle("OK opens a source")
         self.assertFalse(self.window.getControl(119).visible)
         self.assertFalse(self.window.getControl(120).visible)

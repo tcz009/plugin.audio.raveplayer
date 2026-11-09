@@ -125,3 +125,43 @@ class EntryPointGuardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DirectLaunchTests(unittest.TestCase):
+    """3.9.60: opening the add-on must launch the screen, but only at root."""
+
+    def setUp(self):
+        import importlib.util
+        path = os.path.join(ROOT, "default.py")
+        spec = importlib.util.spec_from_file_location("raveplayer_entry_launch", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.entry = module
+
+    def test_root_launches_screen_when_enabled(self):
+        with mock.patch.object(self.entry.xbmc, "getCondVisibility",
+                               return_value=True) as visibility, \
+                mock.patch.object(self.entry.xbmc, "executebuiltin") as builtin, \
+                mock.patch.object(self.entry.routes, "dispatch") as dispatch:
+            self.entry.main(["plugin://x/", "1", ""])
+        self.assertTrue(builtin.called)
+        self.assertIn("RunScript(script.raveplayer.ui)", builtin.call_args[0][0])
+        self.assertFalse(dispatch.called)
+
+    def test_root_mode_launches_screen(self):
+        with mock.patch.object(self.entry.xbmc, "getCondVisibility",
+                               return_value=True), \
+                mock.patch.object(self.entry.xbmc, "executebuiltin") as builtin, \
+                mock.patch.object(self.entry.routes, "dispatch") as dispatch:
+            self.entry.main(["plugin://x/", "1", "?mode=root"])
+        self.assertTrue(builtin.called)
+        self.assertFalse(dispatch.called)
+
+    def test_play_mode_dispatches_normally(self):
+        with mock.patch.object(self.entry.xbmc, "getCondVisibility",
+                               return_value=True), \
+                mock.patch.object(self.entry.xbmc, "executebuiltin") as builtin, \
+                mock.patch.object(self.entry.routes, "dispatch") as dispatch:
+            self.entry.main(["plugin://x/", "1", "?mode=play&url=https%3A%2F%2Fx"])
+        self.assertTrue(dispatch.called)
+        self.assertFalse(builtin.called)

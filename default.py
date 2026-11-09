@@ -8,6 +8,8 @@ dependencies: everything comes from Kodi itself and the standard library.
 import sys
 import traceback
 
+import xbmc
+
 from resources.lib import kodi, routes
 
 
@@ -20,9 +22,10 @@ def _maybe_launch_screen(argv):
     args = list(argv or [])
     params = {}
     for part in args[2:]:
+        part = part.lstrip("?")
         if "=" in part:
             key, _, value = part.partition("=")
-            params[key] = value
+            params[key.lstrip("?")] = value
     mode = params.get("mode")
     if mode not in (None, "", "root"):
         return False

@@ -91,7 +91,7 @@ def _live_signature(rows):
         repr(payload).encode("utf-8", "replace"), digest_size=16).hexdigest()
 
 
-HOME_TITLE = "RAVE SCREEN"
+HOME_TITLE = "RAVE PLAYER"
 HOME_SUBTITLE = "13 rooms · OK opens · long-press OK for actions"
 KEY_LIMIT = 48
 
