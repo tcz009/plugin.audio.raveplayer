@@ -83,7 +83,7 @@ git tag v<version>
 git push origin v<version>
 ```
 
-- Actions → `build` runs the 1184 unit tests, validates `addon.xml`, rebuilds
+- Actions → `build` runs the 1186 unit tests, validates `addon.xml`, rebuilds
   `dist/` and `repo/`, and then fails if `repo/addons.xml`, `repo/addons.xml.md5`
   or the current versioned plugin zip are not committed
   (`scripts/check-repo-artifacts.sh`). Generated repo/ files must be committed or

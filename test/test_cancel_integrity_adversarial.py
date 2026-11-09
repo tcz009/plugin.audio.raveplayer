@@ -161,6 +161,35 @@ class CancelIntegrityTests(unittest.TestCase):
         self.assertTrue(ok)
         self.assertFalse(queue._cancel_requested("retry-key"))
 
+    def test_start_refusal_keeps_an_in_flight_cancel_sidecar(self):
+        url = "https://download.example.net/refused.mp3"
+        modules, downloads = fake_modules([])
+        queue = self.queue(modules, local_workers=False)
+        seed(queue, "K", url, status="downloading", updated=time.time())
+        queue._request_cancel("K")
+        ok, message = queue.start(url, "Again", "mediafire", key="K")
+        self.assertFalse(ok)
+        self.assertIn("already running", message)
+        self.assertTrue(queue._cancel_requested("K"))
+
+    def test_stale_window_start_cannot_clear_an_in_flight_cancel(self):
+        path = os.path.join(tempfile.mkdtemp(), "q.json")
+        url = "https://download.example.net/stale-start.mp3"
+        now = time.time()
+        write_store(path, [make_row("K", url, status="failed",
+                                   updated=now - 100)])
+        window = self.queue(local_workers=False, path=path)
+        self.assertEqual(window._row("K")["status"], "failed")
+        # The owner starts the same key and a cancel lands while it is live.
+        write_store(path, [make_row("K", url, status="downloading",
+                                   updated=now)])
+        with open(path + ".cancel", "w", encoding="utf-8") as handle:
+            json.dump(["K"], handle)
+        ok, message = window.start(url, "Again", "mediafire", key="K")
+        self.assertFalse(ok)
+        self.assertIn("already running", message)
+        self.assertTrue(window._cancel_requested("K"))
+
     def test_terminal_row_drops_its_persisted_cancel_on_load(self):
         path = os.path.join(tempfile.mkdtemp(), "q.json")
         row = make_row("done-key", "https://download.example.net/a.mp3",

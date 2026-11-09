@@ -73,7 +73,7 @@ re-create a row the owner had completed/removed.
 
 ## Tests
 
-`test/test_cancel_integrity_adversarial.py` (18 deterministic tests) pins:
+`test/test_cancel_integrity_adversarial.py` (20 deterministic tests) pins:
 
 - active cancel, completed-row cancel, `_finish(cancelled)` and the late-cancel
   branch never delete a completed index/file;
@@ -87,7 +87,7 @@ re-create a row the owner had completed/removed.
 The `DownloadQueueTests` in `test/test_rave_screen.py` were updated for the
 conservative rule (no delete) and for the new store package format. The full
 suite (`python3 -m unittest discover -s test`) ran twice on this tree:
-**1184 tests, OK** in both runs.
+**1186 tests, OK** in both runs.
 
 ## Known limits
 
