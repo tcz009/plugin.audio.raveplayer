@@ -143,6 +143,25 @@ class CancelIntegrityTests(unittest.TestCase):
         self.assertFalse(queue.active())
         self.assertFalse(queue._cancel_requested("queued"))
 
+    def test_cancelling_an_active_duplicate_does_not_delete_a_completion(self):
+        url = "https://download.example.net/dup.mp3"
+        modules, downloads = fake_modules([{"key": "sha1", "url": url}])
+        queue = DownloadQueue(modules=modules, local_workers=False,
+                              store_path=os.path.join(tempfile.mkdtemp(), "q.json"))
+        seed(queue, "A", url, status="done")
+        seed(queue, "B", url, status="queued")
+        queue.cancel("B")
+        self.assertEqual(downloads.deleted, [])
+
+    def test_cancelling_a_completed_row_may_delete_by_url(self):
+        url = "https://download.example.net/done.mp3"
+        modules, downloads = fake_modules([{"key": "sha1", "url": url}])
+        queue = DownloadQueue(modules=modules, local_workers=False,
+                              store_path=os.path.join(tempfile.mkdtemp(), "q.json"))
+        seed(queue, "screen-key", url, status="done")
+        queue.cancel("screen-key")
+        self.assertEqual(downloads.deleted, ["sha1"])
+
     def test_late_finish_of_a_duplicate_never_touches_the_completion(self):
         url = "https://download.example.net/late.mp3"
         modules, downloads = fake_modules([{"key": "A", "url": url}])

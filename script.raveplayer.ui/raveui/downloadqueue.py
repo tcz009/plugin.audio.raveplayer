@@ -305,10 +305,12 @@ class DownloadQueue(object):
             self._request_cancel(candidate)
         self._save_now()
         self._safe_update()
-        # This is an explicit user cancel: it may remove the completed index
-        # entry for the same transfer (URL), matching the plugin's key scheme.
+        # Cancelling a *completed* row is an explicit delete of that transfer:
+        # the screen key and plugin key differ, so URL matching is needed.  But
+        # cancelling an active duplicate must never remove a different job's
+        # completed copy that happens to share the URL.
         if active or url:
-            self._delete_completed(key, url, by_url=True)
+            self._delete_completed(key, url, by_url=not active)
         # The owner drains queued/cancelling rows that have no worker; the
         # window must leave the sidecar for that owner.
         if self._local_workers:

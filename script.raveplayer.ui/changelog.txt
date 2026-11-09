@@ -1,3 +1,10 @@
+Rave Player 3.9.58 — cancel safety follow-up
+- Explicit URL matching is now used only when cancelling a *completed* row;
+  cancelling an active duplicate deletes by job identity only, so a different
+  job's finished file can never be removed.
+- Owner drain, sidecar save-then-clear ordering and window/owner sidecar
+  ownership from 3.9.57 are retained.
+
 Rave Player 3.9.57 — cancel/data-integrity fix
 - Cancelling a download can no longer delete a successfully completed file for
   another row that shares the same URL. Completed entries are deleted by job
