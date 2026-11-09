@@ -53,6 +53,7 @@ _DOWNLOAD_SOURCE = {
     "moxser": "Moxser.com",
     "hardscore": "Hardscore.com",
     "pirate": "Pirate Radio Archives",
+    "web_dejavu": "Rave Resolver",
 }
 
 _SOURCE_LABEL = {
@@ -70,6 +71,10 @@ _SOURCE_LABEL = {
     "live": "Live radio",
     "legacyblog": "Blog archive",
     "mixcloud": "Mixcloud",
+    "web_20bensons": "20bensons.com",
+    "web_ukraves": "UK Raves Downloads",
+    "web_ezgarage": "EZ Garage Sets",
+    "web_dejavu": "DejaVu FM",
 }
 
 
@@ -385,7 +390,7 @@ class RaveData(object):
                  "mixes.png", "fanart-mixes.jpg", "shows", "RP-32",
                  "Studio mixes, archive sets and podcast shows."),
             room("live", "Live Radio",
-                 "Kool FM · Rinse FM · Centreforce and more",
+                 "Kool · Rinse · Centreforce · DejaVu · OSA",
                  "radio.png", "fanart-live.jpg", "live", "RP-31",
                  "Stations on air now, plus scene genre doors."),
             room("favourites", "Favourites",
@@ -496,6 +501,22 @@ class RaveData(object):
                  "ravetapepacks.png", "fanart-tapepacks.jpg", "1992–2004", "RP-03",
                  "The UK rave tape-pack archive, filed every way.",
                  target="ravetapepacks"),
+            door("pack-20bensons", "20bensons.com",
+                 "Old-skool rave MP3s · web archive",
+                 "20bensons.png", "fanart-hub-packs.jpg", "web archive", "RP-43",
+                 "Old-skool rave MP3s from 20bensons.com, in homepage order.",
+                 kind="web_list", source="web_20bensons", target="20bensons"),
+            door("pack-ukraves", "UK Raves Downloads",
+                 "UK Raves event sets · Mediafire via the web proxy",
+                 "ukraves.png", "fanart-hub-packs.jpg", "web sets", "RP-44",
+                 "UK Raves event downloads; Mediafire sets play through the "
+                 "web service's /stream proxy.",
+                 kind="web_list", source="web_ukraves", target="ukraves"),
+            door("pack-ezgarage", "EZ Garage Sets",
+                 "DJ EZ and old-skool garage · DNBForum thread",
+                 "ezgarage.png", "fanart-hub-packs.jpg", "web sets", "RP-45",
+                 "DJ EZ and old-skool garage sets from the DNBForum thread.",
+                 kind="web_list", source="web_ezgarage", target="ezgarage"),
             door("pack-series", "Classic Pack Series",
                  "Dreamscape · Helter Skelter · Fantazia · One Nation",
                  "series.png", "fanart-hub-packs.jpg",
@@ -920,6 +941,14 @@ class RaveData(object):
                    "podcasts.png", "feeds",
                    "Podcast and mix RSS feeds, newest episodes first",
                    "fanart-hub-shows.jpg"),
+            Entry("web-dejavu", "DejaVu FM Archive",
+                  "Live rave radio · full show archive",
+                  self._art("dejavu.png"), "web_feed",
+                  source="web_dejavu", target="dejavu",
+                  hero=self._art("fanart-hub-shows.jpg"), fact="podcast",
+                  code="RP-46",
+                  plot="The DejaVu FM show archive, newest episodes first.",
+                  meta=_meta("PODCAST", "DEJAVU FM", "RP-46")),
             source("moxser_source", "Moxser",
                    "Old skool to new cool dance mixes · direct MP3s",
                    "moxser.png", "mixes", "Moxser.com mix archive",
@@ -1368,7 +1397,73 @@ class RaveData(object):
                                     page, rows)
         if kind == "blog_post":
             return self._blog_post_children(entry, page, rows)
+        if kind in ("web_list", "web_feed"):
+            return self._web_children(entry, page, rows)
         return _page_local([], page, rows)
+
+    # --------------------------------------------------------- web sources
+    def _web_children(self, entry, page, rows):
+        """One page of a web-only source (20bensons/UK Raves/EZ Garage/DejaVu)."""
+        source = _text(entry.target)
+        try:
+            page_data = self.modules.routes.web_source_page(source, page)
+        except Exception:  # noqa: BLE001 - quiet empty plate
+            page_data = None
+        if not isinstance(page_data, dict):
+            return _page_server([], page, rows, 0)
+        track_source = _text(entry.source, "web_%s" % source)
+        label = _text(entry.label, source)
+        download_source = ""
+        if track_source == "web_dejavu":
+            download_source = "Rave Resolver"
+        art = entry.art or self._art("rave.png")
+        hero = entry.hero or art
+        entries = []
+        for row in page_data.get("rows") or []:
+            if not isinstance(row, dict):
+                continue
+            url = _text(row.get("url"))
+            if not url:
+                continue
+            title = _text(row.get("label"), "Untitled")
+            fact = _fact(row.get("fact") or page_data.get("noun") or "set", "set")
+            downloadable = bool(download_source and row.get("download")
+                                and self._downloadable(url, download_source))
+            row_art = _text(row.get("art"), art)
+            track = Track(
+                title, label, url, row_art, live=False, source=track_source,
+                download_source=download_source if downloadable else "",
+                path=url)
+            entries.append(Entry(
+                key=_stable_key("web:%s" % source, url),
+                label=title,
+                subtitle=label,
+                art=row_art,
+                kind="track",
+                source=track_source,
+                target=url,
+                track=track,
+                hero=hero,
+                fact=fact,
+                code=_text(entry.code, "RP-46"),
+                plot=_text(row.get("plot") or row.get("sub"),
+                           "Web source · %s" % label),
+                meta=_meta(_text(row.get("fact")), label.upper(),
+                           _text(entry.code)),
+                download_source=download_source if downloadable else "",
+                downloadable=downloadable))
+        per_page = max(1, _as_int(page_data.get("per_page"), 40))
+        total = page_data.get("total")
+        pages = page_data.get("pages")
+        return Page(
+            entries,
+            max(0, _as_int(total, 0)) if total is not None else 0,
+            max(1, _as_int(page_data.get("page"), page)),
+            max(0, _as_int(pages, 0)) if pages is not None else 0,
+            per_page,
+            has_next=bool(page_data.get("has_next")),
+            cursor=(_text(page_data.get("next_page"))
+                    if page_data.get("next_page") not in (None, "", 0) else ""))
 
     def _archive_track_entries(self, tracks, identifier, title, year=""):
         entries = []

@@ -1,3 +1,16 @@
+Rave Player 3.9.67 — web-only sources
+- Adds the web app's server-side sources to Classic lists and the full-screen app:
+  20bensons.com, UK Raves Downloads and EZ Garage Sets in Tape Packs, the DejaVu
+  FM archive in Mixes & Shows, and DejaVu FM + OSA Radio live rows.
+- New bounded web JSON client reads the resolver service base/token, sends the
+  bearer header, rejects off-host redirects and caps timeout/body size. Rows
+  keep the web's art, plot and facts and are paged at the server's 40-row size.
+- Web rows play directly (absolute URL, no plugin:// and no new resolver step);
+  Mediafire/UK Raves rows play through the web service's /stream proxy.
+- DejaVu episodes can be downloaded through the existing resolver download path.
+- Versions: plugin 3.9.67, screen 3.9.67 (requires plugin 3.9.67); resolver
+  1.1.0 unchanged. Code/docs only: no device, ADB, push or tag.
+
 Rave Player 3.9.66 — easier stop
 - At Home while playing, the footer shows STOP on the Back button; pressing Back stops the audio (second Back leaves the app).
 - Includes the web-matching sticker icons for every shared room/source.

@@ -417,9 +417,9 @@ class LiveRoutingTests(unittest.TestCase):
         self.assertEqual(view.title, "LIVE RADIO")
         self.assertEqual([row.label for row in view.rows],
                          ["Kool FM", "Rinse FM", "Centreforce 883",
-                          "Pirate Radio", "Hardcore", "Jungle",
-                          "Drum & Bass", "House", "UK Garage",
-                          "Dubstep & Grime"])
+                          "DejaVu FM", "OSA Radio", "Pirate Radio",
+                          "Hardcore", "Jungle", "Drum & Bass", "House",
+                          "UK Garage", "Dubstep & Grime"])
         self.assertTrue(all(row.kind in ("station", "section")
                             for row in view.rows))
         self.assertTrue(all(isinstance(row.action, dict) for row in view.rows))

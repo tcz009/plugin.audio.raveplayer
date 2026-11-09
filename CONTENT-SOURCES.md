@@ -190,3 +190,28 @@ Checked with a browser UA (`Mozilla/5.0 ... Chrome/124.0`), following redirects,
 - **Cloudflare** blocks thepiratearchive.net / piratearchive.co.uk to non-browser clients — needs a server-side proxy or manual curation, not a direct add-on fetch.
 - IA counts and item availability shift (see `dreamscape-14` above); cache identifiers, tolerate 404/empty metadata.
 - radio-browser `url_resolved` values rot — re-resolve on failure and keep `stationuuid` as the stable key.
+
+---
+
+## 5. Web-only sources (3.9.67)
+
+These are served by the NAS web app, not scraped by Kodi. The plugin reads them
+with the configured resolver service base (`resolver_service_url`) and bearer
+token (`resolver_service_token`); see `docs/WEB-SOURCES-3.9.67.md`.
+
+| Source | Endpoint | Kodi destination | Notes |
+|---|---|---|---|
+| **20bensons.com** | `GET /api/20bensons` | Tape Packs → 20bensons.com | 234 old-skool MP3s, absolute `play` URLs, server pages of 40. |
+| **UK Raves Downloads** | `GET /api/ukraves` | Tape Packs → UK Raves Downloads | Mediafire sets play via web `/api/ukraves/<id>/stream`; YouTube/external rows are omitted. |
+| **EZ Garage Sets** | `GET /api/ezgarage` | Tape Packs → EZ Garage Sets | 23 DJ EZ / garage sets; `play` is a web-relative `/stream` path. |
+| **DejaVu FM archive** | `GET /api/podcast/dejavu-fm` | Mixes & Shows → DejaVu FM Archive | Paged at 40; Podomatic episode URLs are direct and downloadable. |
+| **DejaVu FM / OSA Radio** | `GET /api/live` | Live Radio | Two station rows; canonical stream URLs are an offline fallback. |
+
+All rows use `{label, sub, play, art, fav, download, fact}`. Relative `play`
+and art paths resolve against the web base. The add-on never sends the token
+off that origin and does not follow cross-host redirects.
+
+**Rollout dependency:** the web team is adding GET scope for these endpoints to
+the resolver service token. Until that scope is live, the API may answer
+401/403; the Live Radio rows still fall back to their canonical streams, while
+the web-only list rooms show a retryable "Nothing from …" plate.

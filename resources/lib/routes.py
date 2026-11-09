@@ -80,6 +80,7 @@ radio = _lazy("radio")
 rtp_bridge = _lazy("rtp_bridge")
 spinner = _lazy("spinner")
 toronto_source = _lazy("toronto")
+webapi = _lazy("webapi")
 
 ROWS_PER_PAGE = 50
 MAX_ROWS_PER_PAGE = 200
@@ -99,7 +100,7 @@ ROUTE_BUDGET_SECONDS = http.ROUTE_BUDGET_SECONDS
 
 # Routes that resolve a single stream instead of building a directory, and
 # context-menu routes whose caller never expects a directory at all.
-PLAYBACK_MODES = frozenset(("play", "dnb_play"))
+PLAYBACK_MODES = frozenset(("play", "dnb_play", "web_play"))
 RUNPLUGIN_MODES = frozenset(("play_all", "play_all_collection", "fav_add",
                              "fav_remove", "download_start", "download_delete"))
 
@@ -212,6 +213,11 @@ MENU_ART = {
     "shows_getdarker": "getdarker.png",
     "shows_mikus": "mikus.png",
     "shows_demodulated": "demodulated.png",
+    "dejavu": "dejavu.png",
+    # web-only sources (3.9.67)
+    "pack_20bensons": "20bensons.png",
+    "pack_ukraves": "ukraves.png",
+    "pack_ezgarage": "ezgarage.png",
     # curated gems
     "curated_pirate": "pirate-archive.png",
     "curated_legacy": "legacy.png",
@@ -227,6 +233,7 @@ MENU_ART = {
     "radio_breakbeat": "radio-breakbeat.png",
     "radio_centreforce": "radio-centreforce.png",
     "radio_dubstep_grime": "radio-dubstep-grime.png",
+    "radio_osa": "osa.png",
     # legacy sites
     # shared utility rows
     "downloads": "downloads.png",
@@ -248,6 +255,66 @@ FILTER_ART = {
     "world-dance": "world-dance.png",
     "dj-ez": "djez.png",
     "garage-nation": "garage-nation.png",
+}
+
+# Web-only sources served by the NAS web app (3.9.67).  The path is relative to
+# ``resolver_service_url``; the screen reads the same table through
+# ``web_source_page()`` so both menus stay in step.
+WEB_SOURCES = {
+    "20bensons": {
+        "path": "/api/20bensons",
+        "label": "20bensons.com",
+        "art": "pack_20bensons",
+        "noun": "sets",
+        "code": "RP-43",
+        "plot": "Old-skool rave MP3s from 20bensons.com, in homepage order.",
+        "download": False,
+    },
+    "ukraves": {
+        "path": "/api/ukraves",
+        "label": "UK Raves Downloads",
+        "art": "pack_ukraves",
+        "noun": "sets",
+        "code": "RP-44",
+        "plot": "UK Raves event downloads; Mediafire sets play through the "
+                "web service's /stream proxy.",
+        "download": False,
+    },
+    "ezgarage": {
+        "path": "/api/ezgarage",
+        "label": "EZ Garage Sets",
+        "art": "pack_ezgarage",
+        "noun": "sets",
+        "code": "RP-45",
+        "plot": "DJ EZ and old-skool garage sets from the DNBForum thread.",
+        "download": False,
+    },
+    "dejavu": {
+        "path": "/api/podcast/dejavu-fm",
+        "label": "DejaVu FM Archive",
+        "art": "dejavu",
+        "noun": "episodes",
+        "code": "RP-46",
+        "plot": "The DejaVu FM show archive, newest episodes first.",
+        "download": True,
+    },
+}
+
+# Rows inside /api/live that are new in 3.9.67.  The web API is the source of
+# truth; the canonical URLs are only used when it cannot be reached so the
+# station rows still work offline (they are the same official streams the web
+# directory resolves to).
+WEB_LIVE_TOKENS = (
+    ("dejavu", "DejaVu FM", "dejavu.png",
+     "https://dejavufm.radioca.st/stream",
+     "London rave radio, still broadcasting"),
+    ("osa", "OSA Radio", "osa.png",
+     "https://osa.radioca.st/stream",
+     "Old-skool anthems and rave radio"),
+)
+WEB_LIVE_BY_LABEL = {
+    "dejavu fm": "dejavu",
+    "osa radio": "osa",
 }
 
 
@@ -382,6 +449,106 @@ def classic_years():
 @functools.lru_cache(maxsize=256)
 def art(name):
     return os.path.join(kodi.ADDON_PATH, "resources", "art", name)
+
+
+# --------------------------------------------------------------- web sources
+
+
+def _web_client():
+    """Build the JSON client from the operator's resolver service settings.
+
+    The web app shares the resolver service base/token in the plugin's Resolver
+    settings.  A blank/invalid base is not an error: the route shows its quiet
+    empty plate, exactly like an unreachable source.
+    """
+    base = kodi.setting("resolver_service_url", "")
+    token = kodi.setting("resolver_service_token", "")
+    if not str(base or "").strip():
+        return None
+    try:
+        return webapi.Client(base, token)
+    except Exception as exc:  # noqa: BLE001 - configuration must not crash a menu
+        kodi.log("web sources: invalid service URL (%s)" % type(exc).__name__,
+                 level=30)
+        return None
+
+
+def web_source_page(source, page=1):
+    """Return one web source page as plain Kodi-facing dictionaries.
+
+    Public helper (also used by the full-screen app through
+    ``pluginbridge``); it never raises.  ``None`` means the service is not
+    configured, auth failed or the response was unusable.
+    """
+    source = str(source or "")
+    config = WEB_SOURCES.get(source)
+    if config is None:
+        return None
+    client = _web_client()
+    if client is None:
+        return None
+    try:
+        page_data = client.page(config["path"], page)
+    except Exception as exc:  # noqa: BLE001 - one source failure is not fatal
+        kodi.log("web sources: %s page %s failed (%s)"
+                 % (source, _page_number({"page": page}), type(exc).__name__),
+                 level=30)
+        return None
+    rows = [row.as_kodi() for row in page_data.rows]
+    doc = {
+        "source": source,
+        "title": page_data.title or config["label"],
+        "sub": page_data.subtitle or config["plot"],
+        "label": config["label"],
+        "noun": config["noun"],
+        "code": config["code"],
+        "download": config["download"],
+        "rows": rows,
+        "page": page_data.page,
+        "pages": page_data.pages,
+        "total": page_data.total,
+        "per_page": page_data.per_page,
+        "has_next": page_data.has_next,
+        "next_page": page_data.next_page,
+    }
+    return doc
+
+
+def web_live_stations():
+    """DejaVu FM and OSA Radio rows from ``/api/live``.
+
+    The API is authoritative for the stream URLs; the two canonical streams
+    are a fallback when the service/token is not available yet, so the rows do
+    not disappear while the web team rolls out the GET scope.
+    """
+    stations = [
+        {"token": token, "name": name, "url": url, "art": icon,
+         "meta": tagline, "source": "web_live"}
+        for token, name, icon, url, tagline in WEB_LIVE_TOKENS
+    ]
+    by_token = {station["token"]: station for station in stations}
+    client = _web_client()
+    if client is None:
+        return stations
+    try:
+        page_data = client.page("/api/live", 1)
+    except Exception as exc:  # noqa: BLE001 - fallback rows are deliberate
+        kodi.log("web sources: live rows unavailable (%s)"
+                 % type(exc).__name__, level=30)
+        return stations
+    for row in page_data.rows:
+        token = WEB_LIVE_BY_LABEL.get(row.label.strip().lower())
+        if not token or token not in by_token:
+            continue
+        by_token[token] = {
+            "token": token,
+            "name": row.label,
+            "url": row.play,
+            "art": by_token[token]["art"],
+            "meta": row.sub or by_token[token]["meta"],
+            "source": "web_live",
+        }
+    return [by_token[token] for token, _name, _icon, _url, _tag in WEB_LIVE_TOKENS]
 
 
 ARCHIVE_BY_KEY = dict((section["key"], section) for section in ARCHIVE_SECTIONS)
@@ -908,6 +1075,15 @@ def packs_menu(handle, params):
         ("RaveTapePacks.com", url_for(mode="legacy_menu"),
          MENU_ART["pack_ravetapepacks"],
          "UK tape packs, 1992–2004, by event, DJ, MC and year.", "1992–2004"),
+        ("20bensons.com", url_for(mode="web_list", source="20bensons"),
+         MENU_ART["pack_20bensons"],
+         WEB_SOURCES["20bensons"]["plot"], "web archive"),
+        ("UK Raves Downloads", url_for(mode="web_list", source="ukraves"),
+         MENU_ART["pack_ukraves"],
+         WEB_SOURCES["ukraves"]["plot"], "web sets"),
+        ("EZ Garage Sets", url_for(mode="web_list", source="ezgarage"),
+         MENU_ART["pack_ezgarage"],
+         WEB_SOURCES["ezgarage"]["plot"], "web sets"),
         ("Classic Pack Series", url_for(mode="filters_menu"),
          MENU_ART["pack_series"],
          "The UK pack canon: Dreamscape, Helter Skelter, One Nation, Fantazia.",
@@ -938,6 +1114,9 @@ def shows_menu(handle, params):
         ("Podcasts & Mixes", url_for(mode="media_menu"), MENU_ART["shows_podcasts"], None,
          "Current jungle, drum & bass, hardcore and rave shows — RSS feeds.",
          ui.fact("%d feeds" % len(feeds.registry()))),
+        ("DejaVu FM Archive", url_for(mode="web_list", source="dejavu"),
+         MENU_ART["dejavu"], "fanart-hub-shows.jpg",
+         WEB_SOURCES["dejavu"]["plot"], "podcast"),
         ("DNBRADIO", url_for(mode="dnb_list"), MENU_ART["shows_dnb"], None,
          "24/7 jungle and drum & bass, plus the show archive.", "archive"),
         ("GetDarker", url_for(mode="getdarker"), MENU_ART["shows_getdarker"],
@@ -972,6 +1151,10 @@ def radio_menu(handle, params):
          "Rinse FM — live now, plus every Rinse FM set in the archive."),
         ("Centreforce 883", url_for(mode="station_live", token="centreforce"),
          "radio_centreforce", "The 1989 acid-house pirate, still broadcasting."),
+        ("DejaVu FM", url_for(mode="web_live", token="dejavu"),
+         "dejavu", "DejaVu FM — live rave radio from the web directory."),
+        ("OSA Radio", url_for(mode="web_live", token="osa"),
+         "radio_osa", "OSA Radio — old-skool anthems, live from the web directory."),
     ]
     for label, url, art_key, plot in stations:
         ui.menu_item(handle, url, label, icon=art(MENU_ART[art_key]),
@@ -1004,6 +1187,124 @@ def station_live(handle, params):
     _station_items(handle, stations, "Live now")
     kodi.end_directory(handle, "songs")
 
+
+def web_live(handle, params):
+    """One DejaVu FM / OSA Radio row resolved from the web's ``/api/live``."""
+    token = str(params.get("token") or "").strip().lower()
+    stations = web_live_stations()
+    station = next((row for row in stations if row.get("token") == token), None)
+    if station is None:
+        kodi.notify("That web station is not listed live right now.")
+        ui.status_item(
+            handle, "This station is off air",
+            plot="The web live directory has no working stream for it right now. "
+                 "Press OK to check again.",
+            fact="empty", kind="empty",
+            retry_url=url_for(mode="web_live", token=token))
+        kodi.end_directory(handle, "songs")
+        return
+    name = ui.plain(station.get("name") or token)
+    icon = art(MENU_ART["dejavu"] if token == "dejavu" else MENU_ART["radio_osa"])
+    stream = station.get("url") or ""
+    if not stream:
+        kodi.notify("%s is off air right now." % name)
+        kodi.end_directory(handle, "songs")
+        return
+    ui.track_item(
+        handle,
+        url_for(mode="web_play", url=stream, label=name, thumb=icon,
+                plot=station.get("meta") or ("Live radio · %s" % name),
+                live=1),
+        name,
+        thumb=icon,
+        fanart=art("fanart-hub-live.jpg"),
+        plot=station.get("meta") or ("Live radio · %s" % name),
+        album="Live radio",
+        title=name,
+        label2="live",
+        context=[_favourite("stream", stream, name, "Live radio · %s" % name)],
+    )
+    kodi.end_directory(handle, "songs")
+
+
+def web_list(handle, params):
+    """A paged web-only source (20bensons, UK Raves, EZ Garage, DejaVu)."""
+    source = str(params.get("source") or "").strip().lower()
+    config = WEB_SOURCES.get(source)
+    if config is None:
+        kodi.notify("That web source no longer exists.")
+        kodi.end_directory(handle, "files")
+        return
+    page = _page_number(params)
+    doc = web_source_page(source, page)
+    if doc is not None:
+        # The API may clamp an out-of-range page; navigate from the page it
+        # actually returned, not the integer in the URL.
+        page = max(1, int(doc.get("page") or page))
+    if doc is None:
+        kodi.notify("%s did not answer — check the resolver service."
+                    % config["label"])
+        ui.status_item(
+            handle, "Nothing from %s right now" % config["label"],
+            plot="The web source could not be reached. Check the resolver "
+                 "service URL/token in Settings, then press OK to try again.",
+            fact="empty", kind="empty",
+            retry_url=url_for(mode="web_list", source=source, page=page))
+        kodi.end_directory(handle, "files")
+        return
+
+    icon = art(MENU_ART[config["art"]])
+    hub_fanart = art("fanart-hub-shows.jpg" if source == "dejavu"
+                     else "fanart-hub-packs.jpg")
+    rows = doc.get("rows") or []
+    if not rows and page == 1:
+        kodi.notify("%s returned no playable rows." % config["label"])
+        ui.status_item(
+            handle, "Nothing in %s right now" % config["label"],
+            plot="The source answered but offered no playable rows. Press OK "
+                 "to ask again.",
+            fact="empty", kind="empty", icon=icon,
+            retry_url=url_for(mode="web_list", source=source, page=1))
+        kodi.end_directory(handle, "files")
+        return
+
+    total = doc.get("total")
+    pages = doc.get("pages")
+    shown_total = len(rows) if total is None else total
+    per_page = max(1, int(doc.get("per_page") or len(rows) or 40))
+    has_next = bool(doc.get("has_next"))
+    if page > 1 or has_next or (pages is not None and pages > 1):
+        _page_header(handle, page, pages, shown_total, config["noun"], icon=icon)
+
+    for row in rows:
+        play = str(row.get("url") or "")
+        if not play:
+            continue
+        label = ui.plain(row.get("label") or config["label"])
+        plot = row.get("plot") or config["plot"]
+        fact = row.get("fact") or config["noun"]
+        published_thumb = _web_art(row.get("art"), icon)
+        context = [_favourite("stream", play, label, config["label"])]
+        if config["download"] and row.get("download"):
+            context += _download_context(play, label, "Rave Resolver")
+        ui.track_item(
+            handle,
+            url_for(mode="web_play", url=play, label=label,
+                    thumb=published_thumb, plot=plot),
+            label,
+            thumb=published_thumb,
+            fanart=hub_fanart,
+            plot=plot,
+            album=config["label"],
+            title=label,
+            label2=fact,
+            context=context,
+        )
+
+    _page_nav(handle, "web_list", {"source": source}, page, pages, shown_total,
+              per_page, config["noun"], has_next=has_next,
+              has_prev=page > 1)
+    kodi.end_directory(handle, "songs")
 
 
 def radio_tag(handle, params):
@@ -2989,6 +3290,28 @@ def _safe_art(value, fallback=None):
     return fallback
 
 
+def _web_art(value, fallback=None):
+    """Artwork from the configured web service, or the normal safe check.
+
+    Relative web art is served by the NAS (e.g. ``/static/art/20bensons.png``)
+    and is intentionally on the same private origin as the API, so Kodi must be
+    allowed to fetch it.  Anything else still goes through the public guard.
+    """
+    text = str(value or "").strip()
+    if not text:
+        return fallback
+    if not text.lower().startswith(("http://", "https://")):
+        return fallback
+    base = ""
+    try:
+        base = webapi.normalise_base(kodi.setting("resolver_service_url", ""))
+    except Exception:  # noqa: BLE001 - settings must not break a menu
+        base = ""
+    if base and webapi.same_origin(text, base):
+        return text
+    return _safe_art(text, fallback)
+
+
 def _resolve_live_player_url(stream, station):
     """Re-resolve a live station to its current direct URL, best effort."""
     try:
@@ -3071,6 +3394,49 @@ def _tuning_aborted(handle, tuning):
         _fail_playback(handle, "Cancelled.")
         return True
     return False
+
+
+def web_play(handle, params):
+    """Play a web-source URL directly, without the resolver or plugin wrapper.
+
+    Absolute rows come from 20bensons / Podomatic / live radio and must pass
+    the public-host guard.  Relative rows (EZ Garage, UK Raves) are on the
+    operator's web service origin, which is intentionally allowed even when it
+    is a LAN/Tailscale address: the NAS proxies/resolves those streams and the
+    signed URL is never exposed to the client.
+    """
+    raw = str(params.get("url") or "").strip()
+    label = params.get("label", "Rave Player")
+    base = ""
+    try:
+        base = webapi.normalise_base(
+            kodi.setting("resolver_service_url", ""))
+    except Exception:  # noqa: BLE001 - an invalid base simply means public-only
+        base = ""
+    stream = webapi.playable_url(raw, base) if base else ""
+    if not stream:
+        # With no configured web base, an absolute public stream is still a
+        # legitimate web row (20bensons/Podomatic/live); validate it directly.
+        stream = webapi.playable_url(raw, "")
+    if not stream:
+        _fail_playback(handle, "That web stream address is not playable.")
+        return
+    thumb = _web_art(params.get("thumb"), kodi.ROUND_FACE)
+    fanart = _web_art(params.get("fanart"), kodi.FANART)
+    plotted = params.get("plot") or ""
+    item = xbmcgui.ListItem(path=stream)
+    item.setArt({"thumb": thumb, "icon": thumb, "poster": thumb,
+                 "fanart": fanart or kodi.FANART,
+                 "landscape": fanart or kodi.FANART})
+    info = kodi.music_info(ui.plain(label), plotted, mediatype="music")
+    item.setInfo("music", info)
+    item.setProperty("IsPlayable", "true")
+    item.setProperty("IsInternetStream", "true")
+    if _flag(params, "live"):
+        item.setProperty("IsLiveStream", "true")
+        info["album"] = "Live radio"
+        item.setInfo("music", info)
+    xbmcplugin.setResolvedUrl(handle, True, item)
 
 
 def play(handle, params):
@@ -3199,6 +3565,9 @@ HANDLERS = {
     "shows_menu": shows_menu,
     "radio_menu": radio_menu,
     "station_live": station_live,
+    "web_live": web_live,
+    "web_list": web_list,
+    "web_play": web_play,
     "pirate_radio": pirate_radio,
     "radio_tag": radio_tag,
     "archive_list": archive_list,

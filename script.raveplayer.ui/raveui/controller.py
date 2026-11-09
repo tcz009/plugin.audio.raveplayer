@@ -92,7 +92,7 @@ def _live_signature(rows):
 
 
 HOME_TITLE = "RAVE PLAYER"
-HOME_SUBTITLE = "13 rooms · OK opens · long-press OK for actions"
+HOME_SUBTITLE = "10 rooms · OK opens · long-press OK for actions"
 KEY_LIMIT = 48
 
 # Stale-while-revalidate status lines (perf/3.9.52).  The status slot is the
@@ -1953,7 +1953,7 @@ class RaveScreenController(object):
                 self._push_current()
             self._target = "live"
             self._title = "LIVE RADIO"
-            self._subtitle = "Kool FM · Rinse FM · Centreforce · pirate"
+            self._subtitle = "Kool · Rinse · Centreforce · DejaVu · OSA · pirate"
             rows = [self._adopt_row(row) for row in live.rows()]
             self._page = 1
             self._pages = 1
@@ -1977,7 +1977,7 @@ class RaveScreenController(object):
             self._push_current()
         self._target = "live"
         self._title = "LIVE RADIO"
-        self._subtitle = "Kool FM · Rinse FM · Centreforce · pirate"
+        self._subtitle = "Kool · Rinse · Centreforce · DejaVu · OSA · pirate"
         rows = [self._adopt_row(row) for row in live.rows()]
         self._page = 1
         self._pages = 1

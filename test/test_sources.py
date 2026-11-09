@@ -49,8 +49,9 @@ class NewSourceRouteTests(unittest.TestCase):
     def test_shows_hub_is_the_six_living_sources(self):
         routes.shows_menu(1, {})
         self.assertEqual(self._labels(), [
-            "Podcasts & Mixes", "DNBRADIO", "GetDarker", "Moxser",
-            "Mikus Musik", "Demodulated Mixtapes", "Back",
+            "Podcasts & Mixes", "DejaVu FM Archive", "DNBRADIO",
+            "GetDarker", "Moxser", "Mikus Musik", "Demodulated Mixtapes",
+            "Back",
         ])
         urls = dict(zip(self._labels(), self._urls()))
         self.assertIn("mode=media_menu", urls["Podcasts & Mixes"])
@@ -64,7 +65,8 @@ class NewSourceRouteTests(unittest.TestCase):
         routes.packs_menu(1, {})
         self.assertEqual(self._labels(), [
             "Toronto Rave Mixtape Archive", "JungleTapes.com",
-            "RaveTapePacks.com", "Classic Pack Series",
+            "RaveTapePacks.com", "20bensons.com", "UK Raves Downloads",
+            "EZ Garage Sets", "Classic Pack Series",
             "By Rave, Venue & Promoter", "By Year", "Every Pack", "Back",
         ])
         urls = dict(zip(self._labels(), self._urls()))
@@ -90,9 +92,9 @@ class NewSourceRouteTests(unittest.TestCase):
     def test_live_radio_names_stations_then_genres(self):
         routes.radio_menu(1, {})
         self.assertEqual(self._labels(), [
-            "Kool FM", "Rinse FM", "Centreforce 883",
-            "Hardcore", "Jungle", "Drum & Bass", "House", "UK Garage",
-            "Dubstep & Grime", "Back",
+            "Kool FM", "Rinse FM", "Centreforce 883", "DejaVu FM",
+            "OSA Radio", "Hardcore", "Jungle", "Drum & Bass", "House",
+            "UK Garage", "Dubstep & Grime", "Back",
         ])
         urls = dict(zip(self._labels(), self._urls()))
         self.assertIn("mode=filter_list", urls["Kool FM"])
