@@ -49,14 +49,43 @@ from .tasks import (BackgroundTask, ImmediateTask, TaskCancelled, TaskTimeout,
                     ThreadTaskRunner)
 
 
+_LIVE_SIGNATURE_FIELDS = (
+    "key", "label", "title", "target", "subtitle", "art", "fact", "code",
+    "kind", "plot", "meta",
+)
+
+
+def _row_field(row, name):
+    """Read one row field from a mapping or an attribute-style row."""
+    if isinstance(row, dict):
+        return row.get(name)
+    return getattr(row, name, None)
+
+
+def _live_row_signature(row):
+    """Stable, serialisable fields for one live row.
+
+    Live rows reach this as ``_EntryLike`` objects, which are not mappings and
+    whose ``repr`` contains the object address.  Hashing ``str(row)`` therefore
+    produced a different signature for identical rows on every refresh.  Read
+    the display/action fields explicitly instead; ``action.url`` carries the
+    station stream so a re-resolved station still counts as changed.
+    """
+    fields = [str(_row_field(row, name) or "")
+              for name in _LIVE_SIGNATURE_FIELDS]
+    action = _row_field(row, "action")
+    if isinstance(action, dict):
+        stream = str(action.get("url") or "")
+        action_type = str(action.get("type") or "")
+        station = str(action.get("station") or "")
+    else:
+        stream = action_type = station = ""
+    return tuple(fields) + (action_type, station, stream)
+
+
 def _live_signature(rows):
     """Stable fingerprint of the live rows the controller painted."""
-    payload = []
-    for row in rows or []:
-        try:
-            payload.append(dict(row))
-        except (TypeError, ValueError):
-            payload.append(str(row))
+    payload = [_live_row_signature(row) for row in rows or []]
     return hashlib.blake2b(
         repr(payload).encode("utf-8", "replace"), digest_size=16).hexdigest()
 
@@ -1323,6 +1352,13 @@ class RaveScreenController(object):
                             if route == ROUTE_SEARCH and query else route):
             return
         if not getattr(screen, "is_ready", False):
+            # The saved rows stay on screen (SWR), but a non-ready refresh is
+            # terminal: without this the "UPDATING" line was left forever on
+            # an empty/error source.  Error and empty get distinct notes.
+            if screen is not None and getattr(screen, "has_error", False):
+                self.view.set_status(PAINT_OFFLINE)
+            else:
+                self.view.set_status(PAINT_EMPTY)
             return
         if not getattr(screen, "rows", None):
             self.view.set_status(PAINT_EMPTY)

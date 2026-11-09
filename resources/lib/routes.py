@@ -2467,6 +2467,9 @@ def download_start(handle, params):
     extra_hosts = ()
     provider = _provider_for(url)
     if provider:
+        if _has_protocol_options(url):
+            kodi.notify("That download could not be resolved.")
+            return
         # Resolve a provider page once, before planning.  The resolved URL
         # (with any Referer suffix) is what gets probed, saved and replayed —
         # never the page URL and never Mega ciphertext.
@@ -2495,7 +2498,7 @@ def download_start(handle, params):
             except ValueError:
                 extra_hosts = ()
         else:
-            url = _playable_url(resolution.kodi_url())
+            url = _resolved_kodi_url(resolution)
             if not url:
                 kodi.notify("That download could not be resolved.")
                 return
@@ -2776,13 +2779,36 @@ def _is_service_stream(result):
     return parts.path == prefix + "/api/mega/stream"
 
 
+def _has_protocol_options(value):
+    """True when ``value`` carries Kodi ``|Header=``/protocol options.
+
+    Kodi splits on the first ``|``, so a provider page or a resolved media URL
+    that already contains one can smuggle headers/options past the add-on's
+    own ``|Header=`` construction.  Control characters are refused for the
+    same reason.
+    """
+    text = str(value or "")
+    return "|" in text or any(
+        char in text for char in ("\r", "\n", "\x00", "\x7f"))
+
+
+def _resolved_kodi_url(result):
+    """Kodi path for a non-Mega resolution, or ``""`` when it is unsafe."""
+    if _has_protocol_options(getattr(result, "url", "")):
+        return ""
+    return _playable_url(result.kodi_url())
+
+
 def _resolve_stream(value):
     """Resolve a provider page once, at the point playback starts.
 
     Direct audio and unknown hosts pass through the existing public-stream
     guard unchanged.  A Mediafire/Drive/Podomatic page becomes its playable
     URL plus Kodi's ``|Header=`` suffix.  A Mega service result is the absolute
-    signed stream URL and is handed to the player without headers.
+    signed stream URL and is handed to the player without headers.  A provider
+    page that already carries ``|Header=``/protocol options is refused before
+    the resolver sees it, and a resolved non-Mega URL that contains ``|`` is
+    refused unless it is the exact signed Mega stream URL.
 
     Failures log the provider and error class only (provider URLs and signed
     streams are credentials) and return ``""`` so the caller's existing quiet
@@ -2794,6 +2820,13 @@ def _resolve_stream(value):
     provider = _provider_for(text)
     if provider in ("", "direct"):
         return _playable_url(text)
+    if _has_protocol_options(text):
+        # The page URL is not a Kodi media path; stripping the suffix would
+        # make the resolver fetch a 404 and re-attach caller options to the
+        # result, so refuse it outright.
+        kodi.log("resolver: %s page carried protocol options" % provider,
+                 level=30)
+        return ""
     resolver = _resolver()
     if resolver is None:
         return ""
@@ -2803,10 +2836,12 @@ def _resolve_stream(value):
         kodi.log("resolver: %s resolve failed (%s)"
                  % (provider, type(exc).__name__), level=30)
         return ""
+    if _is_service_stream(result):
+        return result.url
     if (getattr(result, "provider", "") == "mega"
             and getattr(result, "source", "") == "service"):
-        return result.url if _is_service_stream(result) else ""
-    return _playable_url(result.kodi_url())
+        return ""
+    return _resolved_kodi_url(result)
 
 
 def _safe_art(value, fallback=None):

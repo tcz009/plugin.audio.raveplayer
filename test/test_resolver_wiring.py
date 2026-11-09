@@ -191,6 +191,40 @@ class MegaStreamTests(WiringBase):
             self.assertEqual(routes._resolve_stream(MEGA_PAGE), native.url)
 
 
+class ProtocolOptionTests(WiringBase):
+    """3.9.55: Kodi ``|Header=``/protocol options never ride a resolution."""
+
+    def test_provider_page_with_options_is_refused_before_resolve(self):
+        pages = (
+            MEDIAFIRE_PAGE + "|Header=Referer=https://www.mediafire.com/",
+            MEDIAFIRE_PAGE + "|Referer=https://www.mediafire.com/",
+            MEDIAFIRE_PAGE + "|Cookie=session",
+        )
+        for page in pages:
+            with self.subTest(page=page):
+                self.assertEqual(routes._resolve_stream(page), "")
+        self.assertEqual(self.resolver.calls, [])
+
+    def test_resolved_non_mega_url_with_pipe_is_refused(self):
+        self.add(MEDIAFIRE_PAGE, Resolution(
+            MEDIAFIRE_FILE + "|Cookie=session", provider="mediafire",
+            headers={"Referer": "https://www.mediafire.com/"}))
+        with mock.patch.object(routes.kodi, "log"):
+            self.assertEqual(routes._resolve_stream(MEDIAFIRE_PAGE), "")
+
+    def test_resolved_non_mega_url_with_control_character_is_refused(self):
+        self.add(MEDIAFIRE_PAGE, Resolution(
+            MEDIAFIRE_FILE + "\nHeader=x", provider="mediafire"))
+        self.assertEqual(routes._resolve_stream(MEDIAFIRE_PAGE), "")
+
+    def test_exact_signed_mega_url_is_still_returned(self):
+        # The one exception: the service's exact signed stream URL is not a
+        # resolved non-Mega URL, even when the input was a provider page.
+        self.add(MEDIAFIRE_PAGE, Resolution(
+            SIGNED_STREAM, provider="service", source="service"))
+        self.assertEqual(routes._resolve_stream(MEDIAFIRE_PAGE), SIGNED_STREAM)
+
+
 class QuietFailureTests(WiringBase):
     def test_resolve_failure_logs_only_the_error_class(self):
         self.add(MEDIAFIRE_PAGE, ProviderError(
@@ -446,6 +480,22 @@ class DownloadRouteTests(unittest.TestCase):
         self.assertFalse(kwargs["allow_private"])
         self.assertEqual(self.resolver.calls, [MEDIAFIRE_PAGE])
 
+    def test_download_page_with_options_is_refused_before_resolve(self):
+        with mock.patch.object(routes.kodi, "notify") as notify:
+            routes.download_start(1, {
+                "url": MEDIAFIRE_PAGE + "|Header=Referer=x", "title": "Set"})
+        self.assertFalse(self.plan.called)
+        self.assertEqual(self.resolver.calls, [])
+        self.assertTrue(notify.called)
+
+    def test_download_resolved_url_with_pipe_is_refused(self):
+        self.resolver.results[MEDIAFIRE_PAGE] = Resolution(
+            MEDIAFIRE_FILE + "|Cookie=session", provider="mediafire")
+        with mock.patch.object(routes.kodi, "notify") as notify:
+            routes.download_start(1, {"url": MEDIAFIRE_PAGE, "title": "Set"})
+        self.assertFalse(self.plan.called)
+        self.assertTrue(notify.called)
+
     def test_mega_download_uses_the_signed_stream_endpoint(self):
         self.resolver.results[MEGA_PAGE] = Resolution(
             SIGNED_STREAM, provider="mega", source="service")
@@ -504,7 +554,7 @@ class SettingsAndManifestTests(unittest.TestCase):
                    for item in plugin.findall("./requires/import")}
         self.assertEqual(imports.get("script.module.raveresolver"),
                          module.get("version"))
-        self.assertEqual(plugin.get("version"), "3.9.54")
+        self.assertEqual(plugin.get("version"), "3.9.55")
 
     def test_resolver_settings_are_in_the_plugin_ui(self):
         root = ET.parse(os.path.join(ROOT, "resources", "settings.xml")).getroot()

@@ -172,7 +172,17 @@ def load_plugin(addon_factory=None):
 
     Raises :class:`PluginUnavailable` when the plugin is missing so callers can
     show a useful status line instead of a traceback.
+
+    The whole check/repair/install sequence runs under ``_IMPORT_LOCK``: the
+    idle prefetch thread and the GUI opening a room can call this at the same
+    time, and an unlocked ``_install_alias``/``_clear_alias`` pair could leave
+    duplicate package objects or a transient :class:`PluginUnavailable`.
     """
+    with _IMPORT_LOCK:
+        return _load_plugin_locked(addon_factory)
+
+
+def _load_plugin_locked(addon_factory=None):
     addon = plugin_addon(addon_factory)
     root = plugin_path(addon_factory)
     cached = _CACHE.get(root)

@@ -34,8 +34,9 @@ import xbmcplugin  # noqa: E402
 
 from raveui import pluginbridge  # noqa: E402
 from raveui.animation import SpinnerAnimator, frame_index  # noqa: E402
-from raveui.controller import (PAINT_CURRENT, PAINT_OFFLINE,  # noqa: E402
-                               PAINT_UPDATING, RaveScreenController)
+from raveui.controller import (PAINT_CURRENT, PAINT_EMPTY,  # noqa: E402
+                               PAINT_OFFLINE, PAINT_UPDATING,
+                               RaveScreenController)
 from raveui.data import (Entry, Page, RaveData, SearchTarget, Track,  # noqa: E402
                          ROOM_ORDER)
 from raveui.downloadqueue import DownloadQueue  # noqa: E402
@@ -1573,11 +1574,11 @@ class ManifestAndSkinTests(unittest.TestCase):
     def test_script_manifest_is_kodi_19_22_and_depends_on_the_plugin(self):
         root = ET.parse(os.path.join(SCREEN, "addon.xml")).getroot()
         self.assertEqual(root.get("id"), "script.raveplayer.ui")
-        self.assertEqual(root.get("version"), "3.9.54")
+        self.assertEqual(root.get("version"), "3.9.55")
         imports = {item.get("addon"): item.get("version")
                    for item in root.findall("./requires/import")}
         self.assertEqual(imports.get("xbmc.python"), "3.0.0")
-        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.54")
+        self.assertEqual(imports.get("plugin.audio.raveplayer"), "3.9.55")
         extension = root.find("./extension[@point='xbmc.python.script']")
         self.assertIsNotNone(extension)
         self.assertEqual(extension.get("library"), "default.py")
@@ -2571,8 +2572,9 @@ class StaleWhileRevalidateTests(unittest.TestCase):
         self.tmp = tempfile.mkdtemp(prefix="rave-paint-test-")
         self.cache = PaintCache(directory=self.tmp, versions="test/3.9.52")
         self.view = FakeView()
+        self.library = FakeLibrary()
         self.ctl, _, self.data, _ = controller(
-            view=self.view, paint_cache=self.cache,
+            view=self.view, library=self.library, paint_cache=self.cache,
             background_task_factory=_ControllableTask)
         self.ctl.start()
         # The idle prefetch must never race these deterministic tests.
@@ -2647,6 +2649,39 @@ class StaleWhileRevalidateTests(unittest.TestCase):
         self.ctl.tick()
         self.assertNotEqual(self.view.rows[0].label, "Dreamscape 19")
 
+    def _seed_screen(self, screen):
+        from raveui.paintcache import encode_library_screen
+
+        self.assertTrue(self.cache.store(
+            "library", "%s|" % screen.route, 1, 50,
+            encode_library_screen(screen)))
+
+    def _refreshed_library(self, screen):
+        self._seed_screen(self.library.favourites())  # ready saved screen
+        self.library.favourites = lambda page=1: screen
+        self.assertTrue(self.ctl._load_target("favourites", 1))
+        self.assertEqual(self.view.status, PAINT_UPDATING)
+        self.ctl._refresh["task"].finish()
+        self.ctl.tick()
+
+    def test_empty_library_refresh_shows_a_terminal_status(self):
+        # Without the 3.9.55 fix the stale rows stayed correct but the status
+        # stayed "UPDATING" forever, because an empty Screen is not an error.
+        empty = LibraryScreen(
+            route="favourites", title="FAVOURITES", subtitle="0 saved",
+            rows=(), state="empty", page=1, pages=1, total=0)
+        self._refreshed_library(empty)
+        self.assertEqual(self.view.status, PAINT_EMPTY)
+        self.assertEqual(self.view.rows[0].label, "Saved Set")  # SWR keeps it
+
+    def test_error_library_refresh_shows_a_terminal_status(self):
+        failed = LibraryScreen(
+            route="favourites", title="FAVOURITES", rows=(), state="error",
+            error="Could not load Favourites.", page=1, pages=1, total=0)
+        self._refreshed_library(failed)
+        self.assertEqual(self.view.status, PAINT_OFFLINE)
+        self.assertEqual(self.view.rows[0].label, "Saved Set")
+
 
 class PaintCacheDiskTests(unittest.TestCase):
     def setUp(self):
@@ -2701,7 +2736,83 @@ class PaintCacheDiskTests(unittest.TestCase):
         self.assertIsNone(self.cache.load("page", "latest", 1, 50))
 
 
+class LiveSignatureTests(unittest.TestCase):
+    """3.9.55: equal live rows must hash equal across refreshes."""
+
+    def _row(self, **overrides):
+        from raveui.controller import _EntryLike
+
+        values = dict(
+            key="live-kool", label="Kool FM",
+            subtitle="Live radio · no duration", art="kool.png",
+            kind="station", source="live", target="kool", hero="kool.png",
+            fact="LIVE", code="RP-32", plot="Live radio · no duration",
+            meta="LIVE · RP-32",
+            action={"type": "play", "station": "kool", "live": True,
+                    "url": "https://live.test/kool", "title": "Kool FM"})
+        values.update(overrides)
+        return _EntryLike(**values)
+
+    def test_equal_entry_like_rows_sign_stably(self):
+        from raveui.controller import _live_signature
+
+        first = self._row()
+        second = self._row()
+        # The old fallback hashed str(row), i.e. the object address.
+        self.assertNotEqual(str(first), str(second))
+        self.assertEqual(_live_signature([first]), _live_signature([second]))
+        self.assertNotEqual(_live_signature([first]),
+                            _live_signature([self._row(fact="ON AIR")]))
+        self.assertNotEqual(_live_signature([first]),
+                            _live_signature([self._row(label="Rinse FM")]))
+
+    def test_equal_plain_dict_rows_sign_stably(self):
+        from raveui.controller import _live_signature
+
+        row = {"title": "Kool FM", "fact": "LIVE", "art": "kool.png",
+               "code": "RP-32", "kind": "station",
+               "action": {"type": "play", "station": "kool"}}
+        self.assertEqual(_live_signature([dict(row)]),
+                         _live_signature([dict(row)]))
+
+
+class LiveRefreshTests(unittest.TestCase):
+    """3.9.55: an unchanged cached live refresh ends in SAVED LIST."""
+
+    def setUp(self):
+        from raveui.paintcache import PaintCache
+        from raveui.screens.live import load_stations
+
+        self.tmp = tempfile.mkdtemp(prefix="rave-live-paint-")
+        self.cache = PaintCache(directory=self.tmp, versions="test/3.9.55")
+        self.view = FakeView()
+        self.data = FakeData()
+        self.data.modules = None
+        self.ctl, _, _, _ = controller(
+            view=self.view, data=self.data, paint_cache=self.cache,
+            background_task_factory=_ControllableTask)
+        self.ctl.start()
+        self.ctl._prefetch_cancel.set()
+        self.ctl._store_live(load_stations(None))
+
+    def tearDown(self):
+        import shutil
+
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_unchanged_live_refresh_shows_up_to_date(self):
+        self.assertTrue(self.ctl._load_target("live", 1))
+        self.assertEqual(self.view.status, PAINT_UPDATING)
+        self.ctl._refresh["task"].finish()
+        self.ctl.tick()
+        self.assertEqual(self.view.status, PAINT_CURRENT)
+        self.assertEqual(self.view.rows[0].label, "Kool FM")
+
+
 class LazyPluginImportTests(unittest.TestCase):
+    def setUp(self):
+        pluginbridge.reset_cache()
+
     def tearDown(self):
         pluginbridge.reset_cache()
 
@@ -2713,6 +2824,42 @@ class LazyPluginImportTests(unittest.TestCase):
         self.assertTrue(hasattr(modules.latest, "recent_packs"))
         self.assertIn("raveplayer_plugin.resources.lib.latest", sys.modules)
         self.assertNotIn("raveplayer_plugin.resources.lib.legacy", sys.modules)
+
+    def test_concurrent_load_plugin_calls_install_one_alias(self):
+        started = threading.Event()
+        release = threading.Event()
+        installs = []
+        original = pluginbridge._install_alias
+
+        def slow_install(alias, root):
+            installs.append(alias)
+            started.set()
+            release.wait(2.0)
+            return original(alias, root)
+
+        results = []
+
+        def load():
+            results.append(pluginbridge.load_plugin())
+
+        with mock.patch.object(pluginbridge, "_install_alias",
+                               side_effect=slow_install):
+            first = threading.Thread(target=load)
+            first.start()
+            self.assertTrue(started.wait(2.0))
+            second = threading.Thread(target=load)
+            second.start()
+            # The first thread is still inside _install_alias/load_plugin, so
+            # an unlocked second caller would install the alias again now.
+            time.sleep(0.1)
+            self.assertEqual(len(installs), 1)
+            release.set()
+            first.join(3.0)
+            second.join(3.0)
+        self.assertFalse(first.is_alive())
+        self.assertFalse(second.is_alive())
+        self.assertEqual(len(results), 2)
+        self.assertIs(results[0], results[1])
 
 
 class InstantBackTests(unittest.TestCase):
@@ -2727,13 +2874,34 @@ class InstantBackTests(unittest.TestCase):
         self.assertEqual(calls.count("ActivateWindow(Home)"), 1)
         self.assertTrue(window.closed)
 
-    def test_close_retries_once_only_when_home_was_refused(self):
+    def test_close_retries_twice_with_bounded_waits_when_home_is_refused(self):
         window = ravewindow.RaveScreenWindow("x.xml", "/tmp")
         calls = []
+        waits = []
         with mock.patch.object(ravewindow.xbmc, "executebuiltin",
                                side_effect=lambda cmd: calls.append(cmd)), \
              mock.patch.object(ravewindow.xbmcgui, "getCurrentWindowId",
-                               return_value=13000):
+                               return_value=13000), \
+             mock.patch.object(
+                 ravewindow, "_wait_for_home",
+                 side_effect=lambda initial, ms: waits.append(ms) or False):
+            window.close()
+        self.assertEqual(calls.count("ActivateWindow(Home)"), 3)
+        self.assertEqual(waits, [ravewindow.HOME_WAIT_MS,
+                                 ravewindow.HOME_FALLBACK_MS,
+                                 ravewindow.HOME_RETRY_MS])
+        self.assertTrue(window.closed)
+
+    def test_close_stops_after_the_second_attempt_when_home_appears(self):
+        window = ravewindow.RaveScreenWindow("x.xml", "/tmp")
+        calls = []
+        outcomes = iter([False, True])
+        with mock.patch.object(ravewindow.xbmc, "executebuiltin",
+                               side_effect=lambda cmd: calls.append(cmd)), \
+             mock.patch.object(ravewindow.xbmcgui, "getCurrentWindowId",
+                               return_value=13000), \
+             mock.patch.object(ravewindow, "_wait_for_home",
+                               side_effect=lambda initial, ms: next(outcomes)):
             window.close()
         self.assertEqual(calls.count("ActivateWindow(Home)"), 2)
         self.assertTrue(window.closed)

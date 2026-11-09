@@ -52,6 +52,10 @@ with a 200 ms sleep (worst case 2.4 s). It fires once, waits up to 200 ms for
 window id 10000, and retries once (300 ms) only when the switch was refused.
 Measured `back-home` line: **28–79 ms**.
 
+*3.9.55 update:* a third bounded attempt (300 ms) covers the modal/relaunch
+edge, so the worst case is now 800 ms; the normal path still stops at the first
+successful switch and remains a single activation.
+
 ### 4. Resident UI — deferred on the timebox
 
 Not attempted. 1–3 are solid and the resident-service variant (a preloaded
@@ -133,7 +137,8 @@ New (3.9.52) coverage:
 * `LazyPluginImportTests` — `latest`/`legacy` are absent from `sys.modules`
   after `load_plugin()` and appear only on first use.
 * `InstantBackTests` — one `ActivateWindow(Home)` when Kodi switches, two when
-  it refuses.
+  it refuses. 3.9.55 extends the sequence to three bounded attempts and adds
+  an explicit attempt/wait-sequence test.
 * `test_rave_screen` manifest expectation bumped to screen 3.9.51; the
   committed-repo test passes after `scripts/build-repo.sh`.
 

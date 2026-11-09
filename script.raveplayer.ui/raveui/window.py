@@ -37,6 +37,7 @@ BOOT_AT = time.monotonic()
 HOME_WINDOW_ID = 10000
 HOME_WAIT_MS = 200
 HOME_FALLBACK_MS = 300
+HOME_RETRY_MS = 300
 HOME_POLL_MS = 25
 INSTANCE_LOCK_TTL = 10 * 60
 
@@ -608,6 +609,10 @@ class RaveScreenWindow(xbmcgui.WindowXML):
         # 200 ms sleep between attempts, so Back could take up to 2.4 s even
         # when the first activation worked.  Fire once, give Kodi one frame
         # (~200 ms) to switch, and only retry when the switch was refused.
+        # 3.9.55 adds a third bounded attempt (300 ms): a modal transition or
+        # the launcher relaunching the app is the edge the old 12-attempt loop
+        # covered, and two attempts could still close from under it.  The
+        # normal path is unchanged: the loop stops as soon as Home has focus.
         try:
             xbmc.executebuiltin("Dialog.Close(all,true)")
         except Exception:
@@ -618,14 +623,15 @@ class RaveScreenWindow(xbmcgui.WindowXML):
             pass
         current = _current_window_id()
         if current is not None:
-            if not _wait_for_home(current, HOME_WAIT_MS):
-                # A modal transition or a busy GUI can refuse the first
-                # activation; one bounded fallback is enough.  Never poll it.
-                try:
-                    xbmc.executebuiltin("ActivateWindow(Home)")
-                except Exception:
-                    pass
-                _wait_for_home(current, HOME_FALLBACK_MS)
+            waits = (HOME_WAIT_MS, HOME_FALLBACK_MS, HOME_RETRY_MS)
+            for index, wait_ms in enumerate(waits):
+                if _wait_for_home(current, wait_ms):
+                    break
+                if index + 1 < len(waits):
+                    try:
+                        xbmc.executebuiltin("ActivateWindow(Home)")
+                    except Exception:
+                        pass
         try:
             xbmc.log("[script.raveplayer.ui] back-home %.0f ms" % (
                 (time.monotonic() - started) * 1000.0), level=xbmc.LOGINFO)
