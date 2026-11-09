@@ -163,8 +163,9 @@ class _Flight(object):
 class ServiceResultCache(object):
     """Bounded TTL cache + single-flight for ``POST /api/resolve`` results.
 
-    Keys are the requested URL (plus the optional provider hint), so two
-    callers asking for the same page share one service request.  A successful
+    Keys are the requested URL, so two callers asking for the same page share
+    one service request (the provider hint is derived from the URL by the
+    manager and never splits the cache).  A successful
     result is kept for at most :data:`DEFAULT_RESULT_TTL`, clamped to the
     result's own ``expires_at``: a signed stream that expires in 30 seconds is
     never served for five minutes.  Errors are never cached (a transient 429
@@ -192,7 +193,7 @@ class ServiceResultCache(object):
 
     @staticmethod
     def key(url, provider=None):
-        return (str(url or ""), str(provider or ""))
+        return str(url or "")
 
     def get(self, url, provider=None):
         """Return a live :class:`Resolution` or ``None``."""

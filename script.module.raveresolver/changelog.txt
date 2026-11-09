@@ -5,8 +5,8 @@ Rave Resolver 1.1.2 — Kodi-side pacing and service cache
   next adapter attempt and the service fallback until it elapses, and a 429
   is never retried through another transport.  Direct audio (no provider
   page/network work) is not gated, so play-all is unaffected.
-- `POST /api/resolve` result cache: keyed by URL plus the optional provider
-  hint, TTL 300 s clamped to the result's `expires`, LRU-bounded to 256
+- `POST /api/resolve` result cache: keyed by URL, TTL 300 s clamped to the
+  result's `expires`, LRU-bounded to 256
   entries.  Concurrent identical resolves share one in-flight request; errors
   (including 429) are not cached.
 - Google Drive and MEGA native-adapter 429 answers map to `RateLimited` with a

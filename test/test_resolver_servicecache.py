@@ -112,11 +112,13 @@ class ServiceResultCacheTests(unittest.TestCase):
         self.assertIsNotNone(cache.get("https://example.com/1"))
         self.assertIsNotNone(cache.get("https://example.com/2"))
 
-    def test_provider_is_part_of_the_key(self):
+    def test_the_requested_url_is_the_key(self):
         now = [1000.0]
         cache = ServiceResultCache(ttl=300, clock=lambda: now[0])
         cache.put(URL, "podomatic", Resolution("https://cdn/a.mp3"))
-        self.assertIsNone(cache.get(URL, "mega"))
+        # The provider hint is derived from the URL, so it must not split the
+        # cache for the same page.
+        self.assertIsNotNone(cache.get(URL, "mega"))
         self.assertIsNotNone(cache.get(URL, "podomatic"))
 
     def test_single_flight_identical_resolves(self):

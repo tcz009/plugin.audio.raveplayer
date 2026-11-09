@@ -61,8 +61,8 @@ New `resolver/ratelimit.py` mirrors the web resolver's bucket:
 
 ### Resolver — `/api/resolve` result cache + single-flight
 
-`ServiceResultCache` caches successful `Resolution` objects keyed by URL plus
-the optional provider hint.  The TTL is 300 s, clamped to the result's own
+`ServiceResultCache` caches successful `Resolution` objects keyed by the
+requested URL.  The TTL is 300 s, clamped to the result's own
 `expires`; expired results are dropped on read, and errors (including 429) are
 never cached.  The cache is LRU-bounded to 256 entries.  Concurrent identical
 resolves share one in-flight service request; different URLs are not
