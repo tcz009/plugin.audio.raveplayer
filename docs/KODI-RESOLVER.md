@@ -449,6 +449,10 @@ Relevant files:
 - `test/test_resolver_mega.py` — Mega URL parsing and adapter seam.
 - `test/test_resolver_service.py` — service contract, fallback, auth errors and
   token redaction.
+- `test/test_resolver_ratelimit.py` — registrable-domain grouping, burst/refill,
+  429 blocking, LRU bounds and the shared adapter/service gate.
+- `test/test_resolver_servicecache.py` — result TTL/expiry clamp, LRU bounds,
+  single-flight, error handling and the ServiceClient wiring.
 - `test/test_resolver_stream.py` — new/old payload parsing, Mega `stream`
   selection (LAN, Tailscale, trailing slash, reverse-proxy prefix), Bearer vs
   cookie, and the no-ciphertext-fallback failures.
@@ -466,6 +470,7 @@ script.module.raveresolver/
   resources/lib/resolver/
     __init__.py base.py policy.py http.py cache.py settings.py log.py
     direct.py mediafire.py drive.py podomatic.py mega.py service.py manager.py
+    ratelimit.py
 docs/KODI-RESOLVER.md
 test/test_resolver_*.py
 scripts/build.sh scripts/build-repo.sh scripts/check-repo-artifacts.sh
