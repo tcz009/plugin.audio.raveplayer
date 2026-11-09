@@ -1,7 +1,7 @@
 # Rave Player 3.9.61 — full classic-menu parity in the screen
 
 Patch over **3.9.60** (`4248678`) on branch `feat/3.9.61-parity`. Plugin and
-Rave Screen are both **3.9.61**; resolver stays **1.1.0**. This is a code-only
+Rave Player are both **3.9.61**; resolver stays **1.1.0**. This is a code-only
 release: no device run, no ADB, no Shield change, no push and no tag.
 
 ## Why
@@ -75,9 +75,9 @@ Release path:
 SHA-256 (identical in `dist/` and `repo/`):
 
 ```
-5ee033d72a223c703de4b515312e69b8b0efed8809d562b2824f6b704190ab9f  plugin.audio.raveplayer-3.9.61.zip
-5c2da7304417fa825b26b92416c25e16f2ca06511386fe9ff4e040f809b26d86  script.raveplayer.ui-3.9.61.zip
-b1c5264607d86d0abdafb02cc9506e61ac03da9f2d32acec59ecb324d9d6763e  script.module.raveresolver-1.1.0.zip
+9552e05c7cf4ac17a9313d25dbbe155306c1b6d79f199065c9afad1da3d3b29a  plugin.audio.raveplayer-3.9.61.zip
+20f860a64f6579696de64b029dd42916dd222606d9912e6b77a2b096751e19a4  script.raveplayer.ui-3.9.61.zip
+a4f66ed8266b43d1c427b4d52a20fcecc2d4f99c122cf5ceefc011db1296013d  script.module.raveresolver-1.1.0.zip
 c58243ca7dba70e83e2080be929be647613e6801167cafcad2ae72cd8dcb95ab  repo/addons.xml
 8649f5ddf1f3492eac97bcebc325d8b017b2c4398fdfbe9aead89b1aced30d59  repo/addons.xml.md5
 ```

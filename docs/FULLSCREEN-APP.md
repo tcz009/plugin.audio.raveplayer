@@ -6,7 +6,7 @@
 **Status:** implemented, full offline suite green (2×), installed on the Shield.
 Device evidence is listed in §10.
 
-The Rave Screen is now the **primary app**, not a demo home screen.
+The Rave Player is now the **primary app**, not a demo home screen.
 `script.raveplayer.ui` owns the full-screen `WindowXML` and all navigation;
 `plugin.audio.raveplayer` is the data and playback backend it drives. The
 plugin's normal directory lists are deliberately kept as **Classic lists** —

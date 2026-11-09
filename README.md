@@ -100,7 +100,7 @@ The menu renders are generated from the add-on's real ListItem output by
 
 ### Full-screen app (3.9.61 parity)
 
-Since 3.9.51 the add-on opens the full-screen Rave Screen (the Rave Player UI
+Since 3.9.51 the add-on opens the full-screen Rave Player (the Rave Player UI
 script add-on) directly; the classic directory is the fallback. 3.9.61 makes
 the screen carry the whole classic tree:
 

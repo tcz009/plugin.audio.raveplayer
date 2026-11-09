@@ -15,7 +15,7 @@
         <summary lang="en_US">Full-screen 2026 Rave UI for Rave Player, with Spinning Surprise.</summary>
         <description lang="en_GB">The primary Rave Player app: one full-screen Kodi window with all thirteen rooms, paged lists, an in-window keyboard search, favourites, downloads, live radio, About and Spinning Surprise. Drives the Rave Player plugin as its data and playback backend. Back exits cleanly; the plugin's Classic lists remain available as the fallback.</description>
         <description lang="en_US">The primary Rave Player app: one full-screen Kodi window with all thirteen rooms, paged lists, an in-window keyboard search, favourites, downloads, live radio, About and Spinning Surprise. Drives the Rave Player plugin as its data and playback backend. Back exits cleanly; the plugin's Classic lists remain available as the fallback.</description>
-        <disclaimer lang="en_GB">Rave Screen does not host or distribute any content. Playback is streamed from third-party public archives and radio directories.</disclaimer>
+        <disclaimer lang="en_GB">Rave Player does not host or distribute any content. Playback is streamed from third-party public archives and radio directories.</disclaimer>
         <platform>all</platform>
         <license>GPL-3.0-or-later</license>
         <language>en_GB</language>

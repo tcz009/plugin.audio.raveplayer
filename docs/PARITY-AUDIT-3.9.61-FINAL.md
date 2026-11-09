@@ -24,7 +24,7 @@ queries were used solely to prove whether a station-tag string returns stations.
 
 ## 0. Verdict
 
-| Question | 3de8125 (audited commit) | 18c2572 (committed HEAD at audit end; tree later dirty, §8) |
+| Question | 3de8125 (audited commit) | 18c2572 (parity-fix commit; later HEAD 5acbe7c, §8.3) |
 |---|---|---|
 | Launcher correct? | **PASS** (bare + `?mode=root` launch; every other mode dispatches) | **PASS**, but `?mode=root` now dispatches (spec deviation — see §1.4) |
 | Every classic destination reachable? | **FAIL** — 46 PASS + 1 PARTIAL; the one FAIL row is 3 of 6 Live genre doors loading no stations | **PASS against the task checklist** — 6/6 genres now load; one matrix row (`pirate_station`) remains content-different |
@@ -504,14 +504,34 @@ top-level tree, and the controller harness walks all of them.
 * Tests: 1206 OK; zips rebuilt and committed; `check-repo-artifacts.sh`
   passes; screen/resolver hashes in `docs/RELEASE-3.9.61.md` remain stale.
 * No new junk at 18c2572; the 18c2572 snapshot is clean. The 16:41
-  uncommitted launcher change (§8.1) is not audited.
+  launcher change was later committed as `5acbe7c` (§8.3).
+
+### 8.3 Post-report commit 5acbe7c (current HEAD)
+
+The 16:41 launcher change was committed as **`5acbe7c`**
+(`3.9.61: launch through routes.rave_screen (clean directory close)`),
+together with this report. Verified from a `git archive 5acbe7c` snapshot:
+
+* **1206 tests OK**; `test_compat` 10 OK.
+* Launcher probe: bare → `RunScript` (via `routes.rave_screen`);
+  `?mode=root`, `?mode=play`, `?mode=classic_root`, `?mode=archive_item`,
+  `?mode=download_start` and `?mode=fav_remove` → dispatch. `rave_screen`
+  calls `kodi.end_directory(handle, "files")` for `handle >= 0` (the intended
+  "clean directory close"); that side effect is not device-tested.
+* All four repo zips were rebuilt. `docs/RELEASE-3.9.61.md` is now stale for
+  **all three** add-on zips: plugin doc `5ee033d7…` vs actual `328cac1e…`,
+  screen `5c2da730…` vs `7ede628d…`, resolver `b1c52646…` vs `1494228d…`.
+  `repo/addons.xml`/`.md5` values remain correct.
+* No parity, branding or quality finding changes: the 3de8125 verdict and the
+  18c2572 delta stand. 5acbe7c is the recommended committed build if the
+  launcher side effect is accepted.
 
 ---
 
 ## 9. Install recommendation (the one install)
 
-**Safe to install: yes — install a committed build (18c2572 is the last clean
-committed one at report time), not 3de8125.** There is no crash,
+**Safe to install: yes — install a committed build (current HEAD is
+`5acbe7c`, §8.3), not 3de8125.** There is no crash,
 data-loss, playback or launcher regression in either commit; downloads and
 favourites are untouched; the launcher and the app's plugin playback path
 were both exercised without a device. The differences are user-visible

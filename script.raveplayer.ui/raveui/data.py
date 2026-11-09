@@ -1560,6 +1560,11 @@ class RaveData(object):
                 docs, total = [], 0
             entries.extend(self._archive_pack_entries(docs))
         if page == 1 and item.get("mixcloud_query") and item.get("mixcloud_count"):
+            try:
+                if not self.modules.handoff.available("mixcloud"):
+                    return _page_local(entries, page, rows)
+            except Exception:  # noqa: BLE001 - unknown availability means skip
+                return _page_local(entries, page, rows)
             link = ""
             try:
                 link = self.modules.handoff.mixcloud_search(
