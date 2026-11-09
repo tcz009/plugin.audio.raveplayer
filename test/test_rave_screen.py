@@ -1418,19 +1418,19 @@ class DataTests(unittest.TestCase):
         return RaveData(modules=fake_modules(), root=ROOT, script_root=SCREEN,
                         **kwargs)
 
-    def test_home_rows_are_the_thirteen_rooms(self):
+    def test_home_rows_are_the_ten_rooms(self):
         data = self.data()
         labels = [row.label for row in data.home_rows()]
         self.assertEqual(labels, [
-            "Latest", "Tape Packs", "Toronto Rave Mixtape Archive",
-            "JungleTapes.com", "RaveTapePacks.com", "Pirate Radio",
-            "Live Radio", "Mixes & Shows", "Search", "Favourites",
-            "Downloads", "About", "Spinning Surprise",
+            "Latest", "Tape Packs", "Pirate Radio", "Mixes & Shows",
+            "Live Radio", "Favourites", "Downloads", "Search",
+            "Spinning Surprise", "About",
         ])
-        self.assertEqual(len(labels), 13)
+        self.assertEqual(len(labels), 10)
         self.assertTrue(all(row.art for row in data.home_rows()))
         self.assertTrue(data.home_rows()[0].hero.endswith("fanart-latest.jpg"))
-        self.assertTrue(data.home_rows()[-1].hero.endswith("fanart-surprise.jpg"))
+        surprise = [row for row in data.home_rows() if row.key == "surprise"][0]
+        self.assertTrue(surprise.hero.endswith("fanart-surprise.jpg"))
         self.assertEqual([row.key for row in data.home_rows()],
                          list(ROOM_ORDER))
 
@@ -1438,8 +1438,8 @@ class DataTests(unittest.TestCase):
         data = self.data()
         rows = data.home_rows()
         self.assertEqual([row.code for row in rows], [
-            "RP-01", "RP-37", "RP-19", "RP-27", "RP-03", "RP-38",
-            "RP-31", "RP-32", "RP-33", "RP-34", "RP-35", "RP-36", "RP-02",
+            "RP-01", "RP-37", "RP-38", "RP-32", "RP-31", "RP-34",
+            "RP-35", "RP-33", "RP-07", "RP-36",
         ])
         for row in rows:
             with self.subTest(row=row.label):

@@ -116,8 +116,7 @@ class ParityMatrixTests(unittest.TestCase):
     def test_screen_walks_every_classic_destination(self):
         data = self.data()
         home = {row.key: row for row in data.home_rows()}
-        for key in ("latest", "packs", "toronto", "jungletapes",
-                    "ravetapepacks", "pirate", "live", "mixes", "search",
+        for key in ("latest", "packs", "pirate", "mixes", "live", "search",
                     "favourites", "downloads", "about", "surprise"):
             self.assertIn(key, home)
 

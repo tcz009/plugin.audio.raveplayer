@@ -53,14 +53,17 @@
             <shadowcolor>0xFF07070B</shadowcolor>
             <aligny>center</aligny>
         </control>
-        <control type="image" id="113">
-            <description>Baked print subtitle: THE RAVE PLAYER</description>
+        <control type="label" id="113">
+            <description>Print subtitle: THE RAVE PLAYER</description>
             <posx>124</posx>
             <posy>74</posy>
-            <width>102</width>
-            <height>13</height>
-            <aspectratio>keep</aspectratio>
-            <texture>special://home/addons/script.raveplayer.ui/resources/art/rave-screen/label-the-rave-screen.png</texture>
+            <width>240</width>
+            <height>16</height>
+            <label>THE RAVE PLAYER</label>
+            <font>font10</font>
+            <textcolor>0xFF8A8578</textcolor>
+            <shadowcolor>0xFF07070B</shadowcolor>
+            <aligny>center</aligny>
         </control>
         <control type="label" id="114">
             <description>Clock</description>
