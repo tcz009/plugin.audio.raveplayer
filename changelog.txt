@@ -1,3 +1,7 @@
+Rave Player 3.9.63 — naming
+- Music add-on entry is "Rave Player" again (the directory/classic entry).
+- The full-screen program entry is "Rave Player App".
+
 Rave Player 3.9.62 — launch the app, not a folder
 - The add-on list now has "Rave Player" as a program that opens the full-screen app directly, with no empty plugin folder. The plugin is "Rave Player Classic Lists" for the fallback lists.
 
