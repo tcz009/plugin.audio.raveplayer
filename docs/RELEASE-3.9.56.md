@@ -29,6 +29,15 @@ repository still installs the pair together.
 
 ---
 
+## 1a. Commits
+
+| Commit | Contents |
+|---|---|
+| `dee9150` | Source, tests and version/changelog/README/PUBLISHING updates for all A/B fixes |
+| `2f2691f` | `docs/RELEASE-3.9.56.md` and the regenerated `repo/` artifacts |
+
+---
+
 ## 2. Device-QA P2s
 
 ### QA P2-1 — Downloads room showed the FAVOURITES hero
@@ -144,8 +153,8 @@ machine (Python 3.9.6). No device, network, ADB or Shield access was used.
 
 | Check | Result |
 |---|---|
-| Full suite (run 1) | **1166 tests, OK** (see final run log) |
-| Full suite (run 2) | **1166 tests, OK** (see final run log) |
+| Full suite (run 1) | **1166 tests, OK** in 21.8 s |
+| Full suite (run 2) | **1166 tests, OK** in 21.8 s |
 | `./scripts/build-repo.sh` | plugin 3.9.56, screen 3.9.56, resolver 1.1.0, repository 1.0.0 |
 | `./scripts/check-repo-artifacts.sh` | pass after committing the regenerated `repo/` |
 | Plugin zip | `dist/plugin.audio.raveplayer-3.9.56.zip`, 9,097,250 B, SHA-256 `2e93b7be3ef1fa0b771a06e4a367cc2a41dbebfff7dad139610d262b7c095c39` |
