@@ -1,12 +1,14 @@
 # Kodi Resolver integration
 
-Status: **module only — plugin routes are not wired in this branch.**
+Status: **wired into the plugin in 3.9.53.**
 
 `script.module.raveresolver` 1.1.0 is an installable Kodi module add-on that
 packages the resolver SDK in `resources/lib/resolver/`. The plugin
-`plugin.audio.raveplayer` still plays URLs exactly as before. The integration
-pass below is deliberately left to the Lead so the Kodi-all-at-once change is
-one reviewable step.
+`plugin.audio.raveplayer` now resolves provider pages in play/play-all and
+downloads; the shipped behaviour and merge notes are in
+[`KODI-RESOLVER-WIRING-3.9.53.md`](KODI-RESOLVER-WIRING-3.9.53.md). The
+integration guidance below remains the SDK/service contract and the review
+reference.
 
 ## Why this shape
 
@@ -24,7 +26,7 @@ one reviewable step.
 Add one line to `plugin.audio.raveplayer/addon.xml`:
 
 ```xml
-<addon id="plugin.audio.raveplayer" ... version="3.9.52">
+<addon id="plugin.audio.raveplayer" ... version="3.9.53">
     <requires>
         <import addon="xbmc.python" version="3.0.1"/>
         <import addon="script.module.raveresolver" version="1.1.0"/>
@@ -124,6 +126,12 @@ stream = _resolve_stream(params.get("url", ""))
 The existing failure block already handles an empty stream with the
 "private, loopback or unresolved host" notification. Do **not** log the raw
 `params["url"]`: signed provider URLs are credentials.
+
+The shipped 3.9.53 helper also special-cases a Mega service result: it returns
+the absolute signed `result.url` directly (no `|Header=` suffix) after checking
+it is the configured service origin plus `/api/mega/stream`. Passing that URL
+through `_playable_url()` would reject the LAN/Tailscale base. See
+`docs/KODI-RESOLVER-WIRING-3.9.53.md` §2.
 
 ## 4. `_play_tracks()` integration
 

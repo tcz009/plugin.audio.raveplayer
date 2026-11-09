@@ -628,6 +628,11 @@ def _play_tracks(tracks, identifier=None, start=0, shuffle=False,
 
     Every URL is re-validated here (A3): ``play_all`` builds the playlist
     directly, so it must not become a bypass of the ``play`` host guard.
+
+    Provider pages are classified but **not** resolved here.  Each one is
+    queued as a ``mode=play`` URL so Kodi resolves it lazily when that track
+    starts; a 2,640-track play-all therefore never spends the route budget on
+    resolver round-trips, and the resolver's own cache bounds repeat work.
     """
     selected = list(enumerate(tracks))
     if shuffle:
@@ -639,13 +644,15 @@ def _play_tracks(tracks, identifier=None, start=0, shuffle=False,
     playable = []
     dropped = 0
     for index, track in selected:
-        url = _playable_url(track.get("url", ""))
+        raw = track.get("url", "")
+        provider = _provider_for(raw)
+        url = _playable_url(raw)
         if not url:
             dropped += 1
             kodi.log("play_all: skipping non-public track URL for %r" % track.get("title"),
                      level=30)
             continue
-        playable.append((index, track, url))
+        playable.append((index, track, url, provider))
     if dropped:
         kodi.notify("Skipped %d track%s with a non-public stream address."
                     % (dropped, "" if dropped == 1 else "s"))
@@ -660,16 +667,18 @@ def _play_tracks(tracks, identifier=None, start=0, shuffle=False,
     pack_title = (archive.item_title(identifier) or album) if identifier else album
     playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
     playlist.clear()
-    for index, track, url in playable:
+    for index, track, url, provider in playable:
         details = nowplaying.parse(pack_title, track["title"])
         plotted = nowplaying.plot(
             plot or ("From archive.org item %s" % identifier), details)
         # Bridge hosts must not be queued as raw URLs: Kodi's libcurl stalls
-        # on them (RTP WAN block, JungleTapes TLS stall). A playlist item that
-        # is a plugin play URL resolves through mode=play per track, which
-        # starts the loopback bridge and keeps the silence rules.
+        # on them (RTP WAN block, JungleTapes TLS stall).  Provider pages must
+        # not be queued raw either: the playlist carries only a plugin play
+        # URL, so the page (or a Mega ciphertext URL) can never reach the
+        # player.  mode=play resolves per track, starts the loopback bridge
+        # and keeps the RTP silence rules and one-shot semantics.
         path = url
-        if http.is_bridge_host(url):
+        if provider or http.is_bridge_host(url):
             path = url_for(mode="play", url=url, label=track["title"],
                            thumb=thumb, fanart=kodi.FANART)
         item = xbmcgui.ListItem(path=path)
@@ -2028,8 +2037,13 @@ def _handoff_target(url, title):
 
 
 def _download_context(url, title, source):
-    """Context-menu Download action for eligible direct audio files only."""
-    if not downloads.eligible(url, source, check_host=False):
+    """Context-menu Download action for direct files or resolver pages.
+
+    A known Mediafire/Drive/Podomatic/Mega page is offered here and resolved in
+    ``download_start``; the existing direct-file allowlist is unchanged.
+    """
+    resolvable = bool(_provider_for(url))
+    if not (downloads.eligible(url, source, check_host=False) or resolvable):
         return []
     return [(
         "Download",
@@ -2446,7 +2460,48 @@ def download_start(handle, params):
     url = params.get("url", "")
     title = params.get("title", "Rave Player download")
     source = params.get("source", "")
-    plan = downloads.plan(url, title, source)
+    resolved = False
+    allow_private = False
+    extra_hosts = ()
+    provider = _provider_for(url)
+    if provider:
+        # Resolve a provider page once, before planning.  The resolved URL
+        # (with any Referer suffix) is what gets probed, saved and replayed —
+        # never the page URL and never Mega ciphertext.
+        resolution = None
+        try:
+            resolver = _resolver()
+            if resolver is not None:
+                resolution = resolver.resolve(url)
+        except Exception as exc:  # noqa: BLE001 - no URL/token logging
+            kodi.log("resolver: %s download resolve failed (%s)"
+                     % (provider, type(exc).__name__), level=30)
+        if resolution is None:
+            kodi.notify("That download could not be resolved.")
+            return
+        if (getattr(resolution, "provider", "") == "mega"
+                and getattr(resolution, "source", "") == "service"):
+            # The signed endpoint is self-authenticating and lives on the
+            # operator-configured LAN/Tailscale base; allow exactly that host.
+            if not _is_service_stream(resolution):
+                kodi.notify("That download could not be resolved.")
+                return
+            url = resolution.url
+            allow_private = True
+            try:
+                extra_hosts = (urllib.parse.urlsplit(url).hostname or "",)
+            except ValueError:
+                extra_hosts = ()
+        else:
+            url = _playable_url(resolution.kodi_url())
+            if not url:
+                kodi.notify("That download could not be resolved.")
+                return
+        source = "Rave Resolver"
+        resolved = True
+    plan = downloads.plan(url, title, source, resolved=resolved,
+                          extra_hosts=extra_hosts,
+                          allow_private=allow_private)
     if not plan.get("allowed"):
         kodi.notify(plan.get("reason") or "Download not available.")
         return
@@ -2621,6 +2676,137 @@ def _playable_url(value):
     return http.safe_stream_url(value)
 
 
+# --------------------------------------------------------------- resolver
+# Provider page hosts, mirrored from resolver.policy.  This local copy is the
+# safety net: if the module is missing or raises while classifying, a known
+# provider page must still be recognised so it can never be queued raw.
+_RESOLVER_PAGE_HOSTS = {
+    "mediafire": ("mediafire.com",),
+    "drive": ("drive.google.com", "docs.google.com",
+              "drive.usercontent.google.com"),
+    "podomatic": ("podomatic.com",),
+    "mega": ("mega.nz", "mega.co.nz"),
+}
+_RESOLVER = None
+_RESOLVER_IMPORT_FAILED = False
+
+
+def _resolver():
+    """Lazily build the resolver bound to **this plugin's** settings.
+
+    The user-facing controls live in the plugin so they appear in the normal
+    Configure dialog; ``script.module.raveresolver``'s own settings remain for
+    other consumers.  Import lazily so a missing module only affects provider
+    pages, never the root menu.
+    """
+    global _RESOLVER, _RESOLVER_IMPORT_FAILED
+    if _RESOLVER is not None:
+        return _RESOLVER
+    if _RESOLVER_IMPORT_FAILED:
+        return None
+    try:
+        from resolver import Resolver
+        from resolver.settings import Settings
+
+        _RESOLVER = Resolver(settings=Settings(addon=kodi.ADDON))
+    except Exception as exc:  # noqa: BLE001 - playback must not break
+        _RESOLVER_IMPORT_FAILED = True
+        kodi.log("resolver module unavailable (%s)" % type(exc).__name__,
+                 level=30)
+    return _RESOLVER
+
+
+def _host_matches(host, domains):
+    text = str(host or "").strip().lower().rstrip(".")
+    for domain in domains or ():
+        domain = str(domain or "").strip().lower().strip(".").rstrip(".")
+        if domain and (text == domain or text.endswith("." + domain)):
+            return True
+    return False
+
+
+def _provider_for(value):
+    """Return the page provider for ``value``, or ``""`` for direct/unknown.
+
+    This is deliberately a local host check, not ``resolver.provider_for()``:
+    it runs for every row in a directory and every track in a play-all, so it
+    must not import the resolver module or build its cache.  The mirror is the
+    same four page providers the SDK ships; direct audio and unknown hosts are
+    left on the existing playback path.
+    """
+    try:
+        host = urllib.parse.urlsplit(str(value or "").strip()).hostname or ""
+    except ValueError:
+        return ""
+    for provider, domains in _RESOLVER_PAGE_HOSTS.items():
+        if _host_matches(host, domains):
+            return provider
+    return ""
+
+
+def _is_service_stream(result):
+    """True when ``result`` is the web's absolute signed Mega stream URL.
+
+    The stream base is the operator-configured resolver service and is
+    normally a LAN/Tailscale address, so it deliberately bypasses the public
+    host guard.  It must still be the exact configured origin and
+    ``/api/mega/stream`` path: a compromised service cannot redirect playback
+    to another private host.
+    """
+    url = str(getattr(result, "url", "") or "")
+    if not url or "|" in url or "#" in url:
+        return False
+    resolver = _resolver()
+    service = getattr(resolver, "service", None) if resolver is not None else None
+    base = str(getattr(service, "stream_base", "") or "")
+    if not base:
+        return False
+    try:
+        parts = urllib.parse.urlsplit(url)
+        base_parts = urllib.parse.urlsplit(base)
+    except ValueError:
+        return False
+    if parts.scheme not in ("http", "https") or parts.username or parts.password:
+        return False
+    if (parts.scheme, parts.netloc) != (base_parts.scheme, base_parts.netloc):
+        return False
+    prefix = (base_parts.path or "").rstrip("/")
+    return parts.path == prefix + "/api/mega/stream"
+
+
+def _resolve_stream(value):
+    """Resolve a provider page once, at the point playback starts.
+
+    Direct audio and unknown hosts pass through the existing public-stream
+    guard unchanged.  A Mediafire/Drive/Podomatic page becomes its playable
+    URL plus Kodi's ``|Header=`` suffix.  A Mega service result is the absolute
+    signed stream URL and is handed to the player without headers.
+
+    Failures log the provider and error class only (provider URLs and signed
+    streams are credentials) and return ``""`` so the caller's existing quiet
+    failure path handles them.
+    """
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    provider = _provider_for(text)
+    if provider in ("", "direct"):
+        return _playable_url(text)
+    resolver = _resolver()
+    if resolver is None:
+        return ""
+    try:
+        result = resolver.resolve(text)
+    except Exception as exc:  # noqa: BLE001 - quiet failure, never log the URL
+        kodi.log("resolver: %s resolve failed (%s)"
+                 % (provider, type(exc).__name__), level=30)
+        return ""
+    if (getattr(result, "provider", "") == "mega"
+            and getattr(result, "source", "") == "service"):
+        return result.url if _is_service_stream(result) else ""
+    return _playable_url(result.kodi_url())
+
+
 def _safe_art(value, fallback=None):
     """Only public http(s) art URLs are accepted; anything else falls back.
 
@@ -2724,16 +2910,21 @@ def _tuning_aborted(handle, tuning):
 
 def play(handle, params):
     label = params.get("label", "Rave Player")
-    is_rtp = http.is_egress_host(params.get("url", ""))
-    # JungleTapes MP3s also go through the loopback bridge: Kodi's libcurl
-    # fetch of that host stalls on the Shield while the add-on's Python fetch
-    # works (3.9.50 P1-1).  Keep the RTP silence rule scoped to RTP only.
-    is_bridge = http.is_bridge_host(params.get("url", ""))
+    raw_url = params.get("url", "")
+    is_rtp = http.is_egress_host(raw_url)
     # RTP failures must stay silent: no spinner notification/dialog/banner.
     tuning = None if is_rtp else _start_tuning_spinner(params.get("station") or label)
     bridge = None
     try:
-        stream = _playable_url(params.get("url", ""))
+        # Resolve a provider page exactly once for this playback.  Direct and
+        # unknown URLs still pass through the same public-stream guard.
+        stream = _resolve_stream(raw_url)
+        # JungleTapes MP3s also go through the loopback bridge: Kodi's libcurl
+        # fetch of that host stalls on the Shield while the add-on's Python
+        # fetch works (3.9.50 P1-1).  Classify the resolved media host, not the
+        # page URL, so a resolver result is bridged when it needs to be.  Keep
+        # the RTP silence rule scoped to RTP only.
+        is_bridge = http.is_bridge_host(stream) if stream else False
         thumb = _safe_art(params.get("thumb"), kodi.ROUND_FACE)
         # A missing fanart must fall back to the 1920x1080 brand still, not to
         # the square thumb: Kodi's OSD/background is a 16:9 surface.

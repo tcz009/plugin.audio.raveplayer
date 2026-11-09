@@ -39,6 +39,9 @@ jobs:
           module = resolver.find("./extension[@point='xbmc.python.module']")
           assert module is not None
           assert module.get("library") == "resources/lib"
+          plugin_imports = {item.get("addon"): item.get("version")
+                            for item in plugin.findall("./requires/import")}
+          assert plugin_imports.get("script.module.raveresolver") == resolver.get("version")
           print("addon.xml ok, plugin", plugin.get("version"),
                 "screen", screen.get("version"),
                 "resolver", resolver.get("version"))

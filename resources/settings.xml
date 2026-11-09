@@ -16,4 +16,10 @@
         <setting id="surprise_animate" type="bool" label="Animate Surprise Me" default="true"/>
         <setting id="rtp_egress_proxy" type="text" label="RaveTapePacks egress proxy (host:port, blank = direct)" default=""/>
     </category>
+    <category id="resolver" label="Resolver (Mediafire / Drive / Podomatic / Mega)">
+        <setting id="resolver_service_url" type="text" label="NAS resolver URL (LAN/Tailscale base, blank = in-process only)" default=""/>
+        <setting id="resolver_service_token" type="text" label="Service token (Bearer; preferred over the cookie)" default="" option="hidden"/>
+        <setting id="resolver_service_cookie" type="text" label="Web session cookie (fallback auth, e.g. raveplayer_session=...)" default="" option="hidden"/>
+        <setting id="resolver_enable_mega" type="bool" label="Enable Mega links" default="false"/>
+    </category>
 </settings>

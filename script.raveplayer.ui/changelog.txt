@@ -1,3 +1,9 @@
+# Rave Player 3.9.53
+
+- Manifest-only release: requires plugin.audio.raveplayer 3.9.53 for the
+  resolver wiring (provider page playback and downloads). No screen code
+  change.
+
 # Rave Player 3.9.50
 
 - **App integration (3.9.51 shell pass).** Search, Favourites, Downloads and

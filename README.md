@@ -255,8 +255,8 @@ means a dead source can't take the whole add-on down with it.
 
 - Kodi 20 (Nexus) through Kodi 22 (Piers)
 - `script.module.raveresolver` 1.1.0 for direct, Mediafire, Drive and provider
-  page playback (bundled in the repository; wired into the plugin in the
-  3.9.52 integration pass). 1.1.0 consumes the web resolver's signed Mega
+  page playback (bundled in the repository; the plugin declares the dependency
+  from 3.9.53). 1.1.0 consumes the web resolver's signed Mega
   `stream` URL and supports Bearer or session-cookie auth. No external
   binaries or third-party Python packages.
 
@@ -265,9 +265,9 @@ A self-hosted **web version** (same sources, runs in Docker) lives at
 
 ## Install from the repository (recommended)
 
-Current release: **`plugin.audio.raveplayer` 3.9.51** with
-**`script.raveplayer.ui` 3.9.50** (the full-screen Rave app; the script requires
-the 3.9.51 plugin).
+Current release: **`plugin.audio.raveplayer` 3.9.53** with
+**`script.raveplayer.ui` 3.9.53** (the full-screen Rave app; the script requires
+the 3.9.53 plugin).
 
 Add the repository once, then Rave Player installs and updates itself.
 
@@ -296,15 +296,17 @@ and can fall back to an optional NAS `/api/resolve` service for Mega,
 Podomatic pages and future sources. For Mega the web returns a signed
 `/api/mega/stream` path; the module returns the absolute playable URL and
 never the AES-CTR ciphertext. Service auth is either a Bearer
-`resolver_service_token` or a configured `raveplayer_session` cookie. The
-module is present but the plugin does not depend on it yet; the 3.9.52
-integration contract, snippets and settings are in
-[`docs/KODI-RESOLVER.md`](docs/KODI-RESOLVER.md).
+`resolver_service_token` or a configured `raveplayer_session` cookie.
+3.9.53 makes the plugin depend on it: provider pages are resolved once in
+play/play-all and downloads, with the four settings in Configure → Resolver.
+See [`docs/KODI-RESOLVER-WIRING-3.9.53.md`](docs/KODI-RESOLVER-WIRING-3.9.53.md)
+for the wiring and merge notes, and
+[`docs/KODI-RESOLVER.md`](docs/KODI-RESOLVER.md) for the SDK/service contract.
 
 Install it from the repository (Add-ons → Install from repository → Rave
 Player Repository → Program add-ons → Rave Resolver) or install
-`script.module.raveresolver-1.1.0.zip` directly. Installing it does not change
-playback until the plugin declares the dependency.
+`script.module.raveresolver-1.1.0.zip` directly. The 3.9.53 plugin declares
+the dependency, so Kodi installs the module first.
 
 ## Development
 

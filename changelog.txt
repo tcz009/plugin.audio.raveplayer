@@ -1,3 +1,35 @@
+Rave Player 3.9.53
+- Resolver wiring (Mediafire / Google Drive / Podomatic / Mega). The plugin now
+  requires script.module.raveresolver 1.1.0 and resolves a provider page once
+  in mode=play: direct Mediafire/Drive/Podomatic results keep their Referer/
+  User-Agent headers through Kodi's |Header= suffix, and a Mega result is the
+  absolute signed /api/mega/stream URL on the configured LAN/Tailscale resolver
+  base with no headers and no AES-CTR ciphertext fallback.
+- Play all / Shuffle: provider pages are validated and queued as mode=play
+  plugin URLs, then resolved lazily per track. A long collection never resolves
+  up front, never queues a raw page or ciphertext, and keeps its absolute
+  start offsets and track numbers. Bridge hosts keep the same per-track
+  wrapper.
+- Downloads: Mediafire/Drive/Podomatic results download from the resolved
+  direct URL; Mega downloads use the signed stream endpoint. Resolved URLs
+  without a filename extension (Drive, Mega) are accepted, with the audio
+  Content-Type choosing .mp3 vs .m4a. The 500 MiB file / 2 GiB total / 256 MiB
+  free-space / Content-Length integrity checks and the existing source
+  allowlists are unchanged.
+- Settings: resolver_service_url (LAN/Tailscale base, blank = in-process only),
+  resolver_service_token (Bearer, hidden), resolver_service_cookie (session
+  fallback, hidden) and resolver_enable_mega (off by default) are in the
+  plugin's Configure dialog.
+- Quiet failures: resolver errors log only the provider and exception class,
+  never the page URL, token, cookie or signed stream. RTP failures stay silent.
+- Repo/CI: plugin 3.9.53 depends on module 1.1.0 and screen 3.9.53 requires
+  plugin 3.9.53; build-repo still emits four add-ons, and
+  check-repo-artifacts.sh now asserts the plugin/module version dependency.
+- Tests: new offline test/test_resolver_wiring.py (37 tests) for selection,
+  headers, Mega stream URLs, play-all per-track wrapping/offsets, downloads,
+  quiet failures and the no-raw-page rule; full suite run twice.
+- Code only: no Shield/device run, no push and no tag.
+
 Rave Player 3.9.51
 - Full-screen app: script.raveplayer.ui is now the primary shell. The plugin
   root is the app launcher plus one "Classic lists" fallback row; the old root

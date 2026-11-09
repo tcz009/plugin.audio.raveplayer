@@ -33,4 +33,18 @@ for ZIP in "$PLUGIN_ZIP" "$SCREEN_ZIP" "$MODULE_ZIP"; do
   fi
 done
 
+python3 - <<'PY'
+import xml.etree.ElementTree as ET
+
+plugin = ET.parse("addon.xml").getroot()
+module = ET.parse("script.module.raveresolver/addon.xml").getroot()
+imports = {item.get("addon"): item.get("version")
+           for item in plugin.findall("./requires/import")}
+if imports.get("script.module.raveresolver") != module.get("version"):
+    raise SystemExit(
+        "ERROR: plugin addon.xml must require script.module.raveresolver %s"
+        % module.get("version"))
+print("plugin dependency: script.module.raveresolver %s" % module.get("version"))
+PY
+
 echo "repo/ artifacts are current and committed for plugin ${VERSION}, screen ${SCREEN_VERSION}, resolver ${MODULE_VERSION}"
