@@ -1466,20 +1466,14 @@ class RaveData(object):
             downloadable = bool(download_source and row.get("download")
                                 and self._downloadable(url, download_source))
             row_art = self._web_art(row.get("art"), art)
-            play_path = url
-            try:
-                web_path = urllib.parse.urlsplit(str(url)).path
-            except ValueError:
-                web_path = ""
-            if (web_path.startswith(("/api/ezgarage/", "/api/ukraves/"))
-                    and web_path.endswith("/stream")):
-                # A web-proxied stream needs the plugin to sign a short-lived
-                # URL; hand Kodi the plugin wrapper instead of the raw path.
-                play_path = (
-                    "plugin://plugin.audio.raveplayer/?mode=web_play&url="
-                    + urllib.parse.quote(str(url), safe="")
-                    + "&label=" + urllib.parse.quote(title, safe="")
-                    + "&thumb=" + urllib.parse.quote(row_art, safe=""))
+            # Every web-source row goes through the plugin's web_play path:
+            # it applies the public-DNS guard and mints a short-lived signed
+            # URL for the session-only Mediafire streams.
+            play_path = (
+                "plugin://plugin.audio.raveplayer/?mode=web_play&url="
+                + urllib.parse.quote(str(url), safe="")
+                + "&label=" + urllib.parse.quote(title, safe="")
+                + "&thumb=" + urllib.parse.quote(row_art, safe=""))
             track = Track(
                 title, label, url, row_art, live=False, source=track_source,
                 download_source=download_source if downloadable else "",

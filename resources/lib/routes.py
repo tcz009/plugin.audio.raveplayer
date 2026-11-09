@@ -3471,14 +3471,17 @@ def web_play(handle, params):
     # service only accepts its session or a short-lived signed URL.  Sign here
     # so Kodi never receives (or logs) the long-lived bearer token.
     if base and webapi.same_origin(stream, base):
+        signed = ""
         try:
             path = urllib.parse.urlsplit(stream).path
             client = _web_client()
             signed = client.signed_play(path) if client is not None else ""
-            if signed:
-                stream = signed
-        except Exception:  # noqa: BLE001 - fall back to the original URL
-            pass
+        except Exception:  # noqa: BLE001 - signing failure is a clean notice
+            signed = ""
+        if not signed:
+            _fail_playback(handle, "The web service could not sign this stream.")
+            return
+        stream = signed
     thumb = _round_art(params.get("thumb"), kodi.ROUND_FACE)
     fanart = _round_art(params.get("fanart"), kodi.FANART)
     plotted = params.get("plot") or ""
