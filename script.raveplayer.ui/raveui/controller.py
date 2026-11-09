@@ -15,13 +15,15 @@ service.  Every screen is a state of the same window:
 * a context menu (long-press OK) carries Play all / Shuffle / Download /
   Favourite / rows-per-page / Stop / Refresh
 * loading, empty and error states are painted plates, not modal dialogs
-* Spinning Surprise is one bounded pick, one >=1.2 s reveal and one playback
+* Spinning Surprise is one bounded pick series, one >=1.2 s reveal and one
+  playback
 * leaving the window never stops audio: Kodi owns the player (one policy)
 
 The controller never opens a modal dialog, never calls ``xbmcgui`` and never
 raises into Kodi: every failure becomes a quiet status line or a plate.
 """
 
+import inspect
 import threading
 import time
 from dataclasses import dataclass
@@ -52,6 +54,20 @@ KEY_GROUPS = (
     ("0 1 2 3 4 5 6 7 8 9".split(), "DIGITS"),
 )
 KEY_ACTIONS = ("SPACE", "DELETE", "CLEAR", "SEARCH NOW", "CANCEL")
+
+
+def _runner_accepts_poll(runner):
+    """True when ``runner.run`` takes a per-call ``on_poll`` override."""
+    try:
+        parameters = inspect.signature(runner.run).parameters
+    except (TypeError, ValueError):
+        return False
+    for parameter in parameters.values():
+        if parameter.name == "on_poll":
+            return True
+        if parameter.kind is inspect.Parameter.VAR_KEYWORD:
+            return True
+    return False
 
 
 @dataclass
@@ -88,6 +104,10 @@ class RaveScreenController(object):
         self.view = view
         self.data = data
         self.playback = playback
+        # Kodi constructs the window (and therefore this controller) on the GUI
+        # thread.  Every control mutation must happen there; a background task
+        # runner's poll has no business painting even if it shares the runner.
+        self._gui_thread = threading.current_thread()
         self._animator_factory = animator_factory or SpinnerAnimator
         self._sleep = sleep
         self._clock = clock
@@ -552,7 +572,7 @@ class RaveScreenController(object):
         """
         picker = self._surprise_picker_for()
         try:
-            result = self._task_runner.run(lambda: picker.pick_once())
+            result = self._run_pick(token, picker)
         except TaskCancelled:
             return
         except TaskTimeout as exc:
@@ -566,6 +586,32 @@ class RaveScreenController(object):
                               "Could not pick a random pack: %s" % exc, exc))
             return
         self._store_surprise_outcome(token, result=result)
+
+    def _run_pick(self, token, picker):
+        """Run one pick on a worker, with a poll hook scoped to this run.
+
+        The controller shares one runner, and a background caller would
+        otherwise pump the runner's GUI ``on_poll`` from the ``rave-surprise``
+        thread.  The per-run callback below is inert from any non-GUI thread
+        and after cancel/timeout/close, so an abandoned worker cannot animate
+        or otherwise mutate a control (P1-2/P2-5b).
+        """
+        function = lambda: picker.pick_once()
+        poll = self._surprise_poll(token)
+        if _runner_accepts_poll(self._task_runner):
+            return self._task_runner.run(function, on_poll=poll)
+        return self._task_runner.run(function)
+
+    def _surprise_poll(self, token):
+        """A poll hook that can only ever touch the GUI while the run is live."""
+        def poll():
+            if threading.current_thread() is not self._gui_thread:
+                return
+            if self._closed or not self._run_active(token):
+                return
+            self._advance_loading_frame()
+
+        return poll
 
     def _store_surprise_outcome(self, token, result=None, error=None):
         with self._state_lock:
@@ -599,7 +645,7 @@ class RaveScreenController(object):
         with self._state_lock:
             self._surprise_played = False
         try:
-            result = self._task_runner.run(lambda: picker.pick_once())
+            result = self._run_pick(token, picker)
         except TaskCancelled:
             return False
         except TaskTimeout as exc:
@@ -686,7 +732,8 @@ class RaveScreenController(object):
         if guard is None:
             # A direct caller still gets the picker's shared one-shot gate, so
             # no path can hand the same gesture to the player twice (P1-2).
-            guard = getattr(picker, "guard", None)
+            picker = self._surprise_picker_for()
+            guard = getattr(picker, "guard", None) if picker is not None else None
         if guard is not None:
             guard.fire(handoff)
         else:
@@ -1618,11 +1665,40 @@ class RaveScreenController(object):
     def _reload_current(self, keep_index=False):
         if self._closed or self._busy:
             return False
-        index = self._current_index() if keep_index else 0
+        # Remember the absolute content offset, not the on-screen row index:
+        # the reload's render uses its own default index (1 on page 2+), which
+        # is what made Refresh reset the hero to the first row (P2-4).
+        offset = self._content_offset() if keep_index else 0
         ok = self._load_target(self._target, self._page, push=False)
         if ok and keep_index:
-            self._select_index(index)
+            self._restore_offset(offset)
         return ok
+
+    def _content_offset(self):
+        """Absolute 0-based index of the focused item in the whole target."""
+        page = max(1, int(self._page or 1))
+        rows_per_page = max(1, int(self._rows_per_page or 1))
+        content = list(self._page_rows or [])
+        nav = 1 if (page > 1 and content) else 0
+        if content:
+            content_index = max(0, min(self._current_index() - nav,
+                                       len(content) - 1))
+        else:
+            content_index = 0
+        return (page - 1) * rows_per_page + content_index
+
+    def _restore_offset(self, offset):
+        """Focus the same absolute item after a reload and repaint its hero."""
+        page = max(1, int(self._page or 1))
+        rows_per_page = max(1, int(self._rows_per_page or 1))
+        content = list(self._page_rows or [])
+        nav = 1 if (page > 1 and content) else 0
+        content_index = max(0, int(offset) - (page - 1) * rows_per_page)
+        if content:
+            content_index = min(content_index, len(content) - 1)
+        else:
+            content_index = 0
+        self._select_index(nav + content_index)
 
     # ----------------------------------------------------------------- plate
     def _start_loading(self, title, detail):
@@ -1639,6 +1715,10 @@ class RaveScreenController(object):
     def _advance_loading_frame(self, force=False):
         if not self._loading_active or self._closed:
             return
+        # Belt-and-braces for P2-5b: even if a custom runner wired this method
+        # as its poll, a background thread must never call Control.setImage.
+        if threading.current_thread() is not self._gui_thread:
+            return
         frames = list(self._frames or [])
         head = getattr(self.view, "set_plate_head", None)
         if not frames or head is None:
@@ -1654,7 +1734,16 @@ class RaveScreenController(object):
             self._loading_active = False
 
     def _on_runner_poll(self):
-        """Task-runner poll hook (caller/GUI thread): animate the load plate."""
+        """Task-runner poll hook (caller/GUI thread): animate the load plate.
+
+        A runner shared with a background caller would otherwise invoke this
+        from that caller's thread; the GUI-thread check makes the hook inert
+        there instead of mutating a control (P2-5b).
+        """
+        if threading.current_thread() is not self._gui_thread:
+            return
+        if self._closed:
+            return
         self._advance_loading_frame()
 
     def _stop_loading_animation(self):
@@ -1776,9 +1865,18 @@ class RaveScreenController(object):
             setter(rows)
 
     def _select_index(self, index):
+        if not self._rows:
+            return
+        index = max(0, min(int(index), len(self._rows) - 1))
         try:
-            self.view.set_rows(self._rows, max(0, min(int(index), len(self._rows) - 1)))
+            self.view.set_rows(self._rows, index)
         except Exception:  # noqa: BLE001 - a cosmetic restore
+            return
+        # set_rows moves focus but leaves the previous hero painted; keep both
+        # in step so Refresh/rows-per-page do not show row 0's art (P2-4).
+        try:
+            self.view.set_hero(self._rows[index])
+        except Exception:  # noqa: BLE001 - optional view port
             pass
 
     def _page_info(self):
@@ -2069,6 +2167,8 @@ class RaveScreenController(object):
                 getattr(subject, "action", None), dict):
             if action == "live":
                 return self._run_live_action(subject, dict(subject.action))
+            if action == "favourite":
+                return self._add_favourite(subject)
             if action == "refresh":
                 return self._open_live_room(push=False)
             if action == "rows":
@@ -2196,7 +2296,11 @@ class RaveScreenController(object):
         except ValueError:
             index = 0
         new_rows = sizes[(index + 1) % len(sizes)]
-        offset = (max(1, self._page) - 1) * self._rows_per_page + self._current_index()
+        # Absolute item offset before the page size changes (the on-screen row
+        # index includes the Previous-page row on page 2+).
+        offset = (self._content_offset() if self._target is not None
+                  else (max(1, self._page) - 1) * self._rows_per_page
+                  + self._current_index())
         self._rows_per_page = new_rows
         self._page_size_explicit = True
         try:
@@ -2220,6 +2324,10 @@ class RaveScreenController(object):
             ok = self._open_live_room(push=False)
         else:
             ok = self._load_target(target, new_page, push=False)
+        # The reload paints its own default focus; restore the item that was
+        # under the cursor and its hero at the new page size (P2-4).
+        if ok:
+            self._restore_offset(offset)
         # The reload repaints and clears the status; keep the user's choice
         # visible after it (P2-1/P2-3).
         self.view.set_status("Rows per page: %d" % new_rows)

@@ -30,11 +30,12 @@ sys.path.insert(0, SCREEN)
 
 from raveui import nowplaying  # noqa: E402
 from raveui.controller import RaveScreenController  # noqa: E402
-from raveui.data import Entry, Page, Track  # noqa: E402
+from raveui.data import Entry, Page, RaveData, Track  # noqa: E402
 from raveui.screens.library import (  # noqa: E402
     ACTION_CANCEL, LibraryScreens, Row as LibraryRow)
 from raveui.screens.live import LiveRadio, Row as LiveRow  # noqa: E402
-from raveui.surprise_pick import PackCache, PickedTrack, SurprisePicker  # noqa: E402
+from raveui.surprise_pick import (  # noqa: E402
+    PackCache, PickedTrack, SurprisePicker, from_plugin)
 from raveui.tasks import DirectTaskRunner, ThreadTaskRunner  # noqa: E402
 
 
@@ -605,6 +606,17 @@ class SurpriseTests(unittest.TestCase):
         self.assertIsNone(view.plate)
         self.assertEqual(playback.calls, [])
 
+    def test_finish_surprise_without_a_controller_guard_does_not_raise(self):
+        """P3: the guard fallback used an undefined local `picker`."""
+        ctl, _, _, playback = build()
+        ctl.start()
+        token = ctl._begin_surprise_run()
+        ctl._surprise_guard = None
+        result = types.SimpleNamespace(
+            track=Track("Tape 1", "Pack", "https://example.test/one.mp3"))
+        self.assertTrue(ctl._finish_surprise(token, result))
+        self.assertEqual(len(playback.calls), 1)
+
 
 class ContextTests(unittest.TestCase):
     def test_context_on_a_library_track_offers_play_and_remove(self):
@@ -733,6 +745,84 @@ class SurpriseBarrierTests(unittest.TestCase):
             resolve=lambda identifier: PickedTrack(
                 title, "https://example.test/late.mp3", identifier, "Pack"),
             sleep=lambda seconds: None)
+
+    def test_cancelled_worker_never_paints_after_a_new_load_starts(self):
+        """P1-2/P2-5b: an abandoned picker must not call Control.setImage."""
+        plate_threads = []
+        spinner_threads = []
+        main = threading.get_ident()
+
+        class PollView(FakeView):
+            def set_plate_head(self, path):
+                plate_threads.append(threading.get_ident())
+
+            def set_spinner_image(self, path):
+                spinner_threads.append(threading.get_ident())
+                FakeView.set_spinner_image(self, path)
+
+        class SlowLoadData(IntegrationData):
+            def load(self, target, page=1, rows=50):
+                time.sleep(0.7)
+                return IntegrationData.load(self, target, page, rows)
+
+        view = PollView()
+        data = SlowLoadData()
+        playback = FakePlayback()
+        runner = ThreadTaskRunner(
+            sleep=lambda milliseconds: time.sleep(milliseconds / 1000.0),
+            clock=time.monotonic,
+            monitor=types.SimpleNamespace(abortRequested=lambda: False),
+            timeout=5.0, cancelled=lambda: False)
+        ctl = RaveScreenController(
+            view, data, playback, task_runner=runner,
+            logger=lambda message: None, surprise_sleep=lambda seconds: None)
+        # Production wiring: the shared runner's default poll is the controller
+        # hook.  The Surprise worker must override it with its run token.
+        runner.on_poll = ctl._on_runner_poll
+        ctl._surprise_picker = SurprisePicker(
+            pick=lambda: (time.sleep(1.0), {
+                "identifier": "pack-1", "title": "Dreamscape 19"})[1],
+            resolve=lambda identifier: PickedTrack(
+                "Late", "https://example.test/late.mp3", identifier, "Pack"),
+            sleep=lambda seconds: None)
+
+        ctl.start()
+        self.assertTrue(ctl.surprise())
+        time.sleep(0.15)
+        self.assertFalse(ctl.on_back())         # cancel; window stays open
+        self.assertFalse(ctl._surprising)
+        self.assertTrue(ctl._load_target("latest", 1, push=True))
+        time.sleep(0.6)                         # let the old worker finish
+        self.assertIn(main, plate_threads)      # the GUI load did animate
+        self.assertEqual(set(plate_threads), {main})
+        self.assertEqual(set(spinner_threads) - {main}, set())
+        self.assertEqual(playback.calls, [])
+
+    def test_screen_owns_retries_with_one_plugin_pick_per_attempt(self):
+        """P1-2: one retry layer, not screen 3 x plugin 3 x 2 searches."""
+        from resources.lib import latest as plugin_latest
+
+        searches = []
+
+        def fake_search(*args, **kwargs):
+            searches.append((args, kwargs))
+            return [], 100
+
+        with mock.patch.object(plugin_latest.archive, "search",
+                               side_effect=fake_search):
+            picker = from_plugin(
+                types.SimpleNamespace(latest=plugin_latest),
+                sleep=lambda seconds: None)
+            ctl, _, _, playback = build(surprise_picker=picker)
+            ctl.start()
+            self.assertFalse(ctl.surprise(True))
+
+        self.assertEqual(picker.last_result.attempts, 3)
+        # 3 screen attempts x one count + one page search each.  The old
+        # nested policy measured 18.
+        self.assertEqual(len(searches), 6)
+        self.assertLessEqual(len(searches), 6)
+        self.assertEqual(playback.calls, [])
 
     def test_timeout_never_allows_a_late_handoff(self):
         ctl, view, _, playback = build(
@@ -921,6 +1011,46 @@ class FakeQueue(object):
         self.dismissed.append(key)
         self._rows = [row for row in self._rows if row.get("key") != key]
         return True
+
+
+class FavouritableLiveData(IntegrationData):
+    """IntegrationData whose favourite payload comes from the real RaveData."""
+
+    def __init__(self):
+        IntegrationData.__init__(self)
+        self.saved = []
+        self._rave = RaveData(modules=self.modules)
+
+    def favourite_payload(self, entry):
+        return self._rave.favourite_payload(entry)
+
+    def add_favourite(self, entry):
+        payload = self.favourite_payload(entry)
+        if payload is None:
+            return False, "This row cannot be saved to favourites."
+        self.saved.append(payload)
+        return True, "Added to favourites"
+
+
+class P2LiveFavouriteTests(unittest.TestCase):
+    """P2-11: a live station row can be saved, not just played."""
+
+    def test_live_station_context_offers_and_saves_a_stream_favourite(self):
+        data = FavouritableLiveData()
+        ctl, view, _, _ = build(data=data)
+        ctl.start()
+        view.index = row_index(view, "Live Radio")
+        ctl.on_click()
+        view.index = 0
+        self.assertTrue(ctl.on_context())
+        labels = [row.label for row in view.rows]
+        self.assertIn("Add to favourites", labels)
+        view.index = labels.index("Add to favourites")
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(data.saved, [{
+            "kind": "stream", "target": "https://live.test/kool",
+            "title": "Kool FM", "source": "Live radio · kool"}])
+        self.assertEqual(view.status, "Added to favourites")
 
 
 class P1DownloadRoomTests(unittest.TestCase):

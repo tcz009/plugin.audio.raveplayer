@@ -63,9 +63,17 @@ class ThreadTaskRunner(object):
         except Exception:  # noqa: BLE001 - the predicate is advisory
             return False
 
-    def run(self, function):
+    def run(self, function, on_poll=None):
+        """Run ``function`` on a daemon thread and pump progress until it ends.
+
+        ``on_poll`` overrides this runner's default hook for this call only.
+        A background caller (the Surprise pick worker) passes a token-scoped
+        callback that is inert once its run is invalidated, so the shared
+        ``_on_runner_poll`` can never animate a control from that thread.
+        """
         if self._is_cancelled():
             raise TaskCancelled("window closed before the load started")
+        poll = self.on_poll if on_poll is None else on_poll
         outcome = {}
 
         def target():
@@ -90,16 +98,18 @@ class ThreadTaskRunner(object):
                 pass
             if self.clock() - started >= self.timeout:
                 raise TaskTimeout("source took longer than %.0fs" % self.timeout)
-            self._poll()
+            self._poll(poll)
             self.sleep(50)
         if "error" in outcome:
             raise TaskFailed(str(outcome["error"]))
         return outcome.get("value")
 
-    def _poll(self):
-        if self.on_poll is None:
+    def _poll(self, callback=None):
+        if callback is None:
+            callback = self.on_poll
+        if callback is None:
             return
         try:
-            self.on_poll()
+            callback()
         except Exception:  # noqa: BLE001 - a progress tick is advisory
             pass

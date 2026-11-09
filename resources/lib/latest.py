@@ -200,5 +200,15 @@ def random_pack(attempts=RANDOM_PICK_ATTEMPTS):
     return None
 
 
+def random_pack_once():
+    """One Archive count+page pick, no internal retry.
+
+    The app screen owns the retry policy (cache-first, three bounded attempts);
+    Classic plugin routes keep :func:`random_pack` and its own bounded retry.
+    Giving each layer its own retry multiplied the backend searches (P1-2).
+    """
+    return random_pack(attempts=1)
+
+
 def year_query(year):
     return "%s AND date:[%d-01-01 TO %d-12-31]" % (RAVE_COLLECTION, year, year)

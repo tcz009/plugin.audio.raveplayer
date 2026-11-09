@@ -2,10 +2,11 @@
 """Reliable Surprise pick: bounded retry, cache-first, single playback handoff.
 
 The Shield intermittently showed *"No random pack found"* although the Archive
-was reachable.  ``latest.random_pack()`` makes two Archive searches (count +
-page) and had no retry: one transient empty/failed response was reported as an
-exhausted catalogue.  This module wraps that backend with a deliberately small
-policy:
+was reachable.  Each ``latest.random_pack_once()`` call makes two Archive
+searches (count + page) and has no internal retry, so one transient empty/failed
+response used to be reported as an exhausted catalogue.  This module wraps that
+single pick with a deliberately small policy (Classic plugin routes keep
+``random_pack()``'s own bounded retry):
 
 1. **Prefer cached archive packs.**  Packs already seen by the Latest/screen
    load are free and cannot fail.  A cached pack skips the network entirely;
@@ -27,6 +28,7 @@ The module is pure Python (no ``xbmc`` import) and takes the backend, clock,
 sleep and random source by injection, so all of this is testable offline.
 """
 
+import inspect
 import random as _random
 import threading
 import time
@@ -509,14 +511,43 @@ class SurprisePicker(object):
             pass
 
 
+def _single_attempt_pick(latest):
+    """Return the plugin's one-pick callable, or ``None`` when unavailable.
+
+    The screen's :class:`SurprisePicker` owns retries.  ``random_pack_once`` is
+    the explicit plugin API; for a plugin that only exposes ``random_pack`` we
+    request ``attempts=1`` if it accepts the keyword.  A legacy no-argument
+    callable is used as-is (it may still retry internally, but it is the only
+    callable available).
+    """
+    once = getattr(latest, "random_pack_once", None)
+    if callable(once):
+        return once
+    pick = getattr(latest, "random_pack", None)
+    if not callable(pick):
+        return None
+    try:
+        parameters = inspect.signature(pick).parameters
+    except (TypeError, ValueError):
+        return pick
+    accepts_kwargs = any(
+        parameter.kind is inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters.values())
+    if accepts_kwargs or "attempts" in parameters:
+        def pick_once():
+            return pick(attempts=1)
+        return pick_once
+    return pick
+
+
 def from_plugin(modules, cache=None, archive_module=None, **kwargs):
     """Build a picker wired to the plugin's ``latest``/``archive`` backend.
 
     ``modules`` is the namespace from :func:`raveui.pluginbridge.load_plugin`.
-    The picker calls ``latest.random_pack()`` exactly like the existing data
-    layer, but through the bounded retry policy, and resolves a playable track
-    with ``archive.audio_files`` so a pack with no audio is retried instead of
-    handed to Kodi.
+    The picker calls the plugin's one-shot pick exactly like the existing data
+    layer, but through its own bounded retry policy, and resolves a playable
+    track with ``archive.audio_files`` so a pack with no audio is retried
+    instead of handed to Kodi.
 
     A missing/broken plugin yields a picker whose ``pick`` is ``None``: the
     first press fails once, clearly, without a traceback or an endless loop.
@@ -524,9 +555,7 @@ def from_plugin(modules, cache=None, archive_module=None, **kwargs):
     latest = getattr(modules, "latest", None) if modules is not None else None
     archive = archive_module or (getattr(modules, "archive", None)
                                  if modules is not None else None)
-    pick = getattr(latest, "random_pack", None)
-    if not callable(pick):
-        pick = None
+    pick = _single_attempt_pick(latest)
     safe_url = None
     http_module = getattr(modules, "http", None) if modules is not None else None
     if http_module is not None:

@@ -51,7 +51,12 @@ class PlaybackService(object):
         params = {"mode": "play", "url": url, "label": title}
         if getattr(track, "live", False):
             params["live"] = 1
-            params["station"] = str(getattr(track, "pack", "") or title)
+            # The plugin's reconnect resolver keys on the station token
+            # (kool/rinse/centreforce), not the generic "Live radio" album
+            # label.  Fall back to pack/title only for a track without one.
+            params["station"] = str(
+                getattr(track, "station", "") or getattr(track, "pack", "")
+                or title)
         return PLUGIN + "?" + urllib.parse.urlencode(params)
 
     @staticmethod

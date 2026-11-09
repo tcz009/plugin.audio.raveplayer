@@ -86,8 +86,8 @@ pause state. Live hides duration/progress even when Kodi reports a total.
 - `test/test_screens_library.py`, `test_screens_live.py`,
   `test_nowplaying_footer.py`, `test_surprise_pick.py` remain the module
   contracts (153 tests).
-- `python3 -m unittest discover -s test -p 'test_*.py'` → **923 tests, OK**
-  (run twice before committing).
+- `python3 -m unittest discover -s test -p 'test_*.py'` → **959 tests, OK**
+  (run twice with a fresh `RAVEPLAYER_CACHE_DIR` before committing).
 
 ## Device evidence
 

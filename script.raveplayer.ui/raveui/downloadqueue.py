@@ -20,8 +20,14 @@ the store, restarts interrupted rows and keeps the queue alive until it drains.
 
 import json
 import os
+import tempfile
 import threading
 import time
+
+try:  # POSIX (Linux/Android/macOS); Kodi on Windows uses the O_EXCL fallback.
+    import fcntl
+except ImportError:  # pragma: no cover - platform dependent
+    fcntl = None
 
 from . import pluginbridge
 
@@ -30,6 +36,132 @@ FINISHED = ("failed", "cancelled")
 DEFAULT_MAX_WORKERS = 3
 WORKER_LOCK_TTL = 45.0
 _PROGRESS_SAVE_INTERVAL = 1.0
+# Two processes (the window and the headless owner) write the same store.  A
+# writer lock plus a per-write unique temp file keeps every snapshot valid even
+# when both save at once (P1-5b).
+_STORE_LOCK_TIMEOUT = 2.0
+_STORE_LOCK_STALE = 30.0
+
+
+def _write_json_atomic(path, value, description, log):
+    """Write one complete JSON snapshot through a unique temp + atomic rename."""
+    directory = os.path.dirname(path)
+    if directory:
+        try:
+            os.makedirs(directory, exist_ok=True)
+        except OSError as exc:
+            log("%s: %s" % (description, exc))
+            return False
+    descriptor = None
+    temporary = None
+    try:
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=os.path.basename(path) + ".", suffix=".tmp",
+            dir=directory or ".")
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            descriptor = None
+            json.dump(value, handle, ensure_ascii=False, indent=0)
+        os.replace(temporary, path)
+        temporary = None
+        return True
+    except OSError as exc:
+        log("%s: %s" % (description, exc))
+        return False
+    finally:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        if temporary is not None:
+            try:
+                os.remove(temporary)
+            except OSError:
+                pass
+
+
+class _StoreLock(object):
+    """Best-effort cross-process writer lock for one store path.
+
+    POSIX uses ``flock`` on a sidecar; other platforms fall back to an
+    ``O_EXCL`` file with stale-lock recovery.  If the lock cannot be acquired
+    within the timeout we still write: the unique temp + atomic rename above
+    guarantees a valid snapshot, so a slow/hung peer can never corrupt the
+    store or stall the GUI close path.
+    """
+
+    def __init__(self, path, timeout=_STORE_LOCK_TIMEOUT):
+        self.path = path + ".lock"
+        self.timeout = timeout
+        self._fd = None
+        self._exclusive = False
+
+    def __enter__(self):
+        if fcntl is not None:
+            try:
+                self._fd = os.open(self.path, os.O_CREAT | os.O_RDWR, 0o600)
+            except OSError:
+                return self
+            deadline = time.monotonic() + self.timeout
+            while True:
+                try:
+                    fcntl.flock(self._fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    return self
+                except OSError:
+                    if time.monotonic() >= deadline:
+                        try:
+                            os.close(self._fd)
+                        except OSError:
+                            pass
+                        self._fd = None
+                        return self
+                    time.sleep(0.01)
+        deadline = time.monotonic() + self.timeout
+        while True:
+            try:
+                self._fd = os.open(self.path,
+                                   os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+                self._exclusive = True
+                try:
+                    os.write(self._fd, str(os.getpid()).encode("ascii"))
+                except OSError:
+                    pass
+                return self
+            except FileExistsError:
+                try:
+                    age = time.time() - os.path.getmtime(self.path)
+                except OSError:
+                    age = 0.0
+                if age > _STORE_LOCK_STALE:
+                    try:
+                        os.remove(self.path)
+                    except OSError:
+                        pass
+                    continue
+                if time.monotonic() >= deadline:
+                    return self
+                time.sleep(0.01)
+            except OSError:
+                return self
+
+    def __exit__(self, *exc_info):
+        if self._fd is not None:
+            try:
+                if fcntl is not None and not self._exclusive:
+                    fcntl.flock(self._fd, fcntl.LOCK_UN)
+            except OSError:
+                pass
+            try:
+                os.close(self._fd)
+            except OSError:
+                pass
+            self._fd = None
+        if self._exclusive:
+            self._exclusive = False
+            try:
+                os.remove(self.path)
+            except OSError:
+                pass
 
 
 def default_store_path():
@@ -491,32 +623,28 @@ class DownloadQueue(object):
             return set()
         return {str(key) for key in value if key}
 
-    def _write_cancels(self, keys):
+    def _update_cancels(self, mutate):
+        """Read-modify-write the cancel sidecar under the writer lock."""
         path = self._cancel_store_path()
         if not path:
             return
-        temporary = path + ".tmp"
-        try:
-            with open(temporary, "w", encoding="utf-8") as handle:
-                json.dump(sorted(keys), handle)
-            os.replace(temporary, path)
-        except OSError as exc:
-            try:
-                os.remove(temporary)
-            except OSError:
-                pass
-            self._log("cancel flag save failed: %s" % exc)
+        with _StoreLock(path):
+            keys = self._read_cancels()
+            mutate(keys)
+            _write_json_atomic(path, sorted(keys), "cancel flag save failed",
+                               self._log)
 
     def _request_cancel(self, key):
-        keys = self._read_cancels()
-        keys.add(str(key))
-        self._write_cancels(keys)
+        def add(keys):
+            keys.add(str(key))
+
+        self._update_cancels(add)
 
     def _clear_cancel(self, key):
-        keys = self._read_cancels()
-        if str(key) in keys:
+        def discard(keys):
             keys.discard(str(key))
-            self._write_cancels(keys)
+
+        self._update_cancels(discard)
 
     def _cancel_requested(self, key):
         return str(key) in self._read_cancels()
@@ -539,20 +667,11 @@ class DownloadQueue(object):
         with self._lock:
             rows = [dict(self._items[key]) for key in self._order
                     if key in self._items]
-        temporary = path + ".tmp"
-        try:
-            directory = os.path.dirname(path)
-            if directory:
-                os.makedirs(directory, exist_ok=True)
-            with open(temporary, "w", encoding="utf-8") as handle:
-                json.dump(rows, handle, ensure_ascii=False, indent=0)
-            os.replace(temporary, path)
-        except OSError as exc:
-            try:
-                os.remove(temporary)
-            except OSError:
-                pass
-            self._log("download queue save failed: %s" % exc)
+        # Per-writer unique temp + atomic rename; the lock serialises the two
+        # owner processes so one snapshot never clobbers another's temp file.
+        with _StoreLock(path):
+            _write_json_atomic(path, rows, "download queue save failed",
+                               self._log)
 
     def _log(self, message):
         if self._logger is None:

@@ -42,7 +42,7 @@ script.raveplayer.ui/
 │   │   ├── library.py         # Search/Favourites/Downloads/About (one impl)
 │   │   └── live.py            # Live Radio rows/state (one impl)
 │   ├── nowplaying.py          # Footer model for idle/playing/paused/live
-│   ├── surprise_pick.py       # one bounded pick + single-play gate
+│   ├── surprise_pick.py       # cache-first pick policy + single-play gate
 │   ├── pluginbridge.py        # imports the plugin tree read-only under an alias
 │   ├── downloadqueue.py       # worker + progress rows via the plugin's downloads
 │   ├── playback.py            # the single audio policy
@@ -88,7 +88,7 @@ home
  ├── Favourites       → library.Favourites (play / open / remove)
  ├── Downloads        → library.Downloads (play / remove)
  ├── About            → library.About (versions, licence, links, policy)
- └── Spinning Surprise → one bounded pick → reveal → one playback
+ └── Spinning Surprise → one bounded pick series → reveal → one playback
 ```
 
 Each frame stores its target, page, rows and selected index. Back pops one
@@ -148,7 +148,7 @@ the same window. Nothing is modal and nothing is drawn over a plugin list.
 |---|---|
 | folder (pack/genre/show/RTP/feed/source) | Open, Play all, Shuffle all, Favourite, Rows per page, Stop, Refresh |
 | track | Play, Play all, Shuffle all, Download (approved source only), Favourite, Rows, Stop, Refresh |
-| live station | Play / stop (module state), Refresh |
+| live station | Play / stop (module state), Favourite, Refresh |
 | saved row | Remove favourite |
 | active download | Cancel download |
 | completed download | Play, Delete download |
@@ -166,7 +166,9 @@ egress/bridge and live reconnect stay the plugin's business.
 - **Loading** paints before the worker starts; the controller advances the
   small head from the task runner's poll on the GUI thread, so the plate stays
   animated during a slow Archive fetch without touching a control from a
-  worker thread.
+  worker thread. The Surprise worker gets a per-run token poll that is inert
+  from any non-GUI thread and after cancel/timeout/close, so an abandoned
+  picker can never call `Control.setImage` (P1-2/P2-5b).
 - **Empty** is a quiet STANDBY plate: “Nothing in \<room\> right now. The
   source may be blocked or offline.” No notification, no dialog.
 - **Error/timeout** is an ERROR plate with the concrete reason and
@@ -204,7 +206,7 @@ auto-advance.
 
 | Action | Path |
 |---|---|
-| Single track / station | one-item `PlayList` → plugin `mode=play` URL (live adds `live=1&station=…`) |
+| Single track / station | one-item `PlayList` → plugin `mode=play` URL (live adds `live=1&station=<token>`; the token, not the “Live radio” album label, is what reconnect re-resolves) |
 | Play all / Shuffle | one `PlayList` of N plugin `mode=play` URLs |
 | Downloaded file | direct local path (no network policy applies) |
 | Platform hand-off (GetDarker/Mixcloud) | the official add-on's `plugin://` path |
@@ -224,10 +226,13 @@ hidden and the ON AIR sticker stays.
 
 - **Root is the app launcher**: `root()` has two rows; `classic_root()` holds
   the old lists. `HANDLERS["classic_root"]` added.
-- **`latest.random_pack()` retries** three bounded Archive pages (fresh page
-  each attempt, identifier-bearing docs only). The screen adds four bounded
-  picks plus a recent-packs fallback, so “No random pack found” is no longer
-  the first transient failure.
+- **`latest.random_pack()` keeps its bounded retry** for Classic plugin routes
+  (three fresh Archive pages, identifier-bearing docs only). The screen's
+  Surprise picker is the single retry owner for the app: it tries a cached pack
+  first, then at most **three single plugin picks** via
+  `latest.random_pack_once()` with short backoff. One press therefore makes at
+  most 3 × (count + page) = **6 `archive.search` calls**, not the 18 from a
+  nested 3 × 3 policy. Cancel between attempts stops immediately.
 - **Favourites accept `legacy_post`** (RaveTapePacks post id), matching the
   kind the plugin's own context menu already wrote. The screen uses it for
   RTP posts; `fav_list` already rendered it.
@@ -263,7 +268,7 @@ The app is audio-first and 1280×720/720p control space; it uses only
 ## 9. Tests and artifacts
 
 ```sh
-python3 -m unittest discover -s test        # 923 tests, OK (run 2×)
+python3 -m unittest discover -s test        # 959 tests, OK (run 2×)
 ./scripts/build.sh                          # dist zips 3.9.51 / 3.9.50
 ./scripts/build-repo.sh                     # repo/ catalogue + zips
 ./scripts/check-repo-artifacts.sh           # after committing repo/
@@ -276,11 +281,17 @@ Coverage added/updated in `test/test_rave_screen.py`:
 - in-window keyboard: typing, submit, results, Back restore;
 - context actions: play all/shuffle, download, favourite, rows-per-page;
 - loading/empty/error plates and retry; Back during load; no busy leak;
-- Surprise: one pick, one animation, one handoff, no-pick/exception/reveal
-  failure, cancel;
+- Surprise: one pick series, one animation, one handoff, no-pick/exception/
+  reveal failure, cancel; the production runner's poll is GUI-only and a
+  cancelled worker makes zero `set_plate_head` calls; cache-first three
+  attempts make at most six `archive.search` calls;
+- position: Refresh and a rows-per-page change keep the focused item and hero
+  (including a page-size change across a page boundary);
 - playback policy: single item, whole collection, shuffle, local file,
-  platform hand-off, live item, stop;
-- download queue: progress, plan refusal, worker failure, ineligible source;
+  platform hand-off, live item (station token in the reconnect query), stop;
+- live context can save a station to Favourites;
+- download queue: progress, plan refusal, worker failure, ineligible source,
+  and two concurrent writers keeping every store snapshot valid;
 - skin XML: plate/page controls, property binding, live hide, every texture;
 - plugin root launcher + Classic lists, manifest versions, repo catalogue.
 
@@ -383,7 +394,10 @@ same evidence folder without the overlay.
   rendered. The row is not repainted every percentage point while the user
   stays in another room; reopen the room for a fresh snapshot. The headless
   `script.raveplayer.ui downloads` owner keeps a transfer alive after Back and
-  a window close.
+  a window close. The window and that owner share `download-queue.json`; every
+  save uses a per-writer unique temp file plus a writer lock and an atomic
+  rename, so concurrent saves cannot leave a partial/corrupt snapshot (last
+  complete snapshot wins).
 - The app is audio-first: no video, visualisation or subtitle UI.
 - The 02 art still uses the placeholder root sticker/hero generator; the
   screen-bed/spinner/footer art is the design snapshot.

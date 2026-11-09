@@ -15,6 +15,7 @@ import threading
 import time
 import types
 import unittest
+import urllib.parse
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from unittest import mock
@@ -41,6 +42,7 @@ from raveui.playback import PlaybackService  # noqa: E402
 from raveui.screens.library import (ActionResult, PlayItem,
                                     Row as LibraryRow,
                                     Screen as LibraryScreen)
+from raveui.screens.live import LiveTrack  # noqa: E402
 from raveui.surprise_pick import PickedTrack, SurprisePicker  # noqa: E402
 from raveui.tasks import (DirectTaskRunner, TaskCancelled, TaskFailed, TaskTimeout,
                           ThreadTaskRunner)  # noqa: E402
@@ -430,10 +432,12 @@ class AppData(FakeData):
 
 
 class PagedFakeData(AppData):
+    count = 60
+
     def load(self, target, page=1, rows=25):
         self.pages_called = getattr(self, "pages_called", [])
         self.pages_called.append((target, page, rows))
-        count = 60
+        count = self.count
         start = (page - 1) * rows
         entries = [Entry("p-%d" % index, "Pack %02d" % index, "paged", "",
                          "pack", "latest", "p-%d" % index)
@@ -441,6 +445,12 @@ class PagedFakeData(AppData):
         pages = max(1, (count + rows - 1) // rows)
         return Page(entries, count, min(page, pages), pages, rows,
                     has_next=page < pages)
+
+
+class WidePagedFakeData(PagedFakeData):
+    """Enough rows to exercise a page-size change across a page boundary."""
+
+    count = 200
 
 
 class ControllerTests(unittest.TestCase):
@@ -678,6 +688,40 @@ class ControllerTests(unittest.TestCase):
         view.index = idx
         ctl.on_click()
         self.assertEqual(ctl.rows_per_page, 25)
+
+    def test_refresh_keeps_the_focused_row_and_its_hero(self):
+        ctl, view, _, _ = controller(data=WidePagedFakeData())
+        ctl.start()
+        view.index = 0
+        ctl.on_click()                        # Latest room
+        view.index = 10
+        ctl.on_focus()
+        self.assertEqual(view.hero.label, "Pack 10")
+
+        self.assertTrue(ctl.on_context())
+        labels = [row.label for row in view.rows]
+        view.index = labels.index("Refresh")
+        self.assertTrue(ctl.on_click())
+        self.assertEqual(view.index, 10)
+        self.assertEqual(view.hero.label, "Pack 10")
+        self.assertEqual(view.rows[10].label, "Pack 10")
+
+    def test_rows_per_page_change_keeps_the_absolute_offset_and_hero(self):
+        ctl, view, _, _ = controller(data=WidePagedFakeData())
+        ctl.start()
+        view.index = 0
+        ctl.on_click()                        # Latest room at 50 rows
+        self.assertTrue(ctl._goto_page(2))
+        self.assertEqual(ctl.page, 2)
+        view.index = 12                       # Pack 50 is row 1; Pack 61 here
+        ctl.on_focus()
+        self.assertEqual(view.hero.label, "Pack 61")
+
+        self.assertTrue(ctl._cycle_rows_per_page())
+        self.assertEqual(ctl.rows_per_page, 100)
+        self.assertEqual(ctl.page, 1)
+        self.assertEqual(view.rows[view.index].label, "Pack 61")
+        self.assertEqual(view.hero.label, "Pack 61")
 
     def test_surprise_picks_once_animates_once_and_plays_once(self):
         animator = RecordingAnimator()
@@ -2122,6 +2166,18 @@ class PlaybackServiceTests(unittest.TestCase):
         service.play(track)
         self.assertEqual(len(xbmc.PLAYED), 1)
 
+    def test_live_reconnect_uses_the_station_token(self):
+        service = PlaybackService()
+        track = LiveTrack(title="Kool FM", pack="Live radio",
+                          url="https://live.test/kool", live=True,
+                          station="kool")
+        service.play(track)
+        path = xbmc.PLAYED[0].items[0][0]
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(path).query)
+        self.assertEqual(query["station"], ["kool"])
+        self.assertEqual(query["live"], ["1"])
+        self.assertNotIn("Live radio", query["station"])
+
 
 class DownloadQueueTests(unittest.TestCase):
     def modules(self, plan=None, result=None):
@@ -2299,6 +2355,68 @@ class DownloadQueueTests(unittest.TestCase):
                                 for line in builtins))
             release.set()
             self.assertTrue(self.wait(queue, lambda rows: not rows))
+
+    def test_two_writers_keep_every_store_snapshot_valid(self):
+        """The window and headless owner write the same file concurrently."""
+        import json as json_module
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "download-queue.json")
+            modules = self.modules()
+            first = DownloadQueue(modules=modules, store_path=path,
+                                  local_workers=False)
+            second = DownloadQueue(modules=modules, store_path=path,
+                                   local_workers=False)
+            errors = []
+            snapshots = []
+
+            def write(queue, prefix, count):
+                for index in range(count):
+                    try:
+                        queue.start("https://x/%s-%d.mp3" % (prefix, index),
+                                    "Set %s %d" % (prefix, index),
+                                    "Archive.org",
+                                    key="%s-%d" % (prefix, index))
+                    except Exception as exc:  # noqa: BLE001 - reported below
+                        errors.append(exc)
+
+            def observe():
+                for _ in range(500):
+                    try:
+                        with open(path, encoding="utf-8") as handle:
+                            value = json_module.load(handle)
+                    except FileNotFoundError:
+                        continue
+                    except (OSError, ValueError) as exc:
+                        errors.append(exc)
+                        continue
+                    if not isinstance(value, list):
+                        errors.append(AssertionError("not a list: %r" % value))
+                        continue
+                    for row in value:
+                        if not isinstance(row, dict) or not row.get("key"):
+                            errors.append(AssertionError(
+                                "partial row snapshot: %r" % (row,)))
+                    snapshots.append(len(value))
+                    time.sleep(0.0005)
+
+            writer_a = threading.Thread(target=write, args=(first, "a", 80))
+            writer_b = threading.Thread(target=write, args=(second, "b", 80))
+            observer = threading.Thread(target=observe)
+            writer_a.start()
+            writer_b.start()
+            observer.start()
+            writer_a.join(10.0)
+            writer_b.join(10.0)
+            observer.join(10.0)
+
+            self.assertEqual(errors, [])
+            self.assertTrue(snapshots)
+            with open(path, encoding="utf-8") as handle:
+                final = json_module.load(handle)
+            self.assertIsInstance(final, list)
+            self.assertTrue(all(isinstance(row, dict) and row.get("key")
+                                for row in final))
 
 
 class PlaybackPolicyTests(unittest.TestCase):

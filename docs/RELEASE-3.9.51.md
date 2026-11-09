@@ -48,6 +48,8 @@ RAVEPLAYER_CACHE_DIR="$(mktemp -d /tmp/rave-release-cache-XXXXXX)" \
 | 2 (pre-doc tree) | fresh temp dir | **923 tests, OK** | 50.2 s |
 | 3 (after doc/artifact rebuild) | fresh temp dir | **923 tests, OK** | 71.3 s |
 | 4 (after doc/artifact rebuild) | fresh temp dir | **923 tests, OK** | 58.8 s |
+| 5 (P1 review R2 close-out) | fresh temp dir | **959 tests, OK** | 32.1 s |
+| 6 (P1 review R2 close-out) | fresh temp dir | **959 tests, OK** | 27.3 s |
 
 - Local Python 3.9.6; CI (`build.yml`) uses 3.12. Both runs used a per-run
   `RAVEPLAYER_CACHE_DIR`, so no cache state carried between runs.
@@ -218,7 +220,7 @@ history — only do it with explicit owner approval and after deleting the tag.
 - [x] Plugin `addon.xml` 3.9.51; screen `addon.xml` 3.9.50 requiring 3.9.51.
 - [x] Plugin changelog, screen changelog, root README, screen README,
       `FULLSCREEN-APP.md`, `APP-INTEGRATION-3.9.51.md` agree.
-- [x] 923 tests green twice, fresh temp cache each run.
+- [x] 959 tests green twice, fresh temp cache each run.
 - [x] `repo/addons.xml` + md5 current; `check-repo-artifacts.sh` passes.
 - [x] Both add-on zips present and byte-identical to the tree.
 - [x] `main` is a clean ancestor (fast-forward possible).

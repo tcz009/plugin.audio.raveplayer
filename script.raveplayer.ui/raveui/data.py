@@ -1000,6 +1000,18 @@ class RaveData(object):
                 else _SOURCE_LABEL.get(track_source, "Rave Player")
             return {"kind": "stream", "target": entry.track.url, "title": label,
                     "source": display}
+        if kind == "station":
+            # A live row carries its stream in the module action, not in
+            # ``entry.track`` (P2-11).  Save it as a normal stream favourite so
+            # the saved row plays through the same one playback policy.
+            action = getattr(entry, "action", None)
+            if isinstance(action, dict):
+                url = _text(action.get("url"))
+                if url:
+                    station = _text(action.get("station")) or target
+                    title = _text(action.get("title")) or label
+                    return {"kind": "stream", "target": url, "title": title,
+                            "source": "Live radio · %s" % station}
         if kind == "pack" and source == "latest":
             return {"kind": "pack", "target": target, "title": label,
                     "source": "Archive.org"}
