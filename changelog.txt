@@ -1,3 +1,6 @@
+Rave Player 3.9.62 — launch the app, not a folder
+- The add-on list now has "Rave Player" as a program that opens the full-screen app directly, with no empty plugin folder. The plugin is "Rave Player Classic Lists" for the fallback lists.
+
 Rave Player 3.9.61 — full classic-menu parity in the screen
 - The full-screen app now reaches every destination the classic root offers:
   a Tape Packs hub (Toronto, JungleTapes, RaveTapePacks, Classic Pack Series,
