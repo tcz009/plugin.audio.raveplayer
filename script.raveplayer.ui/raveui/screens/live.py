@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """Live Radio screen data and actions.
 
-The screen has four rows: the three curated stations that always play (Kool FM,
-Rinse FM, Centreforce 883) and a Pirate Radio door into the plugin's pirate
-directory.  There is deliberately no radio-browser search here: three mirror
-timeouts can outlive a whole load, and a dead row is worse than three known
-stations.
+The station block has five rows: the three curated stations that always play
+(Kool FM, Rinse FM, Centreforce 883) plus DejaVu FM and OSA Radio from the
+web's /api/live (their canonical streams are the offline fallback).  It is
+followed by a Pirate Radio door into the plugin's pirate directory.  There is
+deliberately no radio-browser search here: three mirror timeouts can outlive a
+whole load, and a dead row is worse than a handful of known stations.
 
 Row protocol
 ------------
@@ -177,7 +178,18 @@ _FALLBACK_STATIONS = (
     Station("centreforce", "Centreforce 883", "Essex pirate radio, since 1988",
             "https://listen.centreforceradio.com/96",
             "centreforce.png", "RP-34", codec="MP3", bitrate=96),
+    Station("dejavu", "DejaVu FM", "London rave radio, still broadcasting",
+            "https://dejavufm.radioca.st/stream",
+            "dejavu.png", "RP-45", codec="MP3", bitrate=0),
+    Station("osa", "OSA Radio", "Old-skool anthems and rave radio",
+            "https://osa.radioca.st/stream",
+            "osa.png", "RP-46", codec="MP3", bitrate=0),
 )
+
+# Web-only stations added in 3.9.67.  They come from the web's /api/live when
+# its token scope is available; the canonical streams above are the fallback so
+# the rows still play while the web team rolls the scope out.
+WEB_STATION_ORDER = ("dejavu", "osa")
 
 PIRATE_ROW = Row(
     title="Pirate Radio",
@@ -259,11 +271,11 @@ def _safe_stream(modules, url):
 
 
 def load_stations(modules=None):
-    """Return the three curated stations, preferring the plugin's live URLs.
+    """Return the five station rows, preferring the plugin/web live URLs.
 
     ``modules`` is the namespace returned by :func:`raveui.pluginbridge.load_plugin`.
-    Missing/malformed plugin entries fall back to the canonical row rather than
-    dropping the station, because all three have stable direct streams.
+    Missing/malformed entries fall back to the canonical row rather than
+    dropping the station, because all five have stable direct streams.
     """
     stations = [replace(station) for station in _FALLBACK_STATIONS]
     by_token = {station.token: station for station in stations}
@@ -294,7 +306,29 @@ def load_stations(modules=None):
             codec=_text(candidate.get("codec"), station.codec),
             bitrate=_as_int(candidate.get("bitrate")) or station.bitrate,
         )
-    return [by_token[token] for token in STATION_ORDER]
+    # The web directory is authoritative for DejaVu/OSA when it is reachable.
+    web_rows = []
+    if modules is not None:
+        try:
+            web_rows = list(modules.routes.web_live_stations() or [])
+        except Exception:  # noqa: BLE001 - fallback rows stay available
+            web_rows = []
+    by_web = {token: by_token[token] for token in WEB_STATION_ORDER}
+    for row in web_rows:
+        if not isinstance(row, dict):
+            continue
+        token = _text(row.get("token")).lower()
+        if token not in by_web:
+            continue
+        url = _safe_stream(modules, row.get("url")) or by_web[token].url
+        by_web[token] = replace(
+            by_web[token],
+            name=_text(row.get("name"), by_web[token].name),
+            url=url,
+            codec=_text(row.get("codec"), by_web[token].codec),
+        )
+    return ([by_token[token] for token in STATION_ORDER] +
+            [by_web[token] for token in WEB_STATION_ORDER])
 
 
 class LiveRadio(object):

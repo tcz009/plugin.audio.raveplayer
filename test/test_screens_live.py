@@ -87,7 +87,7 @@ def make_live(**kwargs):
 class RowProtocolTests(unittest.TestCase):
     def test_rows_have_exactly_the_library_fields(self):
         rows = make_live().rows()
-        self.assertEqual(len(rows), 10)
+        self.assertEqual(len(rows), 12)
         for row in rows:
             self.assertEqual(set(row.keys()), set(live.ROW_FIELDS))
             self.assertIsInstance(row, dict)
@@ -95,18 +95,18 @@ class RowProtocolTests(unittest.TestCase):
             self.assertEqual(row.kind, row["kind"])
             self.assertIsInstance(row.action, dict)
         self.assertEqual([row.kind for row in rows],
-                         ["station", "station", "station", "section"] +
+                         ["station"] * 5 + ["section"] +
                          ["section"] * 6)
         self.assertEqual(rows[0].fact, "LIVE")
-        self.assertEqual(rows[3].title, "Pirate Radio")
-        self.assertEqual(rows[3].fact, "PIRATE")
-        self.assertEqual(rows[3].action,
+        self.assertEqual(rows[5].title, "Pirate Radio")
+        self.assertEqual(rows[5].fact, "PIRATE")
+        self.assertEqual(rows[5].action,
                          {"type": "open", "source": "pirate", "target": "pirate"})
-        self.assertEqual([row.title for row in rows[4:]],
+        self.assertEqual([row.title for row in rows[6:]],
                          ["Hardcore", "Jungle", "Drum & Bass", "House",
                           "UK Garage", "Dubstep & Grime"])
         self.assertTrue(all(row.action["source"] == "live_tag"
-                            for row in rows[4:]))
+                            for row in rows[6:]))
 
     def test_rows_are_json_serialisable_and_copyable(self):
         row = make_live().rows()[0]
@@ -118,11 +118,13 @@ class RowProtocolTests(unittest.TestCase):
 
     def test_station_metadata_and_codes(self):
         rows = make_live().rows()
-        self.assertEqual([row.title for row in rows[:3]],
-                         ["Kool FM", "Rinse FM", "Centreforce 883"])
+        self.assertEqual([row.title for row in rows[:5]],
+                         ["Kool FM", "Rinse FM", "Centreforce 883",
+                          "DejaVu FM", "OSA Radio"])
         self.assertEqual([row.code for row in rows],
-                         ["RP-32", "RP-33", "RP-34", "RP-35",
-                          "RP-36", "RP-37", "RP-38", "RP-39", "RP-40", "RP-41"])
+                         ["RP-32", "RP-33", "RP-34", "RP-45", "RP-46",
+                          "RP-35", "RP-36", "RP-37", "RP-38", "RP-39",
+                          "RP-40", "RP-41"])
         self.assertEqual(rows[0].action["url"], KOOL)
         self.assertTrue(rows[0].action["live"])
 
@@ -132,7 +134,9 @@ class RowProtocolTests(unittest.TestCase):
         self.assertEqual([row.title for row in rows[:3]],
                          ["Kool FM", "Rinse FM", "Centreforce 883"])
         self.assertEqual([station.url for station in radio.stations],
-                         [KOOL, RINSE, CENTREFORCE])
+                         [KOOL, RINSE, CENTREFORCE,
+                          "https://dejavufm.radioca.st/stream",
+                          "https://osa.radioca.st/stream"])
 
     def test_plugin_urls_win_and_unsafe_urls_fall_back(self):
         plugin = FakeRadio(urls={"kool": "https://example.test/kool",
@@ -153,14 +157,14 @@ class RowProtocolTests(unittest.TestCase):
             directory = os.path.join(tmp, "resources", "art")
             os.makedirs(directory)
             for name in ("kool.png", "rinse.png", "centreforce.png",
-                         "pirate-radio.png"):
+                         "dejavu.png", "osa.png", "pirate-radio.png"):
                 with open(os.path.join(directory, name), "wb") as handle:
                     handle.write(b"png")
             radio = live.LiveRadio(modules=FakeModules(root=tmp))
             rows = radio.rows()
             self.assertEqual(rows[0].art,
                              os.path.join(directory, "kool.png"))
-            self.assertTrue(rows[3].art.endswith("pirate-radio.png"))
+            self.assertTrue(rows[5].art.endswith("pirate-radio.png"))
             self.assertTrue(rows[-1].art.endswith("radio-dubstep-grime.png"))
 
     def test_missing_art_keeps_a_portable_filename(self):
@@ -343,7 +347,7 @@ class HelpersTests(unittest.TestCase):
     def test_playable_rows(self):
         rows = make_live().rows()
         playable = live.playable_rows(rows)
-        self.assertEqual(len(playable), 3)
+        self.assertEqual(len(playable), 5)
         self.assertEqual(live.playable_rows(None), [])
 
     def test_station_lookup_by_name_and_token(self):

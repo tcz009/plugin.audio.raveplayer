@@ -104,24 +104,40 @@ Since 3.9.51 the add-on opens the full-screen Rave Player (the Rave Player UI
 script add-on) directly; the classic directory is the fallback. 3.9.61 makes
 the screen carry the whole classic tree:
 
-- **13 rooms** — Latest · Tape Packs · Toronto · JungleTapes · RaveTapePacks ·
-  Pirate Radio · Live Radio · Mixes & Shows · Search · Favourites · Downloads ·
-  About · Spinning Surprise.
-- **Tape Packs** — the three literal cassette sources, plus Classic Pack
-  Series, By Rave/Venue/Promoter, By Year and Every Pack.
+- **10 rooms** — Latest · Tape Packs · Pirate Radio · Mixes & Shows ·
+  Live Radio · Favourites · Downloads · Search · Spinning Surprise · About.
+- **Tape Packs** — the three literal cassette sources, the web-only
+  20bensons.com / UK Raves Downloads / EZ Garage Sets lists (3.9.67), plus
+  Classic Pack Series, By Rave/Venue/Promoter, By Year and Every Pack.
 - **Pirate Radio** — Hardscore, Pirate Radio Archives and Kool FM Sets.
-- **Live Radio** — the three curated stations, Pirate Radio and the six scene
-  genre doors (Hardcore, Jungle, Drum & Bass, House, UK Garage, Dubstep &
-  Grime).
-- **Mixes & Shows** — Podcasts, DNBRADIO, GetDarker, Moxser, Hardscore,
-  Pirate Radio Archives, plus the restored 2014 blogs Mikus Musik and
-  Demodulated Mixtapes.
+- **Live Radio** — the three curated stations, DejaVu FM and OSA Radio from
+  the web directory (3.9.67), Pirate Radio and the six scene genre doors.
+- **Mixes & Shows** — Podcasts, the DejaVu FM archive (3.9.67), DNBRADIO,
+  GetDarker, Moxser, Hardscore, Pirate Radio Archives, plus the restored 2014
+  blogs Mikus Musik and Demodulated Mixtapes.
 - **About → Classic lists** launches the original plugin directory UI, so the
   old menus remain reachable even from the screen.
 
 The reviewed destination-by-destination matrix is
 [`docs/PARITY-3.9.61.md`](docs/PARITY-3.9.61.md); the parity test fails if a
 classic page mode is added without a screen room, row or action.
+
+### Web-only sources (3.9.67)
+
+The NAS web app's server-side sources are now first-class Kodi sources in both
+menus. They use the plugin's existing Resolver settings:
+
+- base URL: `resolver_service_url`
+- bearer token: `resolver_service_token`
+
+`resources/lib/webapi.py` is a small urllib JSON client (10 s timeout, 1 MiB
+cap, same-origin redirects only, 60 s cache) for `/api/20bensons`,
+`/api/ukraves`, `/api/ezgarage`, `/api/live` and `/api/podcast/<feed>`. Rows
+keep `label/sub/play/art/fav/download/fact`; relative `play` and art paths are
+resolved against the base. YouTube/external rows are never offered as playable.
+Classic routes are `web_list`, `web_live` and `web_play`; the screen adds hub
+doors and paged child handlers rather than new top-level rooms. The API contract
+and test evidence are in [`docs/WEB-SOURCES-3.9.67.md`](docs/WEB-SOURCES-3.9.67.md).
 
 ### Kodi theme 2026 (3.9.16)
 

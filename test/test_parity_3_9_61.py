@@ -57,6 +57,9 @@ MATRIX = (
     ("Year list", "year_list", "Tape Packs → By Year → year"),
     ("Every Pack", "archive_list", "Tape Packs → Every Pack"),
     ("Archive pack detail", "archive_item", "Tape Packs → Every Pack → pack"),
+    ("20bensons.com", "web_list", "Tape Packs → 20bensons"),
+    ("UK Raves Downloads", "web_list", "Tape Packs → UK Raves"),
+    ("EZ Garage Sets", "web_list", "Tape Packs → EZ Garage"),
     ("Pirate Radio", "pirate_radio", "Home → Pirate Radio"),
     ("Hardscore", "hardscore", "Pirate Radio → Hardscore"),
     ("Hardscore post", "hardscore_event", "Pirate Radio → Hardscore → post"),
@@ -66,6 +69,7 @@ MATRIX = (
     ("Mixes & Shows", "shows_menu", "Home → Mixes & Shows"),
     ("Podcasts & Mixes", "media_menu", "Mixes & Shows → Podcasts & Mixes"),
     ("Podcast feed", "feed", "Mixes & Shows → Podcasts & Mixes → feed"),
+    ("DejaVu FM Archive", "web_list", "Mixes & Shows → DejaVu FM Archive"),
     ("DNBRADIO", "dnb_list", "Mixes & Shows → DNBRADIO"),
     ("DNBRADIO show", "dnb_play", "Mixes & Shows → DNBRADIO → show"),
     ("GetDarker", "getdarker", "Mixes & Shows → GetDarker"),
@@ -77,6 +81,7 @@ MATRIX = (
     ("Demodulated Mixtapes", "legacy_blog", "Mixes & Shows → Demodulated"),
     ("Live Radio", "radio_menu", "Home → Live Radio"),
     ("Live station", "station_live", "Live Radio → curated station"),
+    ("Web live station", "web_live", "Live Radio → DejaVu/OSA"),
     ("Live genre door", "radio_tag", "Live Radio → genre door → stations"),
     ("Favourites", "fav_list", "Home → Favourites"),
     ("Downloads", "downloads_menu", "Home → Downloads"),
@@ -88,7 +93,7 @@ MATRIX = (
 
 # Routes that are playback/context actions rather than directory pages.
 ACTION_MODES = frozenset((
-    "play", "dnb_play", "play_all", "play_all_collection", "fav_add",
+    "play", "dnb_play", "web_play", "play_all", "play_all_collection", "fav_add",
     "fav_remove", "download_start", "download_delete",
 ))
 ROOT_MODES = frozenset(("root", "screen"))
@@ -121,9 +126,12 @@ class ParityMatrixTests(unittest.TestCase):
             self.assertIn(key, home)
 
         packs = {row.target: row for row in data.room("packs").rows}
-        for target in ("toronto", "jungletapes", "ravetapepacks", "filters",
+        for target in ("toronto", "jungletapes", "ravetapepacks",
+                       "20bensons", "ukraves", "ezgarage", "filters",
                        "raves", "packs_years", "tapepacks"):
             self.assertIn(target, packs)
+        for target in ("20bensons", "ukraves", "ezgarage"):
+            self.assertTrue(data.children(packs[target], 1, 25).rows)
         series = data.children(packs["filters"], 1, 50)
         self.assertTrue(series.rows)
         self.assertEqual(series.rows[0].kind, "filter")
@@ -145,7 +153,8 @@ class ParityMatrixTests(unittest.TestCase):
 
         mixes = data.room("mixes").rows
         labels = {row.label for row in mixes}
-        for label in ("Podcasts & Mixes", "DNBRADIO Shows", "GetDarker",
+        for label in ("Podcasts & Mixes", "DejaVu FM Archive",
+                      "DNBRADIO Shows", "GetDarker",
                       "Moxser", "Mikus Musik", "Demodulated Mixtapes",
                       "Hardscore", "Pirate Radio Archives"):
             self.assertIn(label, labels)
@@ -155,7 +164,10 @@ class ParityMatrixTests(unittest.TestCase):
 
         live_rows = LiveRadio(modules=data.modules).rows()
         self.assertIn("Pirate Radio", [row.title for row in live_rows])
-        self.assertEqual([row.title for row in live_rows[4:]],
+        self.assertEqual([row.title for row in live_rows[:5]],
+                         ["Kool FM", "Rinse FM", "Centreforce 883",
+                          "DejaVu FM", "OSA Radio"])
+        self.assertEqual([row.title for row in live_rows[6:]],
                          [row.title for row in GENRE_ROWS])
 
     def test_about_keeps_the_classic_directory_reachable(self):

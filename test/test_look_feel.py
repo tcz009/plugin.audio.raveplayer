@@ -129,7 +129,7 @@ class RouteLabel2Tests(unittest.TestCase):
     def test_pack_hub_rows_carry_a_fact(self):
         routes.packs_menu(1, {})
         rows = [item for item in xbmcplugin.ITEMS if item["label"] != "Back"]
-        self.assertEqual(len(rows), 7)
+        self.assertEqual(len(rows), 10)
         for item in rows:
             with self.subTest(label=item["label"]):
                 self.assertTrue(item["label2"], item["label"])

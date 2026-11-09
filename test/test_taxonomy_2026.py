@@ -35,14 +35,16 @@ class TaxonomyContractTests(unittest.TestCase):
     def test_tape_packs_exact_order(self):
         self.assertEqual(labels(routes.packs_menu), [
             "Toronto Rave Mixtape Archive", "JungleTapes.com",
-            "RaveTapePacks.com", "Classic Pack Series",
+            "RaveTapePacks.com", "20bensons.com", "UK Raves Downloads",
+            "EZ Garage Sets", "Classic Pack Series",
             "By Rave, Venue & Promoter", "By Year", "Every Pack", "Back",
         ])
 
     def test_mixes_and_pirate_groups(self):
         self.assertEqual(labels(routes.shows_menu), [
-            "Podcasts & Mixes", "DNBRADIO", "GetDarker", "Moxser",
-            "Mikus Musik", "Demodulated Mixtapes", "Back",
+            "Podcasts & Mixes", "DejaVu FM Archive", "DNBRADIO",
+            "GetDarker", "Moxser", "Mikus Musik", "Demodulated Mixtapes",
+            "Back",
         ])
         self.assertEqual(labels(routes.pirate_radio), [
             "Hardscore", "Pirate Radio Archives", "Kool FM Sets", "Back",
@@ -50,9 +52,9 @@ class TaxonomyContractTests(unittest.TestCase):
 
     def test_live_radio_exact_order(self):
         self.assertEqual(labels(routes.radio_menu), [
-            "Kool FM", "Rinse FM", "Centreforce 883",
-            "Hardcore", "Jungle", "Drum & Bass", "House", "UK Garage",
-            "Dubstep & Grime", "Back",
+            "Kool FM", "Rinse FM", "Centreforce 883", "DejaVu FM",
+            "OSA Radio", "Hardcore", "Jungle", "Drum & Bass", "House",
+            "UK Garage", "Dubstep & Grime", "Back",
         ])
 
     def test_split_genre_doors(self):
