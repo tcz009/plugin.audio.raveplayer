@@ -760,7 +760,7 @@ class AboutTests(LibraryTestCase):
         self.assertEqual(screen.code, "RP-36")
         self.assertEqual(screen.state, STATE_READY)
         labels = [row.label for row in screen.rows]
-        self.assertEqual(labels, ["Rave Player", "Rave Screen", "Kodi",
+        self.assertEqual(labels, ["Rave Player", "Rave Player", "Kodi",
                                   "Licence", "Classic lists",
                                   "Project page", "Internet Archive"])
         facts = [row.fact for row in screen.rows]

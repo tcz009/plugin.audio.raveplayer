@@ -473,7 +473,7 @@ class KodiView(object):
 
     def notify(self, text):
         try:
-            xbmcgui.Dialog().notification("Rave Screen", str(text), "", 4000)
+            xbmcgui.Dialog().notification("Rave Player", str(text), "", 4000)
         except Exception:
             pass
 
@@ -482,7 +482,7 @@ class KodiView(object):
 
 
 class RaveScreenWindow(xbmcgui.WindowXML):
-    """Full-screen Rave Screen window. Construct, then ``show()``."""
+    """Full-screen Rave Player window. Construct, then ``show()``."""
 
     def __init__(self, *args, **kwargs):
         self._closed = False
@@ -544,8 +544,8 @@ class RaveScreenWindow(xbmcgui.WindowXML):
         except Exception as exc:  # noqa: BLE001 - fail closed, never a blank window
             xbmc.log("[script.raveplayer.ui] init failed: %s" % exc,
                      level=xbmc.LOGERROR)
-            self._view.set_status("Rave Screen could not load Rave Player data.")
-            _notify("Rave Screen could not load Rave Player data. See the log.")
+            self._view.set_status("Rave Player could not load Rave Player data.")
+            _notify("Rave Player could not load Rave Player data. See the log.")
             self.close()
             return
         # defaultcontrol=50 already owns focus; no explicit focus call is needed.
@@ -684,7 +684,7 @@ def _wait_for_home(initial, milliseconds):
 
 def _notify(message):
     try:
-        xbmcgui.Dialog().notification("Rave Screen", str(message), "", 5000)
+        xbmcgui.Dialog().notification("Rave Player", str(message), "", 5000)
     except Exception:  # noqa: BLE001 - notification is decorative
         pass
 
@@ -932,7 +932,7 @@ def _release_instance(path):
 
 
 def _focus_existing():
-    """Bring an already-open Rave Screen forward instead of stacking one."""
+    """Bring an already-open Rave Player forward instead of stacking one."""
     try:
         xbmc.executebuiltin("ActivateWindow(%d)" % WINDOW_ID)
     except Exception:  # noqa: BLE001 - focus is best effort
@@ -957,7 +957,7 @@ def open_screen(window_factory=None, monitor_factory=None):
         xbmc.log("[script.raveplayer.ui] second launch refused; a screen is "
                  "already open.", level=xbmc.LOGINFO)
         _focus_existing()
-        _notify("Rave Screen is already open.")
+        _notify("Rave Player is already open.")
         return None
 
     factory = window_factory or RaveScreenWindow
@@ -971,7 +971,7 @@ def open_screen(window_factory=None, monitor_factory=None):
                 xbmc.log("[script.raveplayer.ui] window activation refused "
                          "(a modal dialog was probably open); not waiting.",
                          level=xbmc.LOGERROR)
-                _notify("Could not open Rave Screen. Close any dialog and try again.")
+                _notify("Could not open Rave Player. Close any dialog and try again.")
                 return window
             monitor = monitor_factory() if monitor_factory else xbmc.Monitor()
             controller = getattr(window, "_controller", None)

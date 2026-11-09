@@ -60,7 +60,7 @@ those through the plugin bridge. `filters.json`, `rave-catalog.json`,
 New/updated tests: `test/test_parity_3_9_61.py`, `test/test_legacyblog.py`,
 new screen/live/About action tests, and updated route/live/menu expectations.
 The full offline suite (`python3 -m unittest discover -s test`) ran twice:
-**1203 tests, OK** in both runs.
+**1206 tests, OK** in both runs.
 
 Release path:
 
@@ -75,7 +75,7 @@ Release path:
 SHA-256 (identical in `dist/` and `repo/`):
 
 ```
-7fd1ed548d3302f8715a1f75bd3c8cd2453ec5b5d9ec82783890fc179385f666  plugin.audio.raveplayer-3.9.61.zip
+5ee033d72a223c703de4b515312e69b8b0efed8809d562b2824f6b704190ab9f  plugin.audio.raveplayer-3.9.61.zip
 5c2da7304417fa825b26b92416c25e16f2ca06511386fe9ff4e040f809b26d86  script.raveplayer.ui-3.9.61.zip
 b1c5264607d86d0abdafb02cc9506e61ac03da9f2d32acec59ecb324d9d6763e  script.module.raveresolver-1.1.0.zip
 c58243ca7dba70e83e2080be929be647613e6801167cafcad2ae72cd8dcb95ab  repo/addons.xml

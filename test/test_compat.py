@@ -148,14 +148,14 @@ class DirectLaunchTests(unittest.TestCase):
         self.assertIn("RunScript(script.raveplayer.ui)", builtin.call_args[0][0])
         self.assertFalse(dispatch.called)
 
-    def test_root_mode_launches_screen(self):
+    def test_root_mode_opens_the_launcher_fallback(self):
         with mock.patch.object(self.entry.xbmc, "getCondVisibility",
                                return_value=True), \
                 mock.patch.object(self.entry.xbmc, "executebuiltin") as builtin, \
                 mock.patch.object(self.entry.routes, "dispatch") as dispatch:
             self.entry.main(["plugin://x/", "1", "?mode=root"])
-        self.assertTrue(builtin.called)
-        self.assertFalse(dispatch.called)
+        self.assertTrue(dispatch.called)
+        self.assertFalse(builtin.called)
 
     def test_play_mode_dispatches_normally(self):
         with mock.patch.object(self.entry.xbmc, "getCondVisibility",

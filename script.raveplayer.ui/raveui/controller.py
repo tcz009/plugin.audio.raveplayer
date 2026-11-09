@@ -2005,7 +2005,7 @@ class RaveScreenController(object):
         if action_type == "open" and action.get("source") == "pirate":
             return self._open_pirate_room(entry)
         if action_type == "open" and action.get("source") == "live_tag":
-            tag = str(action.get("target") or action.get("tag") or "")
+            tag = str(action.get("tag") or action.get("target") or "")
             title = str(action.get("title") or getattr(entry, "label", "") or tag)
             if not tag:
                 self.view.set_status("That genre door has no tag.")

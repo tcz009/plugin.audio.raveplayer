@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Search, Favourites, Downloads and About as renderable full-screen rooms.
 
-The Rave Screen shell (``raveui.window`` / ``raveui.controller``) paints a
+The Rave Player shell (``raveui.window`` / ``raveui.controller``) paints a
 :class:`Screen` and calls the handlers on :class:`LibraryScreens`.  This module
 contains no Kodi import at module level and performs no network request of its
 own: every read or write goes through a backend (by default
@@ -903,7 +903,7 @@ class LibraryScreens:
             self._about_row("Rave Player", info.version or "unknown",
                             PROJECT_URL, icon, fanart,
                             "Rave Player data add-on version."),
-            self._about_row("Rave Screen", info.screen_version or "dev",
+            self._about_row("Rave Player", info.screen_version or "dev",
                             PROJECT_URL, icon, fanart,
                             "Full-screen Rave UI script version."),
             self._about_row("Kodi", info.kodi_version or "unknown",

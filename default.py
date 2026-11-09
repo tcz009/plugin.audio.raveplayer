@@ -27,7 +27,7 @@ def _maybe_launch_screen(argv):
             key, _, value = part.partition("=")
             params[key.lstrip("?")] = value
     mode = params.get("mode")
-    if mode not in (None, "", "root"):
+    if mode not in (None, ""):
         return False
     try:
         if not bool(xbmc.getCondVisibility(
