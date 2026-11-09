@@ -466,7 +466,7 @@ def _web_client():
     if not str(base or "").strip():
         return None
     try:
-        return webapi.Client(base, token)
+        return webapi.Client(base, token, timeout=25.0)
     except Exception as exc:  # noqa: BLE001 - configuration must not crash a menu
         kodi.log("web sources: invalid service URL (%s)" % type(exc).__name__,
                  level=30)
@@ -1306,7 +1306,7 @@ def web_list(handle, params):
         label = ui.plain(row.get("label") or config["label"])
         plot = row.get("plot") or config["plot"]
         fact = row.get("fact") or config["noun"]
-        published_thumb = _web_art(row.get("art"), icon)
+        published_thumb = _round_art(row.get("art"), icon)
         context = [_favourite("stream", play, label, config["label"])]
         if config["download"] and row.get("download"):
             context += _download_context(play, label, "Rave Resolver")
@@ -3313,7 +3313,7 @@ def _safe_art(value, fallback=None):
     return fallback
 
 
-def _web_art(value, fallback=None):
+def _round_art(value, fallback=None):
     """Artwork from the configured web service, or the normal safe check.
 
     Relative web art is served by the NAS (e.g. ``/static/art/20bensons.png``)
@@ -3444,8 +3444,20 @@ def web_play(handle, params):
     if not stream:
         _fail_playback(handle, "That web stream address is not playable.")
         return
-    thumb = _web_art(params.get("thumb"), kodi.ROUND_FACE)
-    fanart = _web_art(params.get("fanart"), kodi.FANART)
+    # EZ Garage / UK Raves rows are web-proxied Mediafire streams; the web
+    # service only accepts its session or a short-lived signed URL.  Sign here
+    # so Kodi never receives (or logs) the long-lived bearer token.
+    if base and webapi.same_origin(stream, base):
+        try:
+            path = urllib.parse.urlsplit(stream).path
+            client = _web_client()
+            signed = client.signed_play(path) if client is not None else ""
+            if signed:
+                stream = signed
+        except Exception:  # noqa: BLE001 - fall back to the original URL
+            pass
+    thumb = _round_art(params.get("thumb"), kodi.ROUND_FACE)
+    fanart = _round_art(params.get("fanart"), kodi.FANART)
     plotted = params.get("plot") or ""
     item = xbmcgui.ListItem(path=stream)
     item.setArt({"thumb": thumb, "icon": thumb, "poster": thumb,
@@ -3462,9 +3474,24 @@ def web_play(handle, params):
     xbmcplugin.setResolvedUrl(handle, True, item)
 
 
+def _is_web_stream_path(value):
+    """True for the web-proxied Mediafire stream/file paths."""
+    try:
+        path = urllib.parse.urlsplit(str(value or "")).path
+    except ValueError:
+        return False
+    return (path.startswith(("/api/ezgarage/", "/api/ukraves/"))
+            and path.endswith(("/stream", "/file")))
+
+
 def play(handle, params):
     label = params.get("label", "Rave Player")
     raw_url = params.get("url", "")
+    if _is_web_stream_path(raw_url):
+        # Saved/queued rows carry the session-only web stream URL; sign it and
+        # play through the web path instead of the resolver/public guard.
+        web_play(handle, params)
+        return
     is_rtp = http.is_egress_host(raw_url)
     # RTP failures must stay silent: no spinner notification/dialog/banner.
     tuning = None if is_rtp else _start_tuning_spinner(params.get("station") or label)

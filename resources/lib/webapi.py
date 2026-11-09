@@ -612,6 +612,33 @@ class Client(object):
         """Fetch one API path (and page) as decoded JSON."""
         return self.get_url(self.api_url(path, page), ttl=ttl)
 
+    def signed_play(self, path):
+        """Ask the web service for a short-lived signed playback URL.
+
+        Only same-origin ``/api/ezgarage|ukraves/<id>/stream`` paths are
+        eligible; the bearer token stays on this JSON request, never on a media
+        URL handed to Kodi.
+        """
+        text = str(path or "").strip()
+        if not text.startswith("/api/"):
+            return ""
+        if not same_origin(self.base + text, self.base):
+            return ""
+        try:
+            url = self.api_url("/api/webplay") + "?path=" + urllib.parse.quote(
+                text, safe="")
+            payload = self.get_url(url, ttl=0)
+        except Exception:  # noqa: BLE001 - signing is best effort
+            return ""
+        if not isinstance(payload, dict) or not payload.get("ok"):
+            return ""
+        signed = payload.get("url")
+        if not isinstance(signed, str) or not signed:
+            return ""
+        if signed.startswith("/"):
+            signed = self.base + signed
+        return signed if same_origin(signed, self.base) else ""
+
     def page(self, path, page=1, ttl=None):
         """Fetch one API path and return a normalised :class:`WebPage`."""
         page = max(1, _as_int(page, 1))

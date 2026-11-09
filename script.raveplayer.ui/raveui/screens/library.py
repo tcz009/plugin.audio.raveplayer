@@ -1380,6 +1380,19 @@ class LibraryScreens:
                 icon, fanart,
                 "Saved %s link — opens in its Kodi add-on." % platform)
         playable = self._playable(target)
+        import urllib.parse as _urlparse  # lazy: module stays import-light
+        try:
+            web_path = _urlparse.urlsplit(str(target)).path
+        except ValueError:
+            web_path = ""
+        if (web_path.startswith(("/api/ezgarage/", "/api/ukraves/"))
+                and web_path.endswith(("/stream", "/file"))):
+            # The web stream is session-only; the plugin signs a short-lived
+            # URL at play time, so a favourite row is still playable.
+            playable = ("plugin://plugin.audio.raveplayer/"
+                        "?mode=web_play&url="
+                        + _urlparse.quote(str(target), safe="")
+                        + "&label=" + _urlparse.quote(title, safe=""))
         if playable:
             live = "live" in source.lower()
             payload = dict(

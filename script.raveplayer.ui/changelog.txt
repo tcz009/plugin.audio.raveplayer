@@ -1,3 +1,8 @@
+Rave Player 3.9.70 — web playback + icons
+- EZ Garage and UK Raves rows sign short-lived web stream URLs at play time and no longer 401.
+- Web row icons resolve to local add-on art in Classic and the app; DejaVu cold fetch gets a 25s budget.
+- Saved EZ/UK favourites and play-all route through the signed web path.
+
 Rave Player 3.9.69 — local icons in web rooms
 - Web-source rows map /static/art icons to the add-on's local 256px icons, so 20bensons/UK Raves/EZ/DejaVu rows no longer show magenta placeholders.
 
