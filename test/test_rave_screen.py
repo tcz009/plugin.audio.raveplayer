@@ -1651,7 +1651,8 @@ class DataTests(unittest.TestCase):
             self.assertEqual(len(page.rows), 1)
             row = page.rows[0]
             self.assertEqual(row.kind, "track")
-            self.assertEqual(row.track.path, row.track.url)
+            self.assertTrue(row.track.path.startswith(
+                "plugin://plugin.audio.raveplayer/?mode=web_play"))
             self.assertTrue(row.track.url.startswith("https://web.test/%s/" % target))
 
     def test_dejavu_archive_is_a_paged_downloadable_web_room(self):
@@ -1665,7 +1666,8 @@ class DataTests(unittest.TestCase):
         self.assertTrue(page.has_next)
         row = page.rows[0]
         self.assertEqual(row.kind, "track")
-        self.assertEqual(row.track.path, row.track.url)
+        self.assertTrue(row.track.path.startswith(
+            "plugin://plugin.audio.raveplayer/?mode=web_play"))
         self.assertTrue(row.downloadable)
         self.assertEqual(row.download_source, "Rave Resolver")
         self.assertEqual(data.favourite_payload(row)["title"], row.label)

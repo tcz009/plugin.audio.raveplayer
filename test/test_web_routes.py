@@ -109,7 +109,8 @@ class WebRouteTests(unittest.TestCase):
         settings = {"resolver_service_url": BASE,
                     "resolver_service_token": "token"}
         client = mock.Mock()
-        client.signed_play.return_value = ""
+        signed = BASE + "/api/ezgarage/abc/stream?e=1&t=deadbeef"
+        client.signed_play.return_value = signed
         with mock.patch.object(routes.kodi, "setting",
                                side_effect=lambda name, default="": settings.get(
                                    name, default)), \
@@ -118,10 +119,25 @@ class WebRouteTests(unittest.TestCase):
                                 "label": "EZ Set"})
         resolved = xbmcplugin.RESOLVED[-1]
         self.assertTrue(resolved["ok"])
-        self.assertEqual(resolved["path"], BASE + "/api/ezgarage/abc/stream")
+        self.assertEqual(resolved["path"], signed)
         self.assertEqual(resolved["properties"]["IsPlayable"], "true")
-        # The same-origin row never runs a public-DNS check on the LAN base.
+        # The same-origin row is signed, never handed to Kodi raw.
         self.assertTrue(client.signed_play.called)
+
+    def test_web_play_signing_failure_is_a_clean_notice(self):
+        settings = {"resolver_service_url": BASE,
+                    "resolver_service_token": "token"}
+        client = mock.Mock()
+        client.signed_play.return_value = ""
+        with mock.patch.object(routes.kodi, "setting",
+                               side_effect=lambda name, default="": settings.get(
+                                   name, default)), \
+                mock.patch.object(routes, "_web_client", return_value=client), \
+                mock.patch.object(routes.kodi, "notify") as notify:
+            routes.web_play(1, {"url": "/api/ezgarage/abc/stream",
+                                "label": "EZ Set"})
+        self.assertTrue(notify.called)
+        self.assertFalse(xbmcplugin.RESOLVED[-1]["ok"])
 
     def test_web_play_absolute_public_stream_is_direct(self):
         public = [(2, 1, 6, "", ("93.184.216.34", 443))]
