@@ -243,12 +243,12 @@ class DownloadQueue(object):
         except Exception as exc:  # noqa: BLE001 - optional module
             return False, "Downloads are unavailable (%s)." % exc
         row_key = str(key or url)
-        # A cancel left behind for a queued row must not poison a retry.
-        self._clear_cancel(row_key)
         with self._lock:
             existing = self._items.get(row_key)
             if existing is not None and existing.get("status") in ACTIVE:
                 return False, "That download is already running."
+            # A cancel left behind for a finished row must not poison a retry.
+            self._clear_cancel(row_key)
             self._items[row_key] = {
                 "key": row_key, "title": title, "source": source, "url": url,
                 "status": "queued", "percent": 0, "done": 0, "total": 0,
@@ -297,23 +297,32 @@ class DownloadQueue(object):
                     same = True
                 if not same:
                     continue
+                item["updated"] = time.time()
                 item["cancel"] = True
                 item["status"] = "cancelling"
-                item["updated"] = time.time()
                 cancelled_keys.append(candidate)
         for candidate in cancelled_keys:
             self._request_cancel(candidate)
         self._save_now()
         self._safe_update()
+        # This is an explicit user cancel: it may remove the completed index
+        # entry for the same transfer (URL), matching the plugin's key scheme.
         if active or url:
-            self._delete_completed(key, url)
+            self._delete_completed(key, url, by_url=True)
+        # The owner drains queued/cancelling rows that have no worker; the
+        # window must leave the sidecar for that owner.
+        if self._local_workers:
+            self._pump()
         return active
 
-    def _delete_completed(self, key, url):
-        """Delete completed index rows for a cancelled transfer.
+    def _delete_completed(self, key, url, by_url=False):
+        """Delete the completed index row owned by this cancellation.
 
-        ``cancelled`` is terminal, so keeping a completed copy under the same
-        key leaves a duplicate that the cancel gesture was meant to remove.
+        Deletion is by job identity.  Only an explicit user cancel may also
+        match by URL, because the plugin's completion key (sha1(url)) differs
+        from the screen queue key (parent:md5(url)); auto/late cancellation
+        must never remove another job's finished file.
+
         This is best-effort: the queue must still cancel when the plugin index
         is unavailable.
         """
@@ -332,9 +341,11 @@ class DownloadQueue(object):
             if not isinstance(item, dict):
                 continue
             candidate_key = str(item.get("key") or "")
-            # Identity, never URL: two jobs may share one URL, and a cancel
-            # must never delete the other job's successfully completed file.
-            if candidate_key != key:
+            # Identity first; URL only for an explicit user cancel.  Two jobs
+            # may share one URL, so auto/late cancellation must never delete
+            # the other job's successfully completed file.
+            if candidate_key != key and not (
+                    by_url and url and str(item.get("url") or "") == url):
                 continue
             try:
                 if modules.downloads.delete(candidate_key):
@@ -475,10 +486,25 @@ class DownloadQueue(object):
         self._pump()
 
     # -------------------------------------------------------------- worker
+    def _terminalize_orphan_cancels(self):
+        """Owner only: finish cancelling rows that have no live worker.
+
+        The window marks a queued row ``cancelling`` and writes the sidecar; if
+        no worker was ever started for it, nothing would call ``_finish`` and
+        ``active()`` would keep the owner process alive forever.
+        """
+        with self._lock:
+            orphans = [key for key, row in self._items.items()
+                       if row.get("status") == "cancelling"
+                       and key not in self._running]
+        for key in orphans:
+            self._finish(key, "cancelled", "cancelled by user")
+
     def _pump(self):
         """Start workers for queued rows, up to the configured cap."""
         if not self._local_workers:
             return
+        self._terminalize_orphan_cancels()
         with self._lock:
             slots = self._max_workers - len(
                 [thread for thread in self._running.values() if thread.is_alive()])
@@ -646,12 +672,17 @@ class DownloadQueue(object):
             row["status"] = status
             row["detail"] = str(detail or status)[:160]
             row["updated"] = time.time()
-        self._clear_cancel(key)
         if status == "cancelled":
             self._cancel_duplicates(key, url)
             self._delete_completed(key, url)
         self._log("download %s: %s (%s)" % (key, status, detail))
+        # Durability order: persist the terminal row before dropping the
+        # sidecar, otherwise a crash between the two resurrects the transfer.
         self._save_now()
+        try:
+            self._clear_cancel(key)
+        except Exception:  # noqa: BLE001 - sidecar is best effort
+            pass
         self._safe_update()
 
     def _safe_update(self):
@@ -676,20 +707,22 @@ class DownloadQueue(object):
             self._items[key] = row
         stale = [key for key, row in self._items.items()
                  if row.get("status") not in ACTIVE]
-        if stale:
-            def drop(keys):
-                keys.difference_update(stale)
+        if stale and restart:
+            # Owner only: persist terminal rows first, then drop their sidecar
+            # flags.  The window must leave the sidecar for the owner.  If the
+            # store write fails, keep the sidecar: it is the only durable
+            # record that the row was cancelled.
+            saved = True
             try:
-                self._update_cancels(drop)
-            except Exception:  # noqa: BLE001 - best effort
-                pass
-            # The owner must persist the terminal status it just inferred from
-            # the sidecar, otherwise losing the sidecar would resurrect the
-            # cancelled row on the next load.
-            if restart:
+                self._save_now()
+            except Exception:  # noqa: BLE001 - store is best effort
+                saved = False
+            if saved:
+                def drop(keys):
+                    keys.difference_update(stale)
                 try:
-                    self._save_now()
-                except Exception:  # noqa: BLE001 - store is best effort
+                    self._update_cancels(drop)
+                except Exception:  # noqa: BLE001 - best effort
                     pass
 
     def _read_store(self, restart=False):

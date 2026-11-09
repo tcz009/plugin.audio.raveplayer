@@ -33,6 +33,9 @@ class FakeDownloads(object):
         self.rows = [row for row in self.rows if str(row.get("key")) != str(key)]
         return len(self.rows) < before
 
+    def plan(self, url, title="", source="", **kwargs):
+        return {"allowed": True, "size": 1024, "url": url}
+
     def download(self, plan, progress=None, cancelled=None):
         self.download_calls += 1
         return {"ok": True, "path": "/tmp/x.mp3"}
@@ -98,7 +101,7 @@ class CancelIntegrityTests(unittest.TestCase):
             json.dump([row], handle)
         with open(path + ".cancel", "w", encoding="utf-8") as handle:
             json.dump(["done-key"], handle)
-        queue = DownloadQueue(modules=fake_modules()[0], local_workers=False,
+        queue = DownloadQueue(modules=fake_modules()[0], local_workers=True,
                               store_path=path)
         self.assertFalse(queue._cancel_requested("done-key"))
 
@@ -110,6 +113,46 @@ class CancelIntegrityTests(unittest.TestCase):
         queue._modules = modules  # screen-style lazy modules hook
         queue._delete_completed("S", url)
         self.assertEqual(downloads.deleted, ["S"])
+
+
+    def test_window_keeps_the_sidecar_for_the_owner(self):
+        path = os.path.join(tempfile.mkdtemp(), "q.json")
+        row = {"key": "done-key", "title": "t", "source": "mediafire",
+               "url": "https://download.example.net/a.mp3", "status": "downloading",
+               "percent": 0, "done": 0, "total": 0, "detail": "", "started": 0,
+               "cancel": True, "updated": 0}
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump([row], handle)
+        with open(path + ".cancel", "w", encoding="utf-8") as handle:
+            json.dump(["done-key"], handle)
+        queue = DownloadQueue(modules=fake_modules()[0], local_workers=False,
+                              store_path=path)
+        self.assertTrue(queue._cancel_requested("done-key"))
+        self.assertEqual(queue._row("done-key")["status"], "cancelled")
+
+    def test_owner_terminalizes_a_queued_cancel_without_a_worker(self):
+        modules, downloads = fake_modules([])
+        queue = DownloadQueue(modules=modules, local_workers=True,
+                              store_path=os.path.join(tempfile.mkdtemp(), "q.json"))
+        seed(queue, "queued", "https://download.example.net/q.mp3",
+             status="queued")
+        queue.cancel("queued")
+        assert queue._row("queued")["status"] in ("cancelled", "cancelling")
+        queue._pump()
+        self.assertEqual(queue._row("queued")["status"], "cancelled")
+        self.assertFalse(queue.active())
+        self.assertFalse(queue._cancel_requested("queued"))
+
+    def test_late_finish_of_a_duplicate_never_touches_the_completion(self):
+        url = "https://download.example.net/late.mp3"
+        modules, downloads = fake_modules([{"key": "A", "url": url}])
+        queue = DownloadQueue(modules=modules, local_workers=False,
+                              store_path=os.path.join(tempfile.mkdtemp(), "q.json"))
+        seed(queue, "A", url, status="done")
+        seed(queue, "B", url, status="downloading", cancel=True)
+        queue._finish("B", "cancelled", "late cancel")
+        self.assertEqual(downloads.deleted, [])
+        self.assertEqual([row["key"] for row in downloads.rows], ["A"])
 
 
 if __name__ == "__main__":
